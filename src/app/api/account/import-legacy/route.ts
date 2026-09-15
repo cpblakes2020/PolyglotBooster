@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createDecipheriv } from "node:crypto";
 import { auth } from "@/lib/auth";
-import { getAccountReviews, setAccountReviews } from "@/lib/storage/account";
+import { mergeAccountReviews } from "@/lib/storage/account";
 import type { SavedTaskRun } from "@/lib/reviews";
 
 const legacyWorkspaceUrl = "https://polyglotbooster.vercel.app/api/workspace";
@@ -70,11 +70,8 @@ export async function POST(request: Request) {
   if (!legacyReviews.length) return NextResponse.json({ error: "No valid saved reviews were found in that sync code." }, { status: 404 });
 
   try {
-    const existing = await getAccountReviews(session.user.id);
-    const existingIds = new Set(existing.map((run) => run.taskRunId));
-    const newRuns = legacyReviews.filter((run) => !existingIds.has(run.taskRunId));
-    await setAccountReviews(session.user.id, [...newRuns, ...existing]);
-    return NextResponse.json({ imported: newRuns.length, skipped: legacyReviews.length - newRuns.length });
+    const { added, skipped } = await mergeAccountReviews(session.user.id, legacyReviews);
+    return NextResponse.json({ imported: added, skipped });
   } catch {
     return NextResponse.json({ error: "The imported reviews could not be saved." }, { status: 503 });
   }

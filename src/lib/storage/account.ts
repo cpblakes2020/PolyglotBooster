@@ -1,15 +1,16 @@
-import { get, put } from "@vercel/blob";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { readJsonBlob, writeJsonBlob } from "@/lib/storage/blob-json";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { SavedTaskRun } from "@/lib/reviews";
 
-type StoredAccount = {
-  encryptedApiKeys: Partial<Record<LlmProviderId, string>>;
-  reviews: SavedTaskRun[];
-};
+type StoredKey = { encrypted?: string };
 
-function accountPathname(userId: string) {
-  return `lingua/accounts/${userId}.json`;
+function keyPathname(userId: string, providerId: LlmProviderId) {
+  return `lingua/accounts/${userId}/keys/${providerId}.json`;
+}
+
+function reviewsPathname(userId: string) {
+  return `lingua/accounts/${userId}/reviews.json`;
 }
 
 function encryptionKey() {
@@ -36,39 +37,21 @@ function decrypt(payload: string) {
   return Buffer.concat([decipher.update(Buffer.from(ciphertextPart, "base64url")), decipher.final()]).toString("utf8");
 }
 
-async function readAccount(userId: string): Promise<StoredAccount> {
-  const result = await get(accountPathname(userId), { access: "public", useCache: false });
-  if (!result || result.statusCode !== 200) return { encryptedApiKeys: {}, reviews: [] };
-  const text = await new Response(result.stream).text();
-  const parsed = JSON.parse(text) as Partial<StoredAccount>;
-  return { encryptedApiKeys: parsed.encryptedApiKeys || {}, reviews: parsed.reviews || [] };
-}
-
-async function writeAccount(userId: string, account: StoredAccount): Promise<void> {
-  await put(accountPathname(userId), JSON.stringify(account), {
-    access: "public",
-    contentType: "application/json",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
-}
-
 export async function getAccountKeyStatus(userId: string): Promise<Record<LlmProviderId, boolean>> {
-  const account = await readAccount(userId);
-  return { anthropic: Boolean(account.encryptedApiKeys.anthropic), openai: Boolean(account.encryptedApiKeys.openai) };
+  const [anthropic, openai] = await Promise.all([
+    readJsonBlob<StoredKey>(keyPathname(userId, "anthropic"), {}),
+    readJsonBlob<StoredKey>(keyPathname(userId, "openai"), {}),
+  ]);
+  return { anthropic: Boolean(anthropic.encrypted), openai: Boolean(openai.encrypted) };
 }
 
 export async function setAccountApiKey(userId: string, providerId: LlmProviderId, apiKey: string | null): Promise<void> {
-  const account = await readAccount(userId);
-  if (apiKey) account.encryptedApiKeys[providerId] = encrypt(apiKey);
-  else delete account.encryptedApiKeys[providerId];
-  await writeAccount(userId, account);
+  await writeJsonBlob(keyPathname(userId, providerId), apiKey ? { encrypted: encrypt(apiKey) } : {});
 }
 
 export async function getAccountApiKey(userId: string, providerId: LlmProviderId): Promise<string | undefined> {
-  const account = await readAccount(userId);
-  const encrypted = account.encryptedApiKeys[providerId];
-  return encrypted ? decrypt(encrypted) : undefined;
+  const stored = await readJsonBlob<StoredKey>(keyPathname(userId, providerId), {});
+  return stored.encrypted ? decrypt(stored.encrypted) : undefined;
 }
 
 const providerLabels: Record<LlmProviderId, string> = { anthropic: "Anthropic", openai: "OpenAI" };
@@ -80,12 +63,35 @@ export async function requireAccountApiKey(userId: string, providerId: LlmProvid
 }
 
 export async function getAccountReviews(userId: string): Promise<SavedTaskRun[]> {
-  const account = await readAccount(userId);
-  return account.reviews;
+  return readJsonBlob<SavedTaskRun[]>(reviewsPathname(userId), []);
 }
 
-export async function setAccountReviews(userId: string, reviews: SavedTaskRun[]): Promise<void> {
-  const account = await readAccount(userId);
-  account.reviews = reviews;
-  await writeAccount(userId, account);
+export async function addAccountReview(userId: string, review: SavedTaskRun): Promise<SavedTaskRun[]> {
+  const reviews = await getAccountReviews(userId);
+  const next = [review, ...reviews.filter((run) => run.taskRunId !== review.taskRunId)];
+  await writeJsonBlob(reviewsPathname(userId), next);
+  return next;
+}
+
+export async function updateAccountReview(userId: string, taskRunId: string, updates: Partial<SavedTaskRun>): Promise<SavedTaskRun[]> {
+  const reviews = await getAccountReviews(userId);
+  const next = reviews.map((run) => run.taskRunId === taskRunId ? { ...run, ...updates, taskRunId } : run);
+  await writeJsonBlob(reviewsPathname(userId), next);
+  return next;
+}
+
+export async function deleteAccountReview(userId: string, taskRunId: string): Promise<SavedTaskRun[]> {
+  const reviews = await getAccountReviews(userId);
+  const next = reviews.filter((run) => run.taskRunId !== taskRunId);
+  await writeJsonBlob(reviewsPathname(userId), next);
+  return next;
+}
+
+export async function mergeAccountReviews(userId: string, incoming: SavedTaskRun[]): Promise<{ merged: SavedTaskRun[]; added: number; skipped: number }> {
+  const existing = await getAccountReviews(userId);
+  const existingIds = new Set(existing.map((run) => run.taskRunId));
+  const newRuns = incoming.filter((run) => !existingIds.has(run.taskRunId));
+  const merged = [...newRuns, ...existing];
+  await writeJsonBlob(reviewsPathname(userId), merged);
+  return { merged, added: newRuns.length, skipped: incoming.length - newRuns.length };
 }

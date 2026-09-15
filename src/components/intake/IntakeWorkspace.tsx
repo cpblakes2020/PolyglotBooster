@@ -184,9 +184,10 @@ export function IntakeWorkspace() {
     setReviewStatus("Saving...");
     try {
       const taskRun: SavedTaskRun = { taskRunId: crypto.randomUUID(), sourceText: text.trim(), result: taskResult.trim(), flashcards, followUps, sourceLanguage, userLanguage: explanationLanguage, learnerLevel, outputStyle, promptTemplateId: selectedTemplate, notes: "", createdAt: new Date().toISOString() };
-      const runs = [taskRun, ...reviewRuns];
-      await saveAccountReviews(runs);
-      setReviewRuns(runs);
+      const response = await fetch("/api/account/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(taskRun) });
+      const data = await parseJsonResponse<{ error?: string; reviews?: SavedTaskRun[] }>(response);
+      if (!response.ok || !data.reviews) throw new Error(data.error || "The result could not be saved.");
+      setReviewRuns(data.reviews);
       setReviewStatus("Saved for review");
     } catch (error) {
       setReviewStatus(error instanceof Error ? error.message : "The result could not be saved.");
@@ -212,29 +213,25 @@ export function IntakeWorkspace() {
   }
 
   async function updateSavedRun(run: SavedTaskRun) {
-    const runs = reviewRuns.map((item) => item.taskRunId === run.taskRunId ? run : item);
     try {
-      await saveAccountReviews(runs);
-      setReviewRuns(runs);
+      const response = await fetch(`/api/account/reviews/${run.taskRunId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: run.notes }) });
+      const data = await parseJsonResponse<{ error?: string; reviews?: SavedTaskRun[] }>(response);
+      if (!response.ok || !data.reviews) throw new Error(data.error || "Notes could not be saved.");
+      setReviewRuns(data.reviews);
     } catch {
       setReviewStatus("Notes could not be saved.");
     }
   }
 
   async function deleteSavedRun(taskRunId: string) {
-    const runs = reviewRuns.filter((run) => run.taskRunId !== taskRunId);
     try {
-      await saveAccountReviews(runs);
-      setReviewRuns(runs);
+      const response = await fetch(`/api/account/reviews/${taskRunId}`, { method: "DELETE" });
+      const data = await parseJsonResponse<{ error?: string; reviews?: SavedTaskRun[] }>(response);
+      if (!response.ok || !data.reviews) throw new Error(data.error || "The review could not be deleted.");
+      setReviewRuns(data.reviews);
     } catch {
       setReviewStatus("The review could not be deleted.");
     }
-  }
-
-  async function saveAccountReviews(runs: SavedTaskRun[]) {
-    const response = await fetch("/api/account/reviews", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reviews: runs }) });
-    const data = await parseJsonResponse<{ error?: string }>(response);
-    if (!response.ok) throw new Error(data.error || "Saved reviews could not be saved.");
   }
 
   function clearInput() {
