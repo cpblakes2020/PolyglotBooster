@@ -384,7 +384,7 @@ export function IntakeWorkspace() {
               </section>}
             </>
           ) : (
-            <UploadPanel providerId={providerId} onTextExtracted={(extractedText, filename) => { setText(extractedText); setLoadedExample(`${filename} loaded`); setMode("text"); }} />
+            <UploadPanel providerId={providerId} sourceLanguage={sourceLanguage} onTextExtracted={(extractedText, filename) => { setText(extractedText); setLoadedExample(`${filename} loaded`); setMode("text"); }} />
           )}
         </div>
       </section>
