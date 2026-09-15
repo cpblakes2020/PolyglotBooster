@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { getLlmProvider, getRequestApiKey, getRequestProvider } from "@/lib/llm/provider";
+import { auth } from "@/lib/auth";
+import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
+import { requireAccountApiKey } from "@/lib/storage/account";
 import { parseFlashcards } from "@/lib/flashcards";
 import { isSupportedLanguage } from "@/lib/presets";
 import { getPromptTemplate } from "@/lib/prompts/templates";
@@ -9,6 +11,9 @@ const learnerLevels = new Set<LearnerLevel>(["Beginner", "Intermediate", "Advanc
 const outputStyles = new Set<OutputStyle>(["Concise", "Detailed", "Literal", "Natural", "Formal", "Informal"]);
 
 export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const text = body?.text;
   const sourceLanguage = body?.sourceLanguage;
@@ -31,15 +36,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const provider = getRequestProvider(request);
-    const result = await getLlmProvider(provider).runTask({
+    const providerId = getRequestProvider(request);
+    const apiKey = await requireAccountApiKey(session.user.id, providerId);
+    const result = await getLlmProvider(providerId).runTask({
       text,
       sourceLanguage,
       userLanguage,
       learnerLevel: learnerLevel as LearnerLevel,
       outputStyle: outputStyle as OutputStyle,
       promptTemplateId: promptTemplateId as PromptTemplateId,
-    }, getRequestApiKey(request));
+    }, apiKey);
     const flashcards = promptTemplateId === "flashcards" ? parseFlashcards(result) : undefined;
     if (promptTemplateId === "flashcards" && !flashcards) {
       return NextResponse.json({ error: "The provider returned flashcards in an unexpected format. Please run the task again." }, { status: 502 });

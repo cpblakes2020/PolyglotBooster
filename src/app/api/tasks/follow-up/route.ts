@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { buildFollowUpPrompt } from "@/lib/prompts/buildFollowUpPrompt";
-import { getLlmProvider, getRequestApiKey, getRequestProvider } from "@/lib/llm/provider";
+import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
+import { requireAccountApiKey } from "@/lib/storage/account";
 import { isSupportedLanguage } from "@/lib/presets";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
 
@@ -8,6 +10,9 @@ const learnerLevels = new Set<LearnerLevel>(["Beginner", "Intermediate", "Advanc
 const outputStyles = new Set<OutputStyle>(["Concise", "Detailed", "Literal", "Natural", "Formal", "Informal"]);
 
 export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const sourceText = body?.sourceText;
   const previousResult = body?.previousResult;
@@ -31,8 +36,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const provider = getLlmProvider(getRequestProvider(request));
+    const providerId = getRequestProvider(request);
+    const provider = getLlmProvider(providerId);
     if (!provider.runRawPrompt) return NextResponse.json({ error: "Follow-up questions are unavailable for the selected provider." }, { status: 400 });
+    const apiKey = await requireAccountApiKey(session.user.id, providerId);
     const prompt = buildFollowUpPrompt({
       sourceText,
       previousResult,
@@ -42,7 +49,7 @@ export async function POST(request: Request) {
       learnerLevel: learnerLevel as LearnerLevel,
       outputStyle: outputStyle as OutputStyle,
     });
-    const result = await provider.runRawPrompt(prompt, getRequestApiKey(request));
+    const result = await provider.runRawPrompt(prompt, apiKey);
     return NextResponse.json({ result });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "The follow-up question could not be answered." }, { status: 502 });

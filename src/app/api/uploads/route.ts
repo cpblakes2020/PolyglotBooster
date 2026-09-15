@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
+import { auth } from "@/lib/auth";
 import { extractDocumentText } from "@/lib/extraction";
-import { getLlmProvider, getRequestApiKey, getRequestProvider } from "@/lib/llm/provider";
+import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
+import { requireAccountApiKey } from "@/lib/storage/account";
 import { storeDocument } from "@/lib/storage/filesystem";
 
 export const maxDuration = 60;
@@ -30,9 +32,12 @@ function getDocumentType(file: File) {
 }
 
 export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+
   try {
-    const apiKey = getRequestApiKey(request);
-    const provider = getLlmProvider(getRequestProvider(request));
+    const providerId = getRequestProvider(request);
+    const provider = getLlmProvider(providerId);
     const formData = await request.formData();
     const file = formData.get("file");
 
@@ -52,6 +57,7 @@ export async function POST(request: Request) {
     let extracted = { text: "", pageCount: 1 };
     if (documentType === "image/jpeg" || documentType === "image/png") {
       if (!provider.extractText) return NextResponse.json({ error: "Image extraction is unavailable for the selected provider." }, { status: 400 });
+      const apiKey = await requireAccountApiKey(session.user.id, providerId);
       extracted.text = await provider.extractText(source, documentType, apiKey);
     } else {
       try {
@@ -60,7 +66,8 @@ export async function POST(request: Request) {
         if (documentType !== "application/pdf") throw error;
       }
       if (!extracted.text && documentType === "application/pdf") {
-        if (getRequestProvider(request) !== "anthropic" || !provider.extractText) return NextResponse.json({ error: "Scanned-PDF extraction currently requires an Anthropic API key." }, { status: 400 });
+        if (providerId !== "anthropic" || !provider.extractText) return NextResponse.json({ error: "Scanned-PDF extraction currently requires an Anthropic API key." }, { status: 400 });
+        const apiKey = await requireAccountApiKey(session.user.id, providerId);
         extracted.text = await provider.extractText(source, documentType, apiKey);
       }
     }
@@ -77,7 +84,10 @@ export async function POST(request: Request) {
       pageCount: extracted.pageCount,
       text: extracted.text,
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("API key")) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json({ error: "The file could not be read. Try another text-based document." }, { status: 422 });
   }
 }

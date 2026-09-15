@@ -1,0 +1,31 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth, signOut } from "@/lib/auth";
+import { getAccountKeyStatus } from "@/lib/storage/account";
+import { SettingsForm } from "@/components/settings/SettingsForm";
+
+export default async function SettingsPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/api/auth/signin");
+
+  const keyStatus = await getAccountKeyStatus(session.user.id);
+
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <Link className="brand" href="/" aria-label="Polyglot Language Learner home">
+          <span className="brand-mark" aria-hidden="true">P</span>
+          <span>Polyglot<span className="brand-muted"> / learner</span></span>
+        </Link>
+        <div className="topbar-note">
+          <span>{session.user.email}</span>
+          <Link href="/">Back to study desk</Link>
+          <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
+            <button type="submit">Sign out</button>
+          </form>
+        </div>
+      </header>
+      <SettingsForm initialKeyStatus={keyStatus} />
+    </main>
+  );
+}

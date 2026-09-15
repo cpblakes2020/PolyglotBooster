@@ -1,4 +1,4 @@
-import type { SavedTaskRun } from "@/lib/storage/task-runs";
+import type { SavedTaskRun } from "@/lib/reviews";
 
 function escapeCell(value: string, delimiter: string) {
   const normalized = value || "";

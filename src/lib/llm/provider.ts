@@ -46,9 +46,3 @@ export function getRequestProvider(request: Request): LlmProviderId {
   if (provider === "anthropic" || provider === "openai") return provider;
   throw new Error("Choose Anthropic or OpenAI.");
 }
-
-export function getRequestApiKey(request: Request) {
-  const apiKey = request.headers.get("x-polyglot-api-key")?.trim();
-  if (apiKey && apiKey.length > 1000) throw new Error("The API key is too long.");
-  return apiKey || undefined;
-}

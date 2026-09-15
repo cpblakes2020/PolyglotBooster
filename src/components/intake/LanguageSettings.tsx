@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { languages, prioritizeLanguage } from "@/lib/languages";
 import { languagePairPresets } from "@/lib/presets";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
@@ -10,21 +11,13 @@ type LanguageSettingsProps = {
   explanationLanguage: Language;
   learnerLevel: LearnerLevel;
   outputStyle: OutputStyle;
-  apiKey: string;
   providerId: LlmProviderId;
-  rememberApiKey: boolean;
-  workspaceKey: string;
-  workspaceStatus: string;
+  hasProviderKey: boolean;
   onSourceLanguageChange: (language: Language) => void;
   onExplanationLanguageChange: (language: Language) => void;
   onLearnerLevelChange: (level: LearnerLevel) => void;
   onOutputStyleChange: (style: OutputStyle) => void;
-  onApiKeyChange: (apiKey: string) => void;
   onProviderChange: (providerId: LlmProviderId) => void;
-  onRememberApiKeyChange: (remember: boolean) => void;
-  onForgetApiKey: () => void;
-  onWorkspaceKeyChange: (workspaceKey: string) => void;
-  onCopyWorkspaceKey: () => void;
   onPresetChange: (sourceLanguage: Language, explanationLanguage: Language) => void;
 };
 
@@ -33,21 +26,13 @@ export function LanguageSettings({
   explanationLanguage,
   learnerLevel,
   outputStyle,
-  apiKey,
   providerId,
-  rememberApiKey,
-  workspaceKey,
-  workspaceStatus,
+  hasProviderKey,
   onSourceLanguageChange,
   onExplanationLanguageChange,
   onLearnerLevelChange,
   onOutputStyleChange,
-  onApiKeyChange,
   onProviderChange,
-  onRememberApiKeyChange,
-  onForgetApiKey,
-  onWorkspaceKeyChange,
-  onCopyWorkspaceKey,
   onPresetChange,
 }: LanguageSettingsProps) {
   return (
@@ -77,16 +62,12 @@ export function LanguageSettings({
       <div className="api-key-setting">
         <label htmlFor="llm-provider">Study provider</label>
         <select id="llm-provider" value={providerId} onChange={(event) => onProviderChange(event.target.value as LlmProviderId)}>{llmProviderOptions.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select>
-        <label htmlFor="provider-api-key">Your {llmProviderOptions.find((provider) => provider.id === providerId)?.label} API key</label>
-        <input id="provider-api-key" type="password" value={apiKey} autoComplete="off" spellCheck={false} placeholder="Required to run tasks" onChange={(event) => onApiKeyChange(event.target.value)} />
-        <div className="remember-key-control"><label><input type="checkbox" checked={rememberApiKey} onChange={(event) => onRememberApiKeyChange(event.target.checked)} /> Remember on this device</label>{rememberApiKey && apiKey && <button type="button" onClick={onForgetApiKey}>Forget key</button>}</div>
-        <p>Keys stay in this browser only and are never included in review sync.</p>
-      </div>
-      <div className="workspace-sync-setting">
-        <label htmlFor="workspace-sync-code">Private sync code</label>
-        <input id="workspace-sync-code" value={workspaceKey} autoComplete="off" spellCheck={false} onChange={(event) => onWorkspaceKeyChange(event.target.value.trim())} />
-        <div><button type="button" onClick={onCopyWorkspaceKey}>Copy code</button><span role="status">{workspaceStatus}</span></div>
-        <p>Keep this code private. Enter it on another device to open the same encrypted reviews.</p>
+        <p role="status">
+          {hasProviderKey
+            ? `${llmProviderOptions.find((provider) => provider.id === providerId)?.label} key on file`
+            : `No ${llmProviderOptions.find((provider) => provider.id === providerId)?.label} key set yet`}
+          {" · "}<Link href="/settings">Manage in Settings</Link>
+        </p>
       </div>
       <span className="language-count">{languages.length} languages available</span>
     </aside>

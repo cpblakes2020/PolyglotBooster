@@ -1,9 +1,10 @@
-"use client";
-
 import Link from "next/link";
+import { auth, signOut } from "@/lib/auth";
 import { IntakeWorkspace } from "@/components/intake/IntakeWorkspace";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth();
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -12,8 +13,11 @@ export default function Home() {
           <span>Polyglot<span className="brand-muted"> / learner</span></span>
         </Link>
         <div className="topbar-note">
-          <span className="status-dot" aria-hidden="true" />
-          Private workspace
+          <span>{session?.user?.email}</span>
+          <Link href="/settings">Settings</Link>
+          <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
+            <button type="submit">Sign out</button>
+          </form>
         </div>
       </header>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { SavedTaskRun } from "@/lib/storage/task-runs";
+import type { SavedTaskRun } from "@/lib/reviews";
 import { downloadTaskRun } from "@/lib/exports";
 
 type SavedReviewProps = {
