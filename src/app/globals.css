@@ -46,7 +46,9 @@ h1, h2, p { margin-top: 0; }
 .language-bar-field label { color: var(--muted); font-size: 11px; }
 .language-bar-field select { min-width: 0; }
 .language-bar-flow { display: flex; align-items: flex-end; gap: 10px; }
-.language-bar-provider { margin-left: auto; min-width: 200px; }
+.provider-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+.provider-row label { color: var(--muted); font-size: 11px; }
+.provider-row select { width: auto; min-width: 130px; border: 1px solid var(--line); border-radius: 0; background: #f3f1e7; padding: 6px 8px; color: var(--ink); font-size: 12px; }
 .provider-key-status { margin: 0; color: var(--muted); font-size: 10px; }
 .provider-key-status a { color: var(--teal); }
 .workspace-grid { display: block; }
@@ -175,7 +177,6 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 @media (max-width: 800px) {
   .app-shell { padding: 20px 18px; }
   .language-bar { padding: 18px 20px; }
-  .language-bar-provider { margin-left: 0; }
   .flashcard-edit { grid-template-columns: 1fr; }
   .settings-panel { padding: 24px; }
   .template-section { padding-top: 40px; }

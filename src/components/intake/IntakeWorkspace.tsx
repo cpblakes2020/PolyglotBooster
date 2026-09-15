@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { LanguageSettings } from "@/components/intake/LanguageSettings";
 import { PromptTemplatePicker } from "@/components/intake/PromptTemplatePicker";
@@ -7,7 +8,7 @@ import { UploadPanel } from "@/components/intake/UploadPanel";
 import { SavedReview } from "@/components/review/SavedReview";
 import type { Flashcard } from "@/lib/flashcards";
 import type { FollowUpExchange, SavedTaskRun } from "@/lib/reviews";
-import type { LlmProviderId } from "@/lib/llm/provider";
+import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
 import { visibleTemplatesFor } from "@/lib/templateOrder";
 import type { Language, LearnerLevel, OutputStyle, PromptTemplate, PromptTemplateId } from "@/lib/types";
 
@@ -57,7 +58,6 @@ export function IntakeWorkspace() {
   const [outputStyle, setOutputStyle] = useState<OutputStyle>("Detailed");
   const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplateId>("");
   const [loadedExample, setLoadedExample] = useState("");
-  const [saveStatus, setSaveStatus] = useState("");
   const [promptPreview, setPromptPreview] = useState("");
   const [taskStatus, setTaskStatus] = useState("");
   const [taskResult, setTaskResult] = useState("");
@@ -162,22 +162,6 @@ export function IntakeWorkspace() {
     window.localStorage.setItem(selectedProviderPreferenceKey, nextProvider);
   }
 
-  async function saveTextInput() {
-    setSaveStatus("Saving study input...");
-    try {
-      const response = await fetch("/api/text-inputs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, sourceLanguage, userLanguage: explanationLanguage, learnerLevel, outputStyle }),
-      });
-      const result = await parseJsonResponse<{ error?: string; textInputId?: string }>(response);
-      if (!response.ok || !result.textInputId) throw new Error(result.error || "The study input could not be saved.");
-      setSaveStatus("Study input saved");
-    } catch (error) {
-      setSaveStatus(error instanceof Error ? error.message : "The study input could not be saved.");
-    }
-  }
-
   async function previewPrompt() {
     setPromptPreview("Building task prompt...");
     try {
@@ -276,7 +260,6 @@ export function IntakeWorkspace() {
   function clearInput() {
     setText("");
     setLoadedExample("");
-    setSaveStatus("");
     setPromptPreview("");
     setTaskStatus("");
     setTaskResult("");
@@ -341,7 +324,7 @@ export function IntakeWorkspace() {
 
   return (
     <>
-      <LanguageSettings sourceLanguage={sourceLanguage} explanationLanguage={explanationLanguage} learnerLevel={learnerLevel} outputStyle={outputStyle} providerId={providerId} hasProviderKey={keyStatus[providerId]} onSourceLanguageChange={setSourceLanguage} onExplanationLanguageChange={setExplanationLanguage} onLearnerLevelChange={setLearnerLevel} onOutputStyleChange={setOutputStyle} onProviderChange={changeProvider} onPresetChange={(source, explanation) => { setSourceLanguage(source); setExplanationLanguage(explanation); }} />
+      <LanguageSettings sourceLanguage={sourceLanguage} explanationLanguage={explanationLanguage} learnerLevel={learnerLevel} outputStyle={outputStyle} onSourceLanguageChange={setSourceLanguage} onExplanationLanguageChange={setExplanationLanguage} onLearnerLevelChange={setLearnerLevel} onOutputStyleChange={setOutputStyle} />
       <section className="workspace-grid" aria-label="Study intake workspace">
         <div className="intake-panel">
           <div className="intake-toolbar">
@@ -353,10 +336,8 @@ export function IntakeWorkspace() {
               <select className="task-select" aria-label="Select task" value={selectedTemplate} disabled={!visibleTemplates.length} onChange={(event) => setSelectedTemplate(event.target.value)}>
                 {visibleTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
               </select>
-              <button className="save-input-button" type="button" disabled={!text.trim()} onClick={() => void saveTextInput()}>Save study input</button>
-              <button className="preview-prompt-button" type="button" disabled={!text.trim() || !selectedTemplate} onClick={() => void previewPrompt()}>Preview task prompt</button>
+              <button className="preview-prompt-button" type="button" disabled={!text.trim() || !selectedTemplate} onClick={() => void previewPrompt()}>Preview prompt</button>
               <button className="run-task-button" type="button" disabled={!text.trim() || !selectedTemplate || taskStatus === "Working with Claude..."} onClick={() => void runTask()}>Run task</button>
-              {saveStatus && <span className="example-status" role="status">{saveStatus}</span>}
             </div>
           </div>
           {mode === "text" ? (
@@ -364,6 +345,14 @@ export function IntakeWorkspace() {
               <label className="text-label" htmlFor="study-text">Paste a word, sentence, or passage</label>
               <textarea id="study-text" className="study-text" value={text} maxLength={12000} onChange={(event) => setText(event.target.value)} placeholder="Try something in a language you are learning..." />
               <div className="field-footer"><span>{text.length} / 12,000 characters</span><button className="clear-input-button" type="button" disabled={!text} onClick={clearInput}>Clear</button><span>Text stays in this workspace</span></div>
+              <div className="provider-row">
+                <label htmlFor="llm-provider">Provider</label>
+                <select id="llm-provider" value={providerId} onChange={(event) => changeProvider(event.target.value as LlmProviderId)}>{llmProviderOptions.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select>
+                <span className="provider-key-status" role="status">
+                  {keyStatus[providerId] ? `${llmProviderOptions.find((provider) => provider.id === providerId)?.label} key on file` : `No ${llmProviderOptions.find((provider) => provider.id === providerId)?.label} key`}
+                  {" · "}<Link href="/settings">Settings</Link>
+                </span>
+              </div>
               <div className="example-row" aria-label="Quick examples"><span className="example-label">Try an example</span>{examples.map((example) => <button type="button" key={example.label} onClick={() => loadExample(example)}>{example.label}</button>)}{loadedExample && <span className="example-status" role="status">{loadedExample}</span>}</div>
               {promptPreview && <pre className="prompt-preview" aria-label="Task prompt preview">{promptPreview}</pre>}
               {taskStatus && <p className="task-status" role="status">{taskStatus}</p>}
@@ -385,7 +374,7 @@ export function IntakeWorkspace() {
                       <textarea ref={followUpTextareaRef} className="follow-up-textarea" value={followUpText} onChange={(event) => setFollowUpText(event.target.value)} placeholder="Ask about the result above..." />
                       {followUpPreview && <pre className="prompt-preview" aria-label="Follow-up prompt preview">{followUpPreview}</pre>}
                       <div className="input-action-row">
-                        <button className="preview-prompt-button" type="button" disabled={!followUpText.trim()} onClick={() => void previewFollowUpPrompt()}>Preview task prompt</button>
+                        <button className="preview-prompt-button" type="button" disabled={!followUpText.trim()} onClick={() => void previewFollowUpPrompt()}>Preview prompt</button>
                         <button className="run-task-button" type="button" disabled={!followUpText.trim() || followUpStatus.startsWith("Working with")} onClick={() => void runFollowUpTask()}>Run task</button>
                         {followUpStatus && <span className="example-status" role="status">{followUpStatus}</span>}
                       </div>

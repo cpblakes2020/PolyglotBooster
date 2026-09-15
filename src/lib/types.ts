@@ -22,36 +22,3 @@ export interface PromptTemplate {
   updatedAt: string;
 }
 
-export interface StudyContext {
-  sourceLanguage: Language;
-  userLanguage: Language;
-  targetOutputLanguage: Language;
-  comparisonLanguage?: Language;
-  learnerLevel: LearnerLevel;
-  outputStyle: OutputStyle;
-  selectedModel?: string;
-}
-
-export interface LanguagePairPreset {
-  id: string;
-  label: string;
-  sourceLanguage: Language;
-  userLanguage: Language;
-  description: string;
-}
-
-export interface UserProfile {
-  userId: string;
-  nativeLanguages: Language[];
-  proficientLanguages: Language[];
-  studyLanguages: Language[];
-  preferredUserLanguage: Language;
-}
-
-export interface TextInputSession {
-  textInputId: string;
-  rawInputText: string;
-  detectedLanguage?: Language;
-  sourceLanguageConfirmed: boolean;
-  createdAt: string;
-}
