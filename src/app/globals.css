@@ -53,6 +53,7 @@ h1, h2, p { margin-top: 0; }
 .intake-panel, .settings-panel { background: var(--paper); border: 1px solid var(--line); }
 .intake-panel { min-height: 425px; padding: 28px; }
 .settings-panel { padding: 28px; }
+.settings-panel + .settings-panel { margin-top: 18px; }
 .panel-heading { align-items: flex-start; }
 .panel-heading.compact { margin-bottom: 31px; }
 h2 { margin-bottom: 0; color: var(--ink); font-family: Georgia, serif; font-size: 25px; font-weight: 400; }

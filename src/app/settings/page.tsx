@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { getAccountKeyStatus } from "@/lib/storage/account";
 import { SettingsForm } from "@/components/settings/SettingsForm";
+import { ImportLegacyReviews } from "@/components/settings/ImportLegacyReviews";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -26,6 +27,7 @@ export default async function SettingsPage() {
         </div>
       </header>
       <SettingsForm initialKeyStatus={keyStatus} />
+      <ImportLegacyReviews />
     </main>
   );
 }

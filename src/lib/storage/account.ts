@@ -37,7 +37,7 @@ function decrypt(payload: string) {
 }
 
 async function readAccount(userId: string): Promise<StoredAccount> {
-  const result = await get(accountPathname(userId), { access: "private", useCache: false });
+  const result = await get(accountPathname(userId), { access: "public", useCache: false });
   if (!result || result.statusCode !== 200) return { encryptedApiKeys: {}, reviews: [] };
   const text = await new Response(result.stream).text();
   const parsed = JSON.parse(text) as Partial<StoredAccount>;
@@ -46,7 +46,7 @@ async function readAccount(userId: string): Promise<StoredAccount> {
 
 async function writeAccount(userId: string, account: StoredAccount): Promise<void> {
   await put(accountPathname(userId), JSON.stringify(account), {
-    access: "private",
+    access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
     allowOverwrite: true,

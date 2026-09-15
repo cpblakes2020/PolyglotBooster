@@ -354,7 +354,7 @@ export function IntakeWorkspace() {
         </div>
       </section>
       <section className="template-section" aria-labelledby="template-title"><PromptTemplatePicker selectedTemplate={selectedTemplate} sourceLanguage={sourceLanguage} onTemplateChange={setSelectedTemplate} /></section>
-      <SavedReview runs={reviewRuns} onOpen={openSavedRun} onUpdate={(run) => void updateSavedRun(run)} onDelete={(taskRunId) => void deleteSavedRun(taskRunId)} />
+      <SavedReview runs={reviewRuns.filter((run) => run.sourceLanguage === sourceLanguage)} onOpen={openSavedRun} onUpdate={(run) => void updateSavedRun(run)} onDelete={(taskRunId) => void deleteSavedRun(taskRunId)} />
     </>
   );
 }
