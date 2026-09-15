@@ -90,7 +90,7 @@ export function IntakeWorkspace() {
   }, []);
 
   useEffect(() => {
-    void (async () => {
+    async function loadReviews() {
       try {
         const response = await fetch("/api/account/reviews");
         const data = await parseJsonResponse<{ error?: string; reviews?: SavedTaskRun[] }>(response);
@@ -99,7 +99,17 @@ export function IntakeWorkspace() {
       } catch (error) {
         setReviewStatus(error instanceof Error ? error.message : "Saved reviews could not be loaded.");
       }
-    })();
+    }
+    void loadReviews();
+    function handleVisible() {
+      if (document.visibilityState === "visible") void loadReviews();
+    }
+    document.addEventListener("visibilitychange", handleVisible);
+    window.addEventListener("focus", handleVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisible);
+      window.removeEventListener("focus", handleVisible);
+    };
   }, []);
 
   useEffect(() => {
@@ -351,7 +361,13 @@ export function IntakeWorkspace() {
         </div>
       </section>
       <section className="template-section" aria-labelledby="template-title"><PromptTemplatePicker selectedTemplate={selectedTemplate} sourceLanguage={sourceLanguage} onTemplateChange={setSelectedTemplate} /></section>
-      <SavedReview runs={reviewRuns.filter((run) => run.sourceLanguage === sourceLanguage)} onOpen={openSavedRun} onUpdate={(run) => void updateSavedRun(run)} onDelete={(taskRunId) => void deleteSavedRun(taskRunId)} />
+      {(() => {
+        const visibleReviews = reviewRuns.filter((run) => run.sourceLanguage === sourceLanguage);
+        if (!visibleReviews.length && reviewRuns.length > 0) {
+          return <p className="review-filter-note">You have {reviewRuns.length} saved review{reviewRuns.length === 1 ? "" : "s"}, but none with {sourceLanguage} as the source language. Switch source language above to see them.</p>;
+        }
+        return <SavedReview runs={visibleReviews} onOpen={openSavedRun} onUpdate={(run) => void updateSavedRun(run)} onDelete={(taskRunId) => void deleteSavedRun(taskRunId)} />;
+      })()}
     </>
   );
 }

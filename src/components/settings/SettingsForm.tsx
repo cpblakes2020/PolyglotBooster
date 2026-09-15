@@ -57,13 +57,16 @@ export function SettingsForm({ initialKeyStatus }: SettingsFormProps) {
       </div>
       <p>Your keys are stored on the server, tied to your account, and used only to run your study tasks.</p>
       {llmProviderOptions.map((provider) => (
-        <div className="api-key-setting" key={provider.id}>
+        <form className="api-key-setting" key={provider.id} autoComplete="off" onSubmit={(event) => event.preventDefault()}>
           <label htmlFor={`api-key-${provider.id}`}>{provider.label} API key</label>
           <p role="status">{keyStatus[provider.id] ? "A key is on file" : "No key set yet"}</p>
           <input
             id={`api-key-${provider.id}`}
+            name={`api-key-${provider.id}`}
             type="password"
-            autoComplete="off"
+            autoComplete="new-password"
+            data-lpignore="true"
+            data-1p-ignore="true"
             spellCheck={false}
             placeholder={keyStatus[provider.id] ? "Enter a new key to replace it" : "Paste your API key"}
             value={drafts[provider.id] || ""}
@@ -74,7 +77,7 @@ export function SettingsForm({ initialKeyStatus }: SettingsFormProps) {
             {keyStatus[provider.id] && <button className="danger-button" type="button" onClick={() => void removeKey(provider.id)}>Remove key</button>}
             {status[provider.id] && <span className="example-status" role="status">{status[provider.id]}</span>}
           </div>
-        </div>
+        </form>
       ))}
     </section>
   );
