@@ -307,12 +307,9 @@ export function IntakeWorkspace() {
 
   return (
     <>
+      <LanguageSettings sourceLanguage={sourceLanguage} explanationLanguage={explanationLanguage} learnerLevel={learnerLevel} outputStyle={outputStyle} providerId={providerId} hasProviderKey={keyStatus[providerId]} onSourceLanguageChange={(language) => { setSourceLanguage(language); if (language !== "Thai" && selectedTemplate === "thai-script-conversion") setSelectedTemplate("word-analysis"); }} onExplanationLanguageChange={setExplanationLanguage} onLearnerLevelChange={setLearnerLevel} onOutputStyleChange={setOutputStyle} onProviderChange={changeProvider} onPresetChange={(source, explanation) => { setSourceLanguage(source); setExplanationLanguage(explanation); if (source !== "Thai" && selectedTemplate === "thai-script-conversion") setSelectedTemplate("word-analysis"); }} />
       <section className="workspace-grid" aria-label="Study intake workspace">
         <div className="intake-panel">
-          <div className="panel-heading">
-            <div><p className="section-kicker">01 / Bring material</p><h2>What are we studying?</h2></div>
-            <span className="panel-count">2 ways in</span>
-          </div>
           <div className="mode-tabs" role="tablist" aria-label="Material type">
             <button className={`mode-tab${mode === "text" ? " active" : ""}`} type="button" role="tab" aria-selected={mode === "text"} onClick={() => setMode("text")}>Enter text <span>⌘ 1</span></button>
             <button className={`mode-tab${mode === "document" ? " active" : ""}`} type="button" role="tab" aria-selected={mode === "document"} onClick={() => setMode("document")}>Upload document <span>⌘ 2</span></button>
@@ -357,7 +354,6 @@ export function IntakeWorkspace() {
             <UploadPanel providerId={providerId} onTextExtracted={(extractedText, filename) => { setText(extractedText); setLoadedExample(`${filename} loaded`); setMode("text"); }} />
           )}
         </div>
-        <LanguageSettings sourceLanguage={sourceLanguage} explanationLanguage={explanationLanguage} learnerLevel={learnerLevel} outputStyle={outputStyle} providerId={providerId} hasProviderKey={keyStatus[providerId]} onSourceLanguageChange={(language) => { setSourceLanguage(language); if (language !== "Thai" && selectedTemplate === "thai-script-conversion") setSelectedTemplate("word-analysis"); }} onExplanationLanguageChange={setExplanationLanguage} onLearnerLevelChange={setLearnerLevel} onOutputStyleChange={setOutputStyle} onProviderChange={changeProvider} onPresetChange={(source, explanation) => { setSourceLanguage(source); setExplanationLanguage(explanation); if (source !== "Thai" && selectedTemplate === "thai-script-conversion") setSelectedTemplate("word-analysis"); }} />
       </section>
       <section className="template-section" aria-labelledby="template-title"><PromptTemplatePicker selectedTemplate={selectedTemplate} sourceLanguage={sourceLanguage} onTemplateChange={setSelectedTemplate} /></section>
       <SavedReview runs={reviewRuns} onOpen={openSavedRun} onUpdate={(run) => void updateSavedRun(run)} onDelete={(taskRunId) => void deleteSavedRun(taskRunId)} />

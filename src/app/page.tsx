@@ -21,14 +21,6 @@ export default async function Home() {
         </div>
       </header>
 
-      <section className="intro" aria-labelledby="page-title">
-        <div>
-          <p className="eyebrow">A study desk for the in-between languages</p>
-          <h1 id="page-title">Bring a text.<br /><em>Leave with a system.</em></h1>
-        </div>
-        <p className="intro-copy">Turn a passage, page, or stray sentence into useful study material. Explain Japanese in Thai. Build Indonesian cards from Thai. Keep the languages you know in the room.</p>
-      </section>
-
       <IntakeWorkspace />
 
       <footer className="page-footer"><span>Polyglot Language Learner</span><span>Target language first, always editable.</span></footer>
