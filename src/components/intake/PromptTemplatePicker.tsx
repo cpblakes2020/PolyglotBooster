@@ -1,45 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { TemplateEditDialog } from "@/components/intake/TemplateEditDialog";
+import { visibleTemplatesFor } from "@/lib/templateOrder";
 import type { Language, PromptTemplate, PromptTemplateId } from "@/lib/types";
 
 type PromptTemplatePickerProps = {
+  templates: PromptTemplate[];
+  isAdmin: boolean;
+  status: string;
   selectedTemplate: PromptTemplateId;
   sourceLanguage: Language;
   onTemplateChange: (template: PromptTemplateId) => void;
+  onTemplatesChange: (updater: (current: PromptTemplate[]) => PromptTemplate[]) => void;
 };
 
-export function PromptTemplatePicker({ selectedTemplate, sourceLanguage, onTemplateChange }: PromptTemplatePickerProps) {
-  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [status, setStatus] = useState("Loading tasks...");
+export function PromptTemplatePicker({ templates, isAdmin, status, selectedTemplate, sourceLanguage, onTemplateChange, onTemplatesChange }: PromptTemplatePickerProps) {
   const [editing, setEditing] = useState<PromptTemplate | "new" | null>(null);
-
-  async function loadTemplates() {
-    try {
-      const response = await fetch("/api/templates");
-      const data = await response.json() as { error?: string; templates?: PromptTemplate[]; isAdmin?: boolean };
-      if (!response.ok || !data.templates) throw new Error(data.error || "Tasks could not be loaded.");
-      setTemplates(data.templates);
-      setIsAdmin(Boolean(data.isAdmin));
-      setStatus("");
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Tasks could not be loaded.");
-    }
-  }
-
-  useEffect(() => { void loadTemplates(); }, []);
-
-  const visibleTemplates = templates.filter((template) => template.scope === "general" || template.scope === sourceLanguage);
-
-  useEffect(() => {
-    if (!visibleTemplates.length) return;
-    if (!visibleTemplates.some((template) => template.id === selectedTemplate)) {
-      onTemplateChange(visibleTemplates[0].id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceLanguage, templates]);
+  const visibleTemplates = visibleTemplatesFor(templates, sourceLanguage);
 
   return (
     <>
@@ -70,7 +48,7 @@ export function PromptTemplatePicker({ selectedTemplate, sourceLanguage, onTempl
           onClose={() => setEditing(null)}
           onSaved={(saved) => {
             setEditing(null);
-            setTemplates((current) => {
+            onTemplatesChange((current) => {
               const index = current.findIndex((item) => item.id === saved.id);
               if (index === -1) return [...current, saved];
               return current.map((item) => item.id === saved.id ? saved : item);
@@ -78,7 +56,7 @@ export function PromptTemplatePicker({ selectedTemplate, sourceLanguage, onTempl
           }}
           onDeleted={(id) => {
             setEditing(null);
-            setTemplates((current) => current.filter((item) => item.id !== id));
+            onTemplatesChange((current) => current.filter((item) => item.id !== id));
           }}
         />
       )}

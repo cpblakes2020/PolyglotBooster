@@ -58,7 +58,10 @@ h1, h2, p { margin-top: 0; }
 .panel-heading.compact { margin-bottom: 31px; }
 h2 { margin-bottom: 0; color: var(--ink); font-family: Georgia, serif; font-size: 25px; font-weight: 400; }
 .panel-count { font-size: 11px; }
-.mode-tabs { display: flex; gap: 25px; margin: 32px 0 23px; border-bottom: 1px solid var(--line); }
+.intake-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin-bottom: 24px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.mode-tabs { display: flex; gap: 25px; }
+.intake-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.task-select { width: auto; min-width: 150px; max-width: 220px; border: 1px solid var(--line); border-radius: 0; background: #f3f1e7; padding: 8px 9px; color: var(--ink); font-size: 12px; }
 .mode-tab { position: relative; padding: 0 0 13px; border: 0; background: transparent; color: var(--muted); font-size: 13px; }
 .mode-tab span { margin-left: 7px; font-size: 10px; opacity: .7; }
 .mode-tab.active { color: var(--ink); font-weight: 700; }
@@ -145,17 +148,17 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .template-heading { align-items: end; margin-bottom: 20px; }
 .text-button { border: 0; background: transparent; color: var(--teal); font-size: 12px; }
 .text-button span { padding-left: 5px; font-size: 17px; }
-.template-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.template-card { display: grid; grid-template-columns: 1fr auto; align-items: center; min-height: 112px; border: 1px solid var(--line); background: transparent; }
+.template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.template-card { display: grid; grid-template-columns: 1fr auto; align-items: center; min-height: 64px; border: 1px solid var(--line); background: transparent; }
 .template-card.selected { border-color: var(--teal); background: var(--paper); }
-.template-card-select { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; height: 100%; border: 0; background: transparent; padding: 16px; color: inherit; text-align: left; }
+.template-card-select { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; height: 100%; border: 0; background: transparent; padding: 9px 10px; color: inherit; text-align: left; }
 .template-card-select:hover, .template-card-select:focus-visible { background: var(--paper); }
-.template-icon { display: grid; width: 30px; height: 30px; place-items: center; background: #e1ebe4; color: var(--teal); font-family: Georgia, serif; font-size: 15px; }
+.template-icon { display: grid; width: 22px; height: 22px; place-items: center; background: #e1ebe4; color: var(--teal); font-family: Georgia, serif; font-size: 12px; }
 .template-card strong, .template-card small { display: block; }
-.template-card strong { margin-bottom: 7px; color: var(--ink); font-size: 12px; }
-.template-card small { font-size: 10px; line-height: 1.4; }
-.card-arrow { align-self: center; justify-self: end; margin-right: 16px; color: var(--coral); font-size: 15px; }
-.template-card-edit { align-self: center; justify-self: end; margin-right: 16px; border: 1px solid var(--line); background: transparent; padding: 5px 10px; color: var(--teal); font-size: 10px; }
+.template-card strong { margin-bottom: 3px; color: var(--ink); font-size: 11px; line-height: 1.3; }
+.template-card small { font-size: 9px; line-height: 1.3; }
+.card-arrow { align-self: center; justify-self: end; margin-right: 10px; color: var(--coral); font-size: 13px; }
+.template-card-edit { align-self: center; justify-self: end; margin-right: 8px; border: 1px solid var(--line); background: transparent; padding: 4px 8px; color: var(--teal); font-size: 9px; }
 .template-card-edit:hover, .template-card-edit:focus-visible { border-color: var(--teal); }
 
 .dialog-overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(28, 42, 40, .45); padding: 24px; }
@@ -173,7 +176,6 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
   .app-shell { padding: 20px 18px; }
   .language-bar { padding: 18px 20px; }
   .language-bar-provider { margin-left: 0; }
-  .template-grid { grid-template-columns: 1fr; }
   .flashcard-edit { grid-template-columns: 1fr; }
   .settings-panel { padding: 24px; }
   .template-section { padding-top: 40px; }

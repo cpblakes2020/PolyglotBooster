@@ -8,7 +8,8 @@ import { SavedReview } from "@/components/review/SavedReview";
 import type { Flashcard } from "@/lib/flashcards";
 import type { FollowUpExchange, SavedTaskRun } from "@/lib/reviews";
 import type { LlmProviderId } from "@/lib/llm/provider";
-import type { Language, LearnerLevel, OutputStyle, PromptTemplateId } from "@/lib/types";
+import { visibleTemplatesFor } from "@/lib/templateOrder";
+import type { Language, LearnerLevel, OutputStyle, PromptTemplate, PromptTemplateId } from "@/lib/types";
 
 const followUpPhrases = ["For this particular phrase", "What would be another way to say"];
 
@@ -71,6 +72,9 @@ export function IntakeWorkspace() {
   const [followUpPreview, setFollowUpPreview] = useState("");
   const [followUpStatus, setFollowUpStatus] = useState("");
   const followUpTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
+  const [templatesAdmin, setTemplatesAdmin] = useState(false);
+  const [templatesStatus, setTemplatesStatus] = useState("Loading tasks...");
 
   useEffect(() => {
     const savedProvider = window.localStorage.getItem(selectedProviderPreferenceKey);
@@ -117,6 +121,31 @@ export function IntakeWorkspace() {
     setSourceLanguage(preference.sourceLanguage);
     setExplanationLanguage(preference.explanationLanguage);
   }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch("/api/templates");
+        const data = await parseJsonResponse<{ error?: string; templates?: PromptTemplate[]; isAdmin?: boolean }>(response);
+        if (!response.ok || !data.templates) throw new Error(data.error || "Tasks could not be loaded.");
+        setTemplates(data.templates);
+        setTemplatesAdmin(Boolean(data.isAdmin));
+        setTemplatesStatus("");
+      } catch (error) {
+        setTemplatesStatus(error instanceof Error ? error.message : "Tasks could not be loaded.");
+      }
+    })();
+  }, []);
+
+  const visibleTemplates = visibleTemplatesFor(templates, sourceLanguage);
+
+  useEffect(() => {
+    if (!visibleTemplates.length) return;
+    if (!visibleTemplates.some((template) => template.id === selectedTemplate)) {
+      setSelectedTemplate(visibleTemplates[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceLanguage, templates]);
 
   useEffect(() => {
     window.localStorage.setItem(languagePreferenceKey, JSON.stringify({ sourceLanguage, explanationLanguage }));
@@ -315,9 +344,20 @@ export function IntakeWorkspace() {
       <LanguageSettings sourceLanguage={sourceLanguage} explanationLanguage={explanationLanguage} learnerLevel={learnerLevel} outputStyle={outputStyle} providerId={providerId} hasProviderKey={keyStatus[providerId]} onSourceLanguageChange={setSourceLanguage} onExplanationLanguageChange={setExplanationLanguage} onLearnerLevelChange={setLearnerLevel} onOutputStyleChange={setOutputStyle} onProviderChange={changeProvider} onPresetChange={(source, explanation) => { setSourceLanguage(source); setExplanationLanguage(explanation); }} />
       <section className="workspace-grid" aria-label="Study intake workspace">
         <div className="intake-panel">
-          <div className="mode-tabs" role="tablist" aria-label="Material type">
-            <button className={`mode-tab${mode === "text" ? " active" : ""}`} type="button" role="tab" aria-selected={mode === "text"} onClick={() => setMode("text")}>Enter text <span>⌘ 1</span></button>
-            <button className={`mode-tab${mode === "document" ? " active" : ""}`} type="button" role="tab" aria-selected={mode === "document"} onClick={() => setMode("document")}>Upload document <span>⌘ 2</span></button>
+          <div className="intake-toolbar">
+            <div className="mode-tabs" role="tablist" aria-label="Material type">
+              <button className={`mode-tab${mode === "text" ? " active" : ""}`} type="button" role="tab" aria-selected={mode === "text"} onClick={() => setMode("text")}>Enter text <span>⌘ 1</span></button>
+              <button className={`mode-tab${mode === "document" ? " active" : ""}`} type="button" role="tab" aria-selected={mode === "document"} onClick={() => setMode("document")}>Upload document <span>⌘ 2</span></button>
+            </div>
+            <div className="intake-actions">
+              <select className="task-select" aria-label="Select task" value={selectedTemplate} disabled={!visibleTemplates.length} onChange={(event) => setSelectedTemplate(event.target.value)}>
+                {visibleTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+              </select>
+              <button className="save-input-button" type="button" disabled={!text.trim()} onClick={() => void saveTextInput()}>Save study input</button>
+              <button className="preview-prompt-button" type="button" disabled={!text.trim() || !selectedTemplate} onClick={() => void previewPrompt()}>Preview task prompt</button>
+              <button className="run-task-button" type="button" disabled={!text.trim() || !selectedTemplate || taskStatus === "Working with Claude..."} onClick={() => void runTask()}>Run task</button>
+              {saveStatus && <span className="example-status" role="status">{saveStatus}</span>}
+            </div>
           </div>
           {mode === "text" ? (
             <>
@@ -325,7 +365,6 @@ export function IntakeWorkspace() {
               <textarea id="study-text" className="study-text" value={text} maxLength={12000} onChange={(event) => setText(event.target.value)} placeholder="Try something in a language you are learning..." />
               <div className="field-footer"><span>{text.length} / 12,000 characters</span><button className="clear-input-button" type="button" disabled={!text} onClick={clearInput}>Clear</button><span>Text stays in this workspace</span></div>
               <div className="example-row" aria-label="Quick examples"><span className="example-label">Try an example</span>{examples.map((example) => <button type="button" key={example.label} onClick={() => loadExample(example)}>{example.label}</button>)}{loadedExample && <span className="example-status" role="status">{loadedExample}</span>}</div>
-              <div className="input-action-row"><button className="save-input-button" type="button" disabled={!text.trim()} onClick={() => void saveTextInput()}>Save study input</button><button className="preview-prompt-button" type="button" disabled={!text.trim() || !selectedTemplate} onClick={() => void previewPrompt()}>Preview task prompt</button><button className="run-task-button" type="button" disabled={!text.trim() || !selectedTemplate || taskStatus === "Working with Claude..."} onClick={() => void runTask()}>Run task</button>{saveStatus && <span className="example-status" role="status">{saveStatus}</span>}</div>
               {promptPreview && <pre className="prompt-preview" aria-label="Task prompt preview">{promptPreview}</pre>}
               {taskStatus && <p className="task-status" role="status">{taskStatus}</p>}
               {taskResult && <section className="task-result" aria-label="Claude task result"><div className="result-label">Claude result · {explanationLanguage}</div>{flashcards.length ? <div className="flashcard-editor">{flashcards.map((card, index) => <article className="flashcard-edit" key={`${index}-${card.front}`}><label>Front<textarea value={card.front} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, front: event.target.value } : item))} /></label><label>Back<textarea value={card.back} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, back: event.target.value } : item))} /></label><label>Tags<input value={card.tags.join(", ")} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean) } : item))} /></label><button type="button" className="remove-card-button" aria-label={`Remove flashcard ${index + 1}`} onClick={() => setFlashcards((cards) => cards.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></article>)}<button className="preview-prompt-button" type="button" onClick={() => setFlashcards((cards) => [...cards, { front: "", back: "", tags: [] }])}>Add card</button></div> : <div className="result-text">{taskResult}</div>}<div className="result-actions"><button className="save-input-button" type="button" disabled={flashcards.some((card) => !card.front.trim() || !card.back.trim())} onClick={() => void saveForReview()}>Save for review</button>{reviewStatus && <span className="example-status" role="status">{reviewStatus}</span>}</div>
@@ -360,7 +399,7 @@ export function IntakeWorkspace() {
           )}
         </div>
       </section>
-      <section className="template-section" aria-labelledby="template-title"><PromptTemplatePicker selectedTemplate={selectedTemplate} sourceLanguage={sourceLanguage} onTemplateChange={setSelectedTemplate} /></section>
+      <section className="template-section" aria-labelledby="template-title"><PromptTemplatePicker templates={templates} isAdmin={templatesAdmin} status={templatesStatus} selectedTemplate={selectedTemplate} sourceLanguage={sourceLanguage} onTemplateChange={setSelectedTemplate} onTemplatesChange={setTemplates} /></section>
       {(() => {
         const visibleReviews = reviewRuns.filter((run) => run.sourceLanguage === sourceLanguage);
         if (!visibleReviews.length && reviewRuns.length > 0) {
