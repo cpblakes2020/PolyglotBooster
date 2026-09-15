@@ -23,7 +23,7 @@ export default async function Home() {
 
       <IntakeWorkspace />
 
-      <footer className="page-footer"><span>Polyglot Language Learner</span><span>Target language first, always editable.</span></footer>
+      <footer className="page-footer"><span>Polyglot Language Learner</span><span>Analyzed language first, always editable.</span></footer>
     </main>
   );
 }

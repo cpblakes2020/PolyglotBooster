@@ -16,12 +16,11 @@ export async function buildStudyPrompt(input: BuildPromptInput) {
 
   return [
     "You are a careful multilingual language-learning assistant.",
-    `Source language: ${input.sourceLanguage}.`,
+    `Analyzed language: ${input.sourceLanguage}.`,
     `Explanation language: ${input.userLanguage}.`,
     `Learner level: ${input.learnerLevel}.`,
     `Output style: ${input.outputStyle}.`,
-    "Follow the requested task and keep the source language and explanation language distinct.",
-    "Prefer target-language-first explanations where the task allows it. Label each language clearly.",
+    "Follow the requested task and keep the analyzed language and explanation language distinct. Label each language clearly.",
     `Task: ${template.instruction}`,
     "Source text:",
     input.text.trim(),
