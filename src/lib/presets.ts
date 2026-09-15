@@ -37,6 +37,13 @@ export const languagePairPresets: readonly LanguagePairPreset[] = [
     userLanguage: "English",
     description: "Use English as a fallback explanation language.",
   },
+  {
+    id: "mandarin-english",
+    label: "Mandarin -> English",
+    sourceLanguage: "Mandarin",
+    userLanguage: "English",
+    description: "Study Mandarin through English.",
+  },
 ];
 
 export function getPreset(id: string) {

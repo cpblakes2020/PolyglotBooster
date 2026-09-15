@@ -32,7 +32,8 @@ async function sendOpenAiMessage(content: unknown, apiKey: string | undefined, m
 }
 
 export async function runOpenAiTask(input: LlmTaskInput, apiKey?: string) {
-  return sendOpenAiMessage(buildStudyPrompt(input), apiKey, "Add your OpenAI API key before running a task.", "OpenAI could not complete the task.", "OpenAI returned an empty result.");
+  const prompt = await buildStudyPrompt(input);
+  return sendOpenAiMessage(prompt, apiKey, "Add your OpenAI API key before running a task.", "OpenAI could not complete the task.", "OpenAI returned an empty result.");
 }
 
 export async function runOpenAiRawPrompt(prompt: string, apiKey?: string) {

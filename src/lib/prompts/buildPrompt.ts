@@ -1,4 +1,4 @@
-import { getPromptTemplate } from "@/lib/prompts/templates";
+import { getTemplate } from "@/lib/storage/templates";
 import type { Language, LearnerLevel, OutputStyle, PromptTemplateId } from "@/lib/types";
 
 type BuildPromptInput = {
@@ -10,8 +10,8 @@ type BuildPromptInput = {
   promptTemplateId: PromptTemplateId;
 };
 
-export function buildStudyPrompt(input: BuildPromptInput) {
-  const template = getPromptTemplate(input.promptTemplateId);
+export async function buildStudyPrompt(input: BuildPromptInput) {
+  const template = await getTemplate(input.promptTemplateId);
   if (!template) throw new Error("Unsupported prompt template.");
 
   return [

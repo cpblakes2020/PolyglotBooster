@@ -2,6 +2,7 @@ import type { Language } from "@/lib/types";
 
 export const languages: readonly Language[] = [
   "Japanese",
+  "Mandarin",
   "Thai",
   "Indonesian",
   "Spanish",

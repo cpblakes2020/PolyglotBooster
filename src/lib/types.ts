@@ -4,22 +4,23 @@ export type Language =
   | "Indonesian"
   | "Spanish"
   | "English"
-  | "French";
+  | "French"
+  | "Mandarin";
 
 export type OutputStyle = "Concise" | "Detailed" | "Literal" | "Natural" | "Formal" | "Informal";
 export type LearnerLevel = "Beginner" | "Intermediate" | "Advanced";
-export type PromptTemplateId =
-  | "extract-text"
-  | "translate"
-  | "sentence-guide"
-  | "vocabulary"
-  | "grammar"
-  | "reading-support"
-  | "flashcards"
-  | "questions"
-  | "word-analysis"
-  | "register-conversion"
-  | "thai-script-conversion";
+export type PromptTemplateId = string;
+export type TemplateScope = "general" | Language;
+
+export interface PromptTemplate {
+  id: PromptTemplateId;
+  name: string;
+  description: string;
+  instruction: string;
+  scope: TemplateScope;
+  icon?: string;
+  updatedAt: string;
+}
 
 export interface StudyContext {
   sourceLanguage: Language;

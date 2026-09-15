@@ -80,7 +80,7 @@ h2 { margin-bottom: 0; color: var(--ink); font-family: Georgia, serif; font-size
 .example-label { margin-right: 4px; font-size: 11px; }
 .example-row button { padding: 7px 10px; border: 1px solid var(--line); background: transparent; color: #51615a; font-size: 11px; }
 .example-row button:hover, .text-button:hover { color: var(--coral); }
-.example-row button:focus-visible, .mode-tab:focus-visible, .template-card:focus-visible, .text-button:focus-visible { outline: 2px solid var(--coral); outline-offset: 3px; }
+.example-row button:focus-visible, .mode-tab:focus-visible, .template-card-select:focus-visible, .text-button:focus-visible { outline: 2px solid var(--coral); outline-offset: 3px; }
 .example-status { color: var(--teal); font-size: 10px; }
 .input-action-row { display: flex; align-items: center; gap: 12px; margin-top: 22px; }
 .save-input-button { border: 0; background: var(--teal); padding: 10px 14px; color: #fff; font-size: 11px; }
@@ -126,7 +126,9 @@ h2 { margin-bottom: 0; color: var(--ink); font-family: Georgia, serif; font-size
 .review-actions { display: flex; gap: 10px; }
 .review-actions button { border: 0; background: transparent; color: var(--teal); font-size: 10px; }
 .review-actions button:hover { color: var(--coral); }
-.review-actions .danger-button { color: #a54c3e; }
+.danger-button { border: 0; background: transparent; color: #a54c3e; font-size: 11px; }
+.danger-button:hover { color: #8a3c30; }
+.review-actions .danger-button { font-size: 10px; }
 .review-item-main strong, .review-item-main small { display: block; }
 .review-item-main strong { margin-bottom: 6px; color: var(--ink); font-size: 12px; font-weight: 600; }
 .review-item-main small { color: var(--muted); font-size: 10px; }
@@ -142,13 +144,27 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .text-button { border: 0; background: transparent; color: var(--teal); font-size: 12px; }
 .text-button span { padding-left: 5px; font-size: 17px; }
 .template-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.template-card { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; min-height: 112px; border: 1px solid var(--line); background: transparent; padding: 16px; text-align: left; }
-.template-card:hover, .template-card.selected { border-color: var(--teal); background: var(--paper); }
+.template-card { display: grid; grid-template-columns: 1fr auto; align-items: center; min-height: 112px; border: 1px solid var(--line); background: transparent; }
+.template-card.selected { border-color: var(--teal); background: var(--paper); }
+.template-card-select { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; height: 100%; border: 0; background: transparent; padding: 16px; color: inherit; text-align: left; }
+.template-card-select:hover, .template-card-select:focus-visible { background: var(--paper); }
 .template-icon { display: grid; width: 30px; height: 30px; place-items: center; background: #e1ebe4; color: var(--teal); font-family: Georgia, serif; font-size: 15px; }
 .template-card strong, .template-card small { display: block; }
 .template-card strong { margin-bottom: 7px; color: var(--ink); font-size: 12px; }
 .template-card small { font-size: 10px; line-height: 1.4; }
-.card-arrow { align-self: start; color: var(--coral); font-size: 15px; }
+.card-arrow { align-self: center; justify-self: end; margin-right: 16px; color: var(--coral); font-size: 15px; }
+.template-card-edit { align-self: center; justify-self: end; margin-right: 16px; border: 1px solid var(--line); background: transparent; padding: 5px 10px; color: var(--teal); font-size: 10px; }
+.template-card-edit:hover, .template-card-edit:focus-visible { border-color: var(--teal); }
+
+.dialog-overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(28, 42, 40, .45); padding: 24px; }
+.dialog-panel { width: min(560px, 100%); max-height: 90vh; overflow-y: auto; border: 1px solid var(--line); background: var(--paper); padding: 28px; }
+.dialog-panel h2 { margin-bottom: 18px; }
+.dialog-panel label { display: block; margin: 14px 0 7px; color: var(--muted); font-size: 11px; }
+.dialog-panel label:first-of-type { margin-top: 0; }
+.dialog-panel input, .dialog-panel select { width: 100%; border: 1px solid var(--line); background: #f3f1e7; padding: 8px; color: var(--ink); font-size: 13px; }
+.template-instruction-input { display: block; width: 100%; min-height: 150px; resize: vertical; border: 1px solid var(--line); background: #f3f1e7; padding: 12px; color: var(--ink); font-size: 13px; line-height: 1.55; }
+.dialog-error { margin-top: 12px; color: #a54c3e; font-size: 11px; }
+.dialog-actions { display: flex; align-items: center; gap: 12px; margin-top: 22px; }
 .page-footer { border-top: 1px solid var(--line); padding-top: 17px; font-size: 10px; }
 
 @media (max-width: 800px) {

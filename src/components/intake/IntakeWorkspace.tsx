@@ -16,6 +16,7 @@ const examples = [
   { label: "Thai sentence", language: "Thai" as const, text: "พรุ่งนี้เราจะไปตลาดด้วยกัน" },
   { label: "Japanese compound", language: "Japanese" as const, text: "言語学習" },
   { label: "Indonesian affix", language: "Indonesian" as const, text: "berjalan" },
+  { label: "Mandarin sentence", language: "Mandarin" as const, text: "我们明天一起去市场" },
 ];
 
 async function parseJsonResponse<T>(response: Response): Promise<T> {
@@ -53,7 +54,7 @@ export function IntakeWorkspace() {
   const [explanationLanguage, setExplanationLanguage] = useState<Language>(defaultExplanationLanguage);
   const [learnerLevel, setLearnerLevel] = useState<LearnerLevel>("Intermediate");
   const [outputStyle, setOutputStyle] = useState<OutputStyle>("Detailed");
-  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplateId>("word-analysis");
+  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplateId>("");
   const [loadedExample, setLoadedExample] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
   const [promptPreview, setPromptPreview] = useState("");
@@ -115,9 +116,6 @@ export function IntakeWorkspace() {
     setText(example.text);
     setSourceLanguage(example.language);
     setLoadedExample(`${example.label} loaded`);
-    if (example.language !== "Thai" && selectedTemplate === "thai-script-conversion") {
-      setSelectedTemplate("word-analysis");
-    }
   }
 
   function changeProvider(nextProvider: LlmProviderId) {
@@ -307,7 +305,7 @@ export function IntakeWorkspace() {
 
   return (
     <>
-      <LanguageSettings sourceLanguage={sourceLanguage} explanationLanguage={explanationLanguage} learnerLevel={learnerLevel} outputStyle={outputStyle} providerId={providerId} hasProviderKey={keyStatus[providerId]} onSourceLanguageChange={(language) => { setSourceLanguage(language); if (language !== "Thai" && selectedTemplate === "thai-script-conversion") setSelectedTemplate("word-analysis"); }} onExplanationLanguageChange={setExplanationLanguage} onLearnerLevelChange={setLearnerLevel} onOutputStyleChange={setOutputStyle} onProviderChange={changeProvider} onPresetChange={(source, explanation) => { setSourceLanguage(source); setExplanationLanguage(explanation); if (source !== "Thai" && selectedTemplate === "thai-script-conversion") setSelectedTemplate("word-analysis"); }} />
+      <LanguageSettings sourceLanguage={sourceLanguage} explanationLanguage={explanationLanguage} learnerLevel={learnerLevel} outputStyle={outputStyle} providerId={providerId} hasProviderKey={keyStatus[providerId]} onSourceLanguageChange={setSourceLanguage} onExplanationLanguageChange={setExplanationLanguage} onLearnerLevelChange={setLearnerLevel} onOutputStyleChange={setOutputStyle} onProviderChange={changeProvider} onPresetChange={(source, explanation) => { setSourceLanguage(source); setExplanationLanguage(explanation); }} />
       <section className="workspace-grid" aria-label="Study intake workspace">
         <div className="intake-panel">
           <div className="mode-tabs" role="tablist" aria-label="Material type">
@@ -320,7 +318,7 @@ export function IntakeWorkspace() {
               <textarea id="study-text" className="study-text" value={text} maxLength={12000} onChange={(event) => setText(event.target.value)} placeholder="Try something in a language you are learning..." />
               <div className="field-footer"><span>{text.length} / 12,000 characters</span><button className="clear-input-button" type="button" disabled={!text} onClick={clearInput}>Clear</button><span>Text stays in this workspace</span></div>
               <div className="example-row" aria-label="Quick examples"><span className="example-label">Try an example</span>{examples.map((example) => <button type="button" key={example.label} onClick={() => loadExample(example)}>{example.label}</button>)}{loadedExample && <span className="example-status" role="status">{loadedExample}</span>}</div>
-              <div className="input-action-row"><button className="save-input-button" type="button" disabled={!text.trim()} onClick={() => void saveTextInput()}>Save study input</button><button className="preview-prompt-button" type="button" disabled={!text.trim()} onClick={() => void previewPrompt()}>Preview task prompt</button><button className="run-task-button" type="button" disabled={!text.trim() || taskStatus === "Working with Claude..."} onClick={() => void runTask()}>Run task</button>{saveStatus && <span className="example-status" role="status">{saveStatus}</span>}</div>
+              <div className="input-action-row"><button className="save-input-button" type="button" disabled={!text.trim()} onClick={() => void saveTextInput()}>Save study input</button><button className="preview-prompt-button" type="button" disabled={!text.trim() || !selectedTemplate} onClick={() => void previewPrompt()}>Preview task prompt</button><button className="run-task-button" type="button" disabled={!text.trim() || !selectedTemplate || taskStatus === "Working with Claude..."} onClick={() => void runTask()}>Run task</button>{saveStatus && <span className="example-status" role="status">{saveStatus}</span>}</div>
               {promptPreview && <pre className="prompt-preview" aria-label="Task prompt preview">{promptPreview}</pre>}
               {taskStatus && <p className="task-status" role="status">{taskStatus}</p>}
               {taskResult && <section className="task-result" aria-label="Claude task result"><div className="result-label">Claude result · {explanationLanguage}</div>{flashcards.length ? <div className="flashcard-editor">{flashcards.map((card, index) => <article className="flashcard-edit" key={`${index}-${card.front}`}><label>Front<textarea value={card.front} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, front: event.target.value } : item))} /></label><label>Back<textarea value={card.back} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, back: event.target.value } : item))} /></label><label>Tags<input value={card.tags.join(", ")} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean) } : item))} /></label><button type="button" className="remove-card-button" aria-label={`Remove flashcard ${index + 1}`} onClick={() => setFlashcards((cards) => cards.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></article>)}<button className="preview-prompt-button" type="button" onClick={() => setFlashcards((cards) => [...cards, { front: "", back: "", tags: [] }])}>Add card</button></div> : <div className="result-text">{taskResult}</div>}<div className="result-actions"><button className="save-input-button" type="button" disabled={flashcards.some((card) => !card.front.trim() || !card.back.trim())} onClick={() => void saveForReview()}>Save for review</button>{reviewStatus && <span className="example-status" role="status">{reviewStatus}</span>}</div>

@@ -4,7 +4,7 @@ import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
 import { requireAccountApiKey } from "@/lib/storage/account";
 import { parseFlashcards } from "@/lib/flashcards";
 import { isSupportedLanguage } from "@/lib/presets";
-import { getPromptTemplate } from "@/lib/prompts/templates";
+import { getTemplate } from "@/lib/storage/templates";
 import type { LearnerLevel, OutputStyle, PromptTemplateId } from "@/lib/types";
 
 const learnerLevels = new Set<LearnerLevel>(["Beginner", "Intermediate", "Advanced"]);
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   if (typeof learnerLevel !== "string" || !learnerLevels.has(learnerLevel as LearnerLevel) || typeof outputStyle !== "string" || !outputStyles.has(outputStyle as OutputStyle)) {
     return NextResponse.json({ error: "Choose a supported learner level and output style." }, { status: 400 });
   }
-  if (typeof promptTemplateId !== "string" || !getPromptTemplate(promptTemplateId as PromptTemplateId)) {
+  if (typeof promptTemplateId !== "string" || !(await getTemplate(promptTemplateId))) {
     return NextResponse.json({ error: "Choose a supported prompt template." }, { status: 400 });
   }
 
