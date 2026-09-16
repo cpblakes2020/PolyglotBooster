@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AudioPlayback } from "@/components/audio/AudioPlayback";
 import type { SavedTaskRun } from "@/lib/reviews";
-import { downloadTaskRun } from "@/lib/exports";
+import { downloadAnkiPackage, downloadTaskRun } from "@/lib/exports";
 
 type SavedReviewProps = {
   runs: SavedTaskRun[];
@@ -58,6 +58,7 @@ export function SavedReview({ runs, onOpen, onUpdate, onDelete }: SavedReviewPro
                   <button type="button" onClick={() => downloadTaskRun(run, "txt")}>Download TXT</button>
                   <button type="button" onClick={() => downloadTaskRun(run, "csv")}>Anki CSV</button>
                   <button type="button" onClick={() => downloadTaskRun(run, "tsv")}>Anki TSV</button>
+                  <button type="button" onClick={() => downloadAnkiPackage(run.taskRunId)}>Anki package (.apkg){run.audio ? " with audio" : ""}</button>
                   <button className="danger-button" type="button" onClick={() => { if (window.confirm("Delete this saved review?")) onDelete(run.taskRunId); }}>Delete</button>
                 </div>
               </div>

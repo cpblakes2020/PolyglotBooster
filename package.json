@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",
+    "anki-apkg-export": "^4.0.3",
     "mammoth": "^1.12.1",
     "next": "15.5.24",
     "next-auth": "^5.0.0-beta.32",

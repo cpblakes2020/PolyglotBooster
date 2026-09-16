@@ -32,3 +32,10 @@ export function downloadTaskRun(run: SavedTaskRun, format: "csv" | "tsv" | "txt"
   link.click();
   URL.revokeObjectURL(url);
 }
+
+export function downloadAnkiPackage(taskRunId: string) {
+  const link = document.createElement("a");
+  link.href = `/api/account/reviews/${taskRunId}/anki`;
+  link.download = `polyglot-${taskRunId}.apkg`;
+  link.click();
+}
