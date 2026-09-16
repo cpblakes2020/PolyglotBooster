@@ -8,9 +8,9 @@ export default async function Home() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <Link className="brand" href="/" aria-label="Polyglot Language Learner home">
+        <Link className="brand" href="/" aria-label="PolyglotBooster home">
           <span className="brand-mark" aria-hidden="true">P</span>
-          <span>Polyglot<span className="brand-muted"> / learner</span></span>
+          <span>PolyglotBooster</span>
         </Link>
         <div className="topbar-note">
           <span>{session?.user?.email}</span>

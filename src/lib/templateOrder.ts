@@ -1,8 +1,16 @@
 import type { Language, PromptTemplate } from "@/lib/types";
 
-function templateRank(template: PromptTemplate): number {
-  if (template.id.startsWith("word-analysis")) return 0;
-  if (template.id.startsWith("sentence-guide")) return 1;
+function templateRank(template: PromptTemplate, sourceLanguage: Language): number {
+  const isWordAnalysis = template.id.startsWith("word-analysis");
+  const isSentenceGuide = template.id.startsWith("sentence-guide");
+  // Japanese reads more naturally sentence-first; every other language keeps word-first.
+  if (sourceLanguage === "Japanese") {
+    if (isSentenceGuide) return 0;
+    if (isWordAnalysis) return 1;
+    return 2;
+  }
+  if (isWordAnalysis) return 0;
+  if (isSentenceGuide) return 1;
   return 2;
 }
 
@@ -10,5 +18,5 @@ export function visibleTemplatesFor(templates: PromptTemplate[], sourceLanguage:
   return templates
     .filter((template) => template.scope === "general" || template.scope === sourceLanguage)
     .slice()
-    .sort((a, b) => templateRank(a) - templateRank(b));
+    .sort((a, b) => templateRank(a, sourceLanguage) - templateRank(b, sourceLanguage));
 }
