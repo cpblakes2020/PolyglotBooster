@@ -99,6 +99,13 @@ h2 { margin-bottom: 0; color: var(--ink); font-family: Georgia, serif; font-size
 .run-task-button { border: 0; background: var(--coral); padding: 10px 16px; color: #fff; font-size: 11px; }
 .run-task-button:hover { background: #cf5c40; }
 .run-task-button:disabled { cursor: not-allowed; opacity: .45; }
+.voice-button { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: transparent; padding: 0; color: var(--teal); font-size: 15px; line-height: 1; }
+.voice-button:hover { background: #e5eee8; }
+.voice-button:disabled { cursor: not-allowed; opacity: .45; }
+.audio-playback { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; }
+.audio-play-button, .audio-loop-button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: transparent; padding: 0; color: var(--teal); font-size: 12px; line-height: 1; }
+.audio-play-button:hover, .audio-loop-button:hover { background: #e5eee8; }
+.audio-loop-button.active { border-color: var(--coral); background: var(--coral); color: #fff; }
 .task-status { margin: 18px 0 0; color: var(--muted); font-size: 11px; }
 .task-result { margin-top: 16px; border: 1px solid var(--line); background: var(--paper); }
 .result-label { border-bottom: 1px solid var(--line); padding: 12px 14px; color: var(--teal); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }

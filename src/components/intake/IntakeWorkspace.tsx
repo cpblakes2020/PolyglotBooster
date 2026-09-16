@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { AudioPlayback } from "@/components/audio/AudioPlayback";
 import { LanguageSettings } from "@/components/intake/LanguageSettings";
 import { PromptTemplatePicker } from "@/components/intake/PromptTemplatePicker";
 import { UploadPanel } from "@/components/intake/UploadPanel";
@@ -75,6 +76,10 @@ export function IntakeWorkspace() {
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [templatesAdmin, setTemplatesAdmin] = useState(false);
   const [templatesStatus, setTemplatesStatus] = useState("Loading tasks...");
+  const [audioUrl, setAudioUrl] = useState("");
+  const [audioVoice, setAudioVoice] = useState("");
+  const [audioSourceText, setAudioSourceText] = useState("");
+  const [audioStatus, setAudioStatus] = useState("");
 
   useEffect(() => {
     const savedProvider = window.localStorage.getItem(selectedProviderPreferenceKey);
@@ -203,10 +208,31 @@ export function IntakeWorkspace() {
     }
   }
 
+  async function generateAudio() {
+    setAudioStatus("Generating audio...");
+    setAudioUrl("");
+    try {
+      const response = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const result = await parseJsonResponse<{ error?: string; url?: string; voice?: string }>(response);
+      if (!response.ok || !result.url) throw new Error(result.error || "The audio could not be generated.");
+      setAudioUrl(result.url);
+      setAudioVoice(result.voice || "alloy");
+      setAudioSourceText(text.trim());
+      setAudioStatus("");
+    } catch (error) {
+      setAudioStatus(error instanceof Error ? error.message : "The audio could not be generated.");
+    }
+  }
+
   async function saveForReview() {
     setReviewStatus("Saving...");
     try {
-      const taskRun: SavedTaskRun = { taskRunId: crypto.randomUUID(), sourceText: text.trim(), result: taskResult.trim(), flashcards, followUps, sourceLanguage, userLanguage: explanationLanguage, learnerLevel, outputStyle, promptTemplateId: selectedTemplate, notes: "", createdAt: new Date().toISOString() };
+      const audio = audioUrl && audioSourceText === text.trim() ? { url: audioUrl, voice: audioVoice, createdAt: new Date().toISOString() } : undefined;
+      const taskRun: SavedTaskRun = { taskRunId: crypto.randomUUID(), sourceText: text.trim(), result: taskResult.trim(), flashcards, followUps, sourceLanguage, userLanguage: explanationLanguage, learnerLevel, outputStyle, promptTemplateId: selectedTemplate, notes: "", createdAt: new Date().toISOString(), audio };
       const response = await fetch("/api/account/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(taskRun) });
       const data = await parseJsonResponse<{ error?: string; reviews?: SavedTaskRun[] }>(response);
       if (!response.ok || !data.reviews) throw new Error(data.error || "The result could not be saved.");
@@ -233,6 +259,16 @@ export function IntakeWorkspace() {
     setFollowUpStatus("");
     setTaskStatus("Saved result opened");
     setReviewStatus("");
+    if (run.audio) {
+      setAudioUrl(run.audio.url);
+      setAudioVoice(run.audio.voice);
+      setAudioSourceText(run.sourceText.trim());
+    } else {
+      setAudioUrl("");
+      setAudioVoice("");
+      setAudioSourceText("");
+    }
+    setAudioStatus("");
   }
 
   async function updateSavedRun(run: SavedTaskRun) {
@@ -269,6 +305,10 @@ export function IntakeWorkspace() {
     setFollowUpText("");
     setFollowUpPreview("");
     setFollowUpStatus("");
+    setAudioUrl("");
+    setAudioVoice("");
+    setAudioSourceText("");
+    setAudioStatus("");
   }
 
   function insertFollowUpPhrase(phrase: string) {
@@ -338,8 +378,11 @@ export function IntakeWorkspace() {
               </select>
               <button className="preview-prompt-button" type="button" disabled={!text.trim() || !selectedTemplate} onClick={() => void previewPrompt()}>Preview prompt</button>
               <button className="run-task-button" type="button" disabled={!text.trim() || !selectedTemplate || taskStatus === "Working with Claude..."} onClick={() => void runTask()}>Run task</button>
+              <button className="voice-button" type="button" disabled={!text.trim() || audioStatus === "Generating audio..."} onClick={() => void generateAudio()} aria-label="Read text aloud" title="Read text aloud">🔊</button>
             </div>
           </div>
+          {audioStatus && <p className="task-status" role="status">{audioStatus}</p>}
+          {audioUrl && audioSourceText === text.trim() && <AudioPlayback url={audioUrl} label="Play the source text aloud" />}
           {mode === "text" ? (
             <>
               <label className="text-label" htmlFor="study-text">Paste a word, sentence, or passage</label>

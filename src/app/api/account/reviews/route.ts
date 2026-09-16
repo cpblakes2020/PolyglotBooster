@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { addAccountReview, getAccountReviews } from "@/lib/storage/account";
 import { isSupportedLanguage } from "@/lib/presets";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
-import type { SavedTaskRun } from "@/lib/reviews";
+import { readSavedAudio, type SavedTaskRun } from "@/lib/reviews";
 
 const learnerLevels = new Set<LearnerLevel>(["Beginner", "Intermediate", "Advanced"]);
 const outputStyles = new Set<OutputStyle>(["Concise", "Detailed", "Literal", "Natural", "Formal", "Informal"]);
@@ -35,6 +35,7 @@ export async function POST(request: Request) {
   const createdAt = body?.createdAt;
   const flashcards = body?.flashcards;
   const followUps = body?.followUps;
+  const audio = readSavedAudio(body?.audio);
 
   if (typeof taskRunId !== "string" || !taskRunId) return NextResponse.json({ error: "Invalid review." }, { status: 400 });
   if (typeof sourceText !== "string" || !sourceText.trim() || sourceText.length > 12000) {
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
     createdAt,
     flashcards: Array.isArray(flashcards) ? flashcards : undefined,
     followUps: Array.isArray(followUps) ? followUps : undefined,
+    audio,
   };
 
   try {

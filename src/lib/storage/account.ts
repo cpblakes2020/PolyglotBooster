@@ -1,4 +1,5 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from "node:crypto";
+import { put } from "@vercel/blob";
 import { readJsonBlob, writeJsonBlob } from "@/lib/storage/blob-json";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { SavedTaskRun } from "@/lib/reviews";
@@ -11,6 +12,10 @@ function keyPathname(userId: string, providerId: LlmProviderId) {
 
 function reviewsPathname(userId: string) {
   return `lingua/accounts/${userId}/reviews.json`;
+}
+
+function audioPathname(userId: string, id: string) {
+  return `lingua/accounts/${userId}/audio/${id}.mp3`;
 }
 
 function encryptionKey() {
@@ -60,6 +65,15 @@ export async function requireAccountApiKey(userId: string, providerId: LlmProvid
   const apiKey = await getAccountApiKey(userId, providerId);
   if (!apiKey) throw new Error(`Add your ${providerLabels[providerId]} API key in Settings before running a task.`);
   return apiKey;
+}
+
+export async function saveAccountAudio(userId: string, audio: Buffer): Promise<string> {
+  const result = await put(audioPathname(userId, randomUUID()), audio, {
+    access: "public",
+    contentType: "audio/mpeg",
+    addRandomSuffix: false,
+  });
+  return result.url;
 }
 
 export async function getAccountReviews(userId: string): Promise<SavedTaskRun[]> {

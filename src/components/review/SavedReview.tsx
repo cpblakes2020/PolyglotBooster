@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AudioPlayback } from "@/components/audio/AudioPlayback";
 import type { SavedTaskRun } from "@/lib/reviews";
 import { downloadTaskRun } from "@/lib/exports";
 
@@ -35,6 +36,7 @@ export function SavedReview({ runs, onOpen, onUpdate, onDelete }: SavedReviewPro
                 <div className="review-detail">
                   <label className="text-label">Source text</label>
                   <textarea className="review-detail-text" readOnly value={run.sourceText} />
+                  {run.audio && <AudioPlayback url={run.audio.url} label="Play the source text aloud" />}
                   <label className="text-label">Result</label>
                   <textarea className="review-detail-text" readOnly value={run.result} />
                   {run.followUps && run.followUps.length > 0 && (
