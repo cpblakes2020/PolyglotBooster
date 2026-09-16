@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Polyglot Language Learner",
+  title: "PolyglotBooster",
   description: "Study one language through another with guided, reusable workflows.",
+  appleWebApp: {
+    title: "PolyglotBooster",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

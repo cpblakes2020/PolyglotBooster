@@ -33,8 +33,7 @@ button { cursor: pointer; }
 .topbar { border-bottom: 1px solid var(--line); padding-bottom: 22px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-size: 15px; font-weight: 700; letter-spacing: .01em; text-decoration: none; }
 .brand-mark { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: var(--coral); color: #fff; font-family: Georgia, serif; font-size: 19px; font-style: italic; }
-.brand-muted, .topbar-note, .panel-count, .field-footer, .example-label, .template-card small, .page-footer { color: var(--muted); }
-.brand-muted { font-weight: 400; }
+.topbar-note, .panel-count, .field-footer, .example-label, .template-card small, .page-footer { color: var(--muted); }
 .topbar-note { font-size: 12px; display: flex; align-items: center; gap: 14px; }
 .topbar-note form { display: contents; }
 .topbar-note button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline; }
