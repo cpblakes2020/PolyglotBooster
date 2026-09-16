@@ -222,7 +222,7 @@ export function IntakeWorkspace() {
       setAudioUrl(result.url);
       setAudioVoice(result.voice || "alloy");
       setAudioSourceText(text.trim());
-      setAudioStatus("");
+      setAudioStatus("Audio ready");
     } catch (error) {
       setAudioStatus(error instanceof Error ? error.message : "The audio could not be generated.");
     }

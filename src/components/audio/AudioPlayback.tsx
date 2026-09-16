@@ -7,39 +7,41 @@ type AudioPlaybackProps = {
   label?: string;
 };
 
+const rewindSeconds = 5;
+
 export function AudioPlayback({ url, label }: AudioPlaybackProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
 
-  function playOnce() {
+  function togglePlay() {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.loop = false;
-    setIsLooping(false);
-    audio.currentTime = 0;
-    void audio.play();
+    if (audio.paused) void audio.play();
+    else audio.pause();
   }
 
   function toggleLoop() {
     const audio = audioRef.current;
     if (!audio) return;
-    if (isLooping) {
-      audio.pause();
-      audio.loop = false;
-      setIsLooping(false);
-      return;
-    }
-    audio.loop = true;
-    setIsLooping(true);
-    audio.currentTime = 0;
-    void audio.play();
+    const next = !isLooping;
+    audio.loop = next;
+    setIsLooping(next);
+    if (next && audio.paused) void audio.play();
+  }
+
+  function rewind() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.max(0, audio.currentTime - rewindSeconds);
   }
 
   return (
     <span className="audio-playback" role="group" aria-label={label || "Audio playback"}>
-      <audio ref={audioRef} src={url} preload="none" onEnded={() => setIsLooping(false)} />
-      <button type="button" className="audio-play-button" onClick={playOnce} aria-label="Play once" title="Play once">▶</button>
-      <button type="button" className={`audio-loop-button${isLooping ? " active" : ""}`} onClick={toggleLoop} aria-label={isLooping ? "Stop loop playback" : "Loop playback"} title={isLooping ? "Stop loop" : "Loop playback"}>🔁</button>
+      <audio ref={audioRef} src={url} preload="none" onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onEnded={() => setIsPlaying(false)} />
+      <button type="button" className="audio-rewind-button" onClick={rewind} aria-label="Rewind 5 seconds" title="Rewind 5 seconds">⏪</button>
+      <button type="button" className="audio-play-button" onClick={togglePlay} aria-label={isPlaying ? "Pause" : "Play"} title={isPlaying ? "Pause" : "Play"}>{isPlaying ? "⏸" : "▶"}</button>
+      <button type="button" className={`audio-loop-button${isLooping ? " active" : ""}`} onClick={toggleLoop} aria-label={isLooping ? "Turn off loop" : "Loop playback"} title={isLooping ? "Turn off loop" : "Loop playback"}>🔁</button>
     </span>
   );
 }

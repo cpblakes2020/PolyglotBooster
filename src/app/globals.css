@@ -103,8 +103,8 @@ h2 { margin-bottom: 0; color: var(--ink); font-family: Georgia, serif; font-size
 .voice-button:hover { background: #e5eee8; }
 .voice-button:disabled { cursor: not-allowed; opacity: .45; }
 .audio-playback { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; }
-.audio-play-button, .audio-loop-button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: transparent; padding: 0; color: var(--teal); font-size: 12px; line-height: 1; }
-.audio-play-button:hover, .audio-loop-button:hover { background: #e5eee8; }
+.audio-play-button, .audio-loop-button, .audio-rewind-button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: transparent; padding: 0; color: var(--teal); font-size: 12px; line-height: 1; }
+.audio-play-button:hover, .audio-loop-button:hover, .audio-rewind-button:hover { background: #e5eee8; }
 .audio-loop-button.active { border-color: var(--coral); background: var(--coral); color: #fff; }
 .task-status { margin: 18px 0 0; color: var(--muted); font-size: 11px; }
 .task-result { margin-top: 16px; border: 1px solid var(--line); background: var(--paper); }
