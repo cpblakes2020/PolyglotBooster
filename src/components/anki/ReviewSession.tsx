@@ -162,6 +162,8 @@ export function ReviewSession() {
     if (!note) return;
     setBusy(true);
     try {
+      // Keep a ticked field cleanup even when skipping the analysis.
+      if (draft?.replaceField && draft.fieldText.trim()) await anki.updateFields(note.noteId, { [language]: escapeHtml(draft.fieldText.trim()) });
       await anki.addTags([note.noteId], [pbTags.skip(language)]);
       goTo(index + 1);
     } catch (error) {
