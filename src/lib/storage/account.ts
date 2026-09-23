@@ -3,8 +3,14 @@ import { put } from "@vercel/blob";
 import { readJsonBlob, writeJsonBlob } from "@/lib/storage/blob-json";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { SavedTaskRun } from "@/lib/reviews";
+import type { Language } from "@/lib/types";
+import type { VoiceSetting } from "@/lib/voices";
 
 type StoredKey = { encrypted?: string };
+
+export type AccountSettings = {
+  voices?: Partial<Record<Language, VoiceSetting>>;
+};
 
 function keyPathname(userId: string, providerId: LlmProviderId) {
   return `lingua/accounts/${userId}/keys/${providerId}.json`;
@@ -12,6 +18,10 @@ function keyPathname(userId: string, providerId: LlmProviderId) {
 
 function reviewsPathname(userId: string) {
   return `lingua/accounts/${userId}/reviews.json`;
+}
+
+function settingsPathname(userId: string) {
+  return `lingua/accounts/${userId}/settings.json`;
 }
 
 function audioPathname(userId: string, id: string) {
@@ -74,6 +84,16 @@ export async function saveAccountAudio(userId: string, audio: Buffer): Promise<s
     addRandomSuffix: false,
   });
   return result.url;
+}
+
+export async function getAccountSettings(userId: string): Promise<AccountSettings> {
+  return readJsonBlob<AccountSettings>(settingsPathname(userId), {});
+}
+
+export async function updateAccountSettings(userId: string, updates: Partial<AccountSettings>): Promise<AccountSettings> {
+  const next = { ...(await getAccountSettings(userId)), ...updates };
+  await writeJsonBlob(settingsPathname(userId), next);
+  return next;
 }
 
 export async function getAccountReviews(userId: string): Promise<SavedTaskRun[]> {

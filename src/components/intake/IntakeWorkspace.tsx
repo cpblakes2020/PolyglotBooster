@@ -215,7 +215,7 @@ export function IntakeWorkspace() {
       const response = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, language: sourceLanguage }),
       });
       const result = await parseJsonResponse<{ error?: string; url?: string; voice?: string }>(response);
       if (!response.ok || !result.url) throw new Error(result.error || "The audio could not be generated.");

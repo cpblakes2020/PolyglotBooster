@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
-import { IntakeWorkspace } from "@/components/intake/IntakeWorkspace";
+import { AnkiDesk } from "@/components/anki/AnkiDesk";
 
-export default async function Home() {
+export default async function AnkiPage() {
   const session = await auth();
+  if (!session?.user?.id) redirect("/api/auth/signin");
 
   return (
     <main className="app-shell">
@@ -13,18 +15,15 @@ export default async function Home() {
           <span>PolyglotBooster</span>
         </Link>
         <div className="topbar-note">
-          <span>{session?.user?.email}</span>
-          <Link href="/anki">Anki</Link>
+          <span>{session.user.email}</span>
+          <Link href="/">Study desk</Link>
           <Link href="/settings">Settings</Link>
           <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
             <button type="submit">Sign out</button>
           </form>
         </div>
       </header>
-
-      <IntakeWorkspace />
-
-      <footer className="page-footer"><span>Polyglot Language Learner</span><span>Analyzed language first, always editable.</span></footer>
+      <AnkiDesk />
     </main>
   );
 }

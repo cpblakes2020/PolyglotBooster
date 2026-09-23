@@ -4,6 +4,7 @@ import { auth, signOut } from "@/lib/auth";
 import { getAccountKeyStatus } from "@/lib/storage/account";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { ImportLegacyReviews } from "@/components/settings/ImportLegacyReviews";
+import { VoiceSettings } from "@/components/settings/VoiceSettings";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -27,6 +28,7 @@ export default async function SettingsPage() {
         </div>
       </header>
       <SettingsForm initialKeyStatus={keyStatus} />
+      <VoiceSettings />
       <ImportLegacyReviews />
     </main>
   );
