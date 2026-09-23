@@ -53,6 +53,17 @@ export const anki = {
     return infos.filter((info) => info.modelName === ankiNoteType).map(toVocabNote);
   },
 
+  // findNotes + notesInfo, fetched in batches so large result sets don't
+  // make one huge request.
+  async notesMatching(query: string): Promise<VocabNote[]> {
+    const ids = await anki.findNotes(query);
+    const notes: VocabNote[] = [];
+    for (let start = 0; start < ids.length; start += 250) {
+      notes.push(...await anki.notesInfo(ids.slice(start, start + 250)));
+    }
+    return notes;
+  },
+
   // Note: Anki ignores field updates to a note that's currently open in its
   // Browse window editor — close or move off it first.
   updateFields: (noteId: number, fields: Record<string, string>) =>

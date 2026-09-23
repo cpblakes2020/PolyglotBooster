@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { speak } from "@/components/anki/api";
 import { anki } from "@/lib/anki/connect";
 import { cleanField } from "@/lib/anki/fields";
-import { ankiLanguages, audioField, audioFilename, pbTags, type AnkiLanguage } from "@/lib/anki/vocab";
+import { audioField, audioFilename, audioLanguages, pbTags, type AnkiLanguage } from "@/lib/anki/vocab";
 
 type Job = { noteId: number; language: AnkiLanguage; text: string };
 type Failure = { job: Job; message: string };
@@ -22,7 +22,7 @@ function estimateMinutes(jobs: Job[]) {
 }
 
 export function AudioBatch() {
-  const [selected, setSelected] = useState<Set<AnkiLanguage>>(new Set(ankiLanguages));
+  const [selected, setSelected] = useState<Set<AnkiLanguage>>(new Set(audioLanguages));
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [status, setStatus] = useState("");
   const [running, setRunning] = useState(false);
@@ -46,14 +46,10 @@ export function AudioBatch() {
     setDone(0);
     try {
       const found: Job[] = [];
-      for (const language of ankiLanguages.filter((item) => selected.has(item))) {
-        const ids = await anki.findNotes(`${language}:_* ${audioField(language)}: -tag:${pbTags.skip(language)}`);
-        for (let start = 0; start < ids.length; start += 250) {
-          const notes = await anki.notesInfo(ids.slice(start, start + 250));
-          for (const note of notes) {
-            const text = cleanField(note.fields[language] || "", language).text;
-            if (text) found.push({ noteId: note.noteId, language, text });
-          }
+      for (const language of audioLanguages.filter((item) => selected.has(item))) {
+        for (const note of await anki.notesMatching(`${language}:_* ${audioField(language)}: -tag:${pbTags.skip(language)}`)) {
+          const text = cleanField(note.fields[language] || "", language).text;
+          if (text) found.push({ noteId: note.noteId, language, text });
         }
       }
       setJobs(found);
@@ -103,7 +99,7 @@ export function AudioBatch() {
       : "Finished. Scan again to retry anything that failed.");
   }
 
-  const byLanguage = ankiLanguages.map((language) => {
+  const byLanguage = audioLanguages.map((language) => {
     const languageJobs = jobs?.filter((job) => job.language === language) || [];
     return { language, count: languageJobs.length, minutes: estimateMinutes(languageJobs) };
   });
@@ -111,10 +107,10 @@ export function AudioBatch() {
 
   return (
     <div className="settings-panel anki-panel">
-      <p>Generates a recording for every filled language field that has no audio yet, and writes it to that note&apos;s <code>Audio_&lt;Language&gt;</code> field. Uses your OpenAI key and the voices set in <a href="/settings">Settings</a>. Notes tagged <code>pb::skip::&lt;language&gt;</code> are left alone.</p>
+      <p>Generates a recording for every filled learning-language field (not English, which is only the prompt) that has no audio yet, and writes it to that note&apos;s <code>Audio_&lt;Language&gt;</code> field. Uses your OpenAI key and the voices set in <a href="/settings">Settings</a>. Notes tagged <code>pb::skip::&lt;language&gt;</code> are left alone.</p>
       <fieldset className="anki-language-picks" disabled={running}>
         <legend>Languages</legend>
-        {ankiLanguages.map((language) => (
+        {audioLanguages.map((language) => (
           <label key={language}><input type="checkbox" checked={selected.has(language)} onChange={() => toggle(language)} /> {language}</label>
         ))}
       </fieldset>

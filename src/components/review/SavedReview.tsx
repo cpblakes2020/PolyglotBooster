@@ -2,17 +2,20 @@
 
 import { useState } from "react";
 import { AudioPlayback } from "@/components/audio/AudioPlayback";
+import { SendToAnki, canSendToAnki } from "@/components/anki/SendToAnki";
+import type { LlmProviderId } from "@/lib/llm/provider";
 import type { SavedTaskRun } from "@/lib/reviews";
 import { downloadAnkiPackage, downloadTaskRun } from "@/lib/exports";
 
 type SavedReviewProps = {
   runs: SavedTaskRun[];
+  providerId: LlmProviderId;
   onOpen: (run: SavedTaskRun) => void;
   onUpdate: (run: SavedTaskRun) => void;
   onDelete: (taskRunId: string) => void;
 };
 
-export function SavedReview({ runs, onOpen, onUpdate, onDelete }: SavedReviewProps) {
+export function SavedReview({ runs, providerId, onOpen, onUpdate, onDelete }: SavedReviewProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (!runs.length) return null;
@@ -50,6 +53,7 @@ export function SavedReview({ runs, onOpen, onUpdate, onDelete }: SavedReviewPro
                     </div>
                   )}
                   <button type="button" onClick={() => onOpen(run)}>Open in workspace to edit</button>
+                  {canSendToAnki(run.sourceLanguage, run.userLanguage, run.promptTemplateId) && <SendToAnki sourceText={run.sourceText} sourceLanguage={run.sourceLanguage} result={run.result} promptTemplateId={run.promptTemplateId} providerId={providerId} />}
                 </div>
               )}
               <div className="review-footer">

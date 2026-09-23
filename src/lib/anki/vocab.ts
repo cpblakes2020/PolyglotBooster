@@ -12,6 +12,11 @@ export const ankiNoteType = "Polyglot Vocab";
 export const ankiLanguages = ["English", "Indonesian", "Thai", "Japanese"] as const satisfies readonly Language[];
 export type AnkiLanguage = typeof ankiLanguages[number];
 
+// Languages that get recorded audio. English is left out on purpose: Anki
+// autoplays every sound on a card side, and English is only the prompt, so
+// hearing it in every normal review isn't wanted.
+export const audioLanguages = ankiLanguages.filter((language) => language !== "English");
+
 // Languages whose Notes field gets a reading line (romanization or kana)
 // above the analysis.
 export const readingLanguages: ReadonlySet<AnkiLanguage> = new Set(["Thai", "Japanese"]);

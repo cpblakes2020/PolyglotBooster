@@ -244,6 +244,14 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-card-preview ul, .anki-card-preview ol { margin: 4px 0 8px; padding-left: 22px; }
 .anki-card-preview td, .anki-card-preview th { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
 .anki-card-preview rt { font-size: 10px; }
+.send-to-anki { margin: 14px; border: 1px solid var(--line); background: var(--paper); padding: 12px 14px 0; }
+.send-to-anki .panel-heading { align-items: center; margin-bottom: 8px; }
+.send-to-anki .panel-heading .result-label { border: 0; padding: 0; }
+.send-to-anki .result-label { padding-left: 0; }
+.send-to-anki .anki-note { margin-bottom: 12px; }
+.send-to-anki .result-actions { margin: 14px -14px 0; }
+.review-detail .send-to-anki { margin: 14px 0 0; }
+.review-detail > .preview-prompt-button { margin-left: 10px; }
 @media (max-width: 640px) {
   .anki-controls { flex-direction: column; align-items: stretch; }
   .anki-front { font-size: 22px; }

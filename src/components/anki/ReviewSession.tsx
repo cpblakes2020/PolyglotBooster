@@ -79,11 +79,7 @@ export function ReviewSession() {
     setDraft(null);
     setSaved(0);
     try {
-      const ids = await anki.findNotes(`${language}:_* -tag:${pbTags.analyzedPrefix(language)}::* -tag:${pbTags.skip(language)} ${extraQuery.trim()}`);
-      const notes: VocabNote[] = [];
-      for (let start = 0; start < ids.length; start += 250) {
-        notes.push(...await anki.notesInfo(ids.slice(start, start + 250)));
-      }
+      const notes = await anki.notesMatching(`${language}:_* -tag:${pbTags.analyzedPrefix(language)}::* -tag:${pbTags.skip(language)} ${extraQuery.trim()}`);
       // Analysis belongs to the note's Origin language, so e.g. an
       // Indonesian-origin note that also has Thai is analyzed as Indonesian.
       const matching = notes.filter((item) => analysisLanguage(item) === language).sort((a, b) => a.noteId - b.noteId);
