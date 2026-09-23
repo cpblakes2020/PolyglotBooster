@@ -141,6 +141,23 @@ export function ReviewSession() {
     }
   }
 
+  // Writes only the cleaned language field. The note isn't tagged as
+  // analyzed, so it comes back for analysis in a later session.
+  async function saveCleanupOnly() {
+    if (!note || !draft?.replaceField || !draft.fieldText.trim()) return;
+    setBusy(true);
+    setStatus("Saving cleanup to Anki...");
+    try {
+      await anki.updateFields(note.noteId, { [language]: escapeHtml(draft.fieldText.trim()) });
+      setSaved((count) => count + 1);
+      goTo(index + 1);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The note could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function neverAnalyze() {
     if (!note) return;
     setBusy(true);
@@ -259,6 +276,7 @@ export function ReviewSession() {
 
           <div className="result-actions">
             <button className="save-input-button" type="button" disabled={busy || !draft.analysis.trim()} onClick={() => void save()}>Save to Anki &amp; next</button>
+            {draft.replaceField && <button className="preview-prompt-button" type="button" disabled={busy || !draft.fieldText.trim()} onClick={() => void saveCleanupOnly()}>Save cleanup only &amp; next</button>}
             <button className="text-button" type="button" disabled={busy} onClick={() => goTo(index + 1)}>Skip for now</button>
             <button className="text-button" type="button" disabled={busy} onClick={() => void anki.openInBrowser(note.noteId)}>Open in Anki</button>
             <button className="danger-button" type="button" disabled={busy} onClick={() => void neverAnalyze()}>Never analyze this note</button>
