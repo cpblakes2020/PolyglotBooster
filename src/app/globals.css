@@ -212,6 +212,7 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-note { margin: 10px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .anki-language-picks { display: flex; flex-wrap: wrap; gap: 8px 22px; border: 0; margin: 14px 0 0; padding: 0; font-size: 13px; }
 .anki-language-picks legend { margin-bottom: 8px; color: var(--muted); font-size: 11px; }
+.anki-voices { margin: 14px 0 0; color: var(--muted); font-size: 12px; }
 .anki-estimate { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 16px; }
 .anki-estimate table, .anki-card-preview table { border-collapse: collapse; font-size: 12px; }
 .anki-estimate th, .anki-estimate td { border-bottom: 1px solid var(--line); padding: 6px 18px 6px 0; text-align: left; }

@@ -52,8 +52,11 @@ export function sentenceTemplateId(language: AnkiLanguage) {
   return `sentence-guide-${tagSlug(language)}`;
 }
 
-export function audioFilename(noteId: number, language: AnkiLanguage) {
-  return `pb-${noteId}-${tagSlug(language)}.mp3`;
+// Replacement recordings get a version suffix: a new filename changes the
+// note's field, so the new clip reliably syncs to other devices instead of
+// a cached copy of the old file being played.
+export function audioFilename(noteId: number, language: AnkiLanguage, version?: string) {
+  return `pb-${noteId}-${tagSlug(language)}${version ? `-${version}` : ""}.mp3`;
 }
 
 export type VocabNote = {
