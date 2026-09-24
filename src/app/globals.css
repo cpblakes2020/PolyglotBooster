@@ -255,6 +255,14 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-branch .panel-heading { margin-bottom: 10px; }
 .anki-branch .section-kicker { margin-bottom: 4px; }
 .anki-branch-source { margin: 0; color: var(--ink); font-size: 15px; }
+.anki-branch .anki-branch { margin-top: 12px; border-color: var(--coral); }
+.anki-tag-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 14px; margin: 14px 0 0; }
+.anki-note-card > .anki-tag-row { border-top: 1px solid var(--line); padding-top: 12px; padding-bottom: 4px; }
+.anki-tags { display: grid; flex: 1 1 260px; gap: 6px; }
+.anki-tags label { color: var(--muted); font-size: 11px; }
+.anki-tags input { width: 100%; border: 1px solid var(--line); background: #f3f1e7; padding: 7px 8px; color: var(--ink); font-size: 13px; }
+.anki-tag-list { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; }
+.anki-tag-list span { background: #e8efe9; padding: 2px 6px; color: var(--teal); font-size: 11px; }
 .anki-branch-select { margin: 0 0 6px; color: var(--muted); font-size: 12px; }
 .anki-branch-select .text-button { padding: 0; }
 .anki-branch-table { width: 100%; border-collapse: collapse; font-size: 13px; }

@@ -76,6 +76,9 @@ export const anki = {
   storeMedia: (filename: string, base64: string) =>
     invoke<string>("storeMediaFile", { filename, data: base64 }),
 
+  // Every tag in the collection, for suggestions.
+  getTags: () => invoke<string[]>("getTags"),
+
   // Base64 contents of a file in collection.media, or false if missing.
   retrieveMedia: (filename: string) => invoke<string | false>("retrieveMediaFile", { filename }),
 

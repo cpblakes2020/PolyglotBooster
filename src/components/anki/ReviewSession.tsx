@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { analyze, assist, describeSelection, type AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
+import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/classify";
 import { anki, ankiSearchValue } from "@/lib/anki/connect";
 import { cleanField, composeNotesField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, hasRubyReading, japaneseRubyReading, markdownToAnkiHtml } from "@/lib/anki/fields";
@@ -43,7 +44,6 @@ function newDraft(note: VocabNote, language: AnkiLanguage): Draft {
   };
 }
 
-type SelectionMenu = { x: number; y: number; text: string };
 type Branch = { items?: BranchItem[] };
 
 function soundFilename(field: string) {
@@ -73,21 +73,14 @@ export function ReviewSession() {
   const [mode, setMode] = useState<"session" | "search">("session");
   const [search, setSearch] = useState("");
   const [branch, setBranch] = useState<Branch | null>(null);
-  const [menu, setMenu] = useState<SelectionMenu | null>(null);
+  // Tags to add to the current note on save, and the collection's tags to suggest.
+  const [newTags, setNewTags] = useState("");
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+  const selectionMenu = useSelectionMenu((text) => void addSelection(text));
 
   useEffect(() => {
-    if (!menu) return;
-    const close = () => setMenu(null);
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
-    window.addEventListener("mousedown", close);
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", close, true);
-    return () => {
-      window.removeEventListener("mousedown", close);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", close, true);
-    };
-  }, [menu]);
+    anki.getTags().then((tags) => setTagSuggestions(tags.filter((tag) => !tag.startsWith("pb::")).sort()), () => {});
+  }, []);
 
   const note = queue?.[index];
   const usesReading = language === "Thai" || (language === "Japanese" && !hasRubyReading(note?.fields[notesField(language)] || ""));
@@ -97,6 +90,7 @@ export function ReviewSession() {
     setIndex(nextIndex);
     setDraft(next ? newDraft(next, language) : null);
     setShowEnglish(false);
+    setNewTags("");
     setStatus(next ? "" : "That's every note in this set.");
   }
 
@@ -127,19 +121,9 @@ export function ReviewSession() {
     }
   }
 
-  // Right-click on selected text in the analysis preview offers to add
-  // just that item to Anki.
-  function openSelectionMenu(event: MouseEvent<HTMLDivElement>) {
-    const selection = window.getSelection();
-    const text = selection?.toString().trim();
-    if (!text || !selection?.anchorNode || !event.currentTarget.contains(selection.anchorNode)) return;
-    event.preventDefault();
-    setMenu({ x: event.clientX, y: event.clientY, text: text.slice(0, 300) });
-  }
-
+  // Right-click on selected text in the analysis preview adds just that item.
   async function addSelection(text: string) {
     if (!draft) return;
-    setMenu(null);
     setBusy(true);
     setStatus(`Looking up “${text.slice(0, 40)}”...`);
     try {
@@ -192,7 +176,7 @@ export function ReviewSession() {
       if (draft.replaceField && draft.fieldText.trim()) fields[language] = escapeHtml(draft.fieldText.trim());
       const templateId = draft.kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language);
       await anki.updateFields(note.noteId, fields);
-      await anki.addTags([note.noteId], [pbTags.analyzed(language, templateId)]);
+      await anki.addTags([note.noteId], [pbTags.analyzed(language, templateId), ...parseTags(newTags)]);
       setSaved((count) => count + 1);
       goTo(index + 1);
     } catch (error) {
@@ -210,6 +194,7 @@ export function ReviewSession() {
     setStatus("Saving cleanup to Anki...");
     try {
       await anki.updateFields(note.noteId, { [language]: escapeHtml(draft.fieldText.trim()) });
+      if (parseTags(newTags).length) await anki.addTags([note.noteId], parseTags(newTags));
       setSaved((count) => count + 1);
       goTo(index + 1);
     } catch (error) {
@@ -225,10 +210,27 @@ export function ReviewSession() {
     try {
       // Keep a ticked field cleanup even when skipping the analysis.
       if (draft?.replaceField && draft.fieldText.trim()) await anki.updateFields(note.noteId, { [language]: escapeHtml(draft.fieldText.trim()) });
-      await anki.addTags([note.noteId], [pbTags.skip(language)]);
+      await anki.addTags([note.noteId], [pbTags.skip(language), ...parseTags(newTags)]);
       goTo(index + 1);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "The note could not be tagged.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Adds the typed tags right away, without saving anything else.
+  async function saveTagsOnly() {
+    const tags = parseTags(newTags);
+    if (!note || !tags.length) return;
+    setBusy(true);
+    try {
+      await anki.addTags([note.noteId], tags);
+      setQueue((current) => current && current.map((item) => item.noteId === note.noteId ? { ...item, tags: [...new Set([...item.tags, ...tags])] } : item));
+      setNewTags("");
+      setStatus(`Added ${tags.length === 1 ? "tag" : "tags"}: ${tags.join(" ")}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The tags could not be added.");
     } finally {
       setBusy(false);
     }
@@ -293,15 +295,13 @@ export function ReviewSession() {
           analysis={draft.analysis}
           options={options}
           items={branch.items}
+          depth={1}
+          tagSuggestions={tagSuggestions}
           onFinish={() => { setBranch(null); setStatus(""); }}
         />
       )}
 
-      {menu && (
-        <div className="anki-context-menu" style={{ left: menu.x, top: menu.y }} role="menu" onMouseDown={(event) => event.stopPropagation()}>
-          <button type="button" role="menuitem" onClick={() => void addSelection(menu.text)}>Add “{menu.text.length > 30 ? `${menu.text.slice(0, 30)}…` : menu.text}” to Anki…</button>
-        </div>
-      )}
+      {selectionMenu.element}
 
       {note && draft && !branch && (
         <article className="anki-note-card">
@@ -358,13 +358,18 @@ export function ReviewSession() {
                 <textarea value={draft.analysis} onChange={(event) => update({ analysis: event.target.value })} />
               </label>
               <p className="result-label">{notesField(language)} as it will appear under &ldquo;more&rdquo;</p>
-              <div className="anki-card-preview" onContextMenu={openSelectionMenu} dangerouslySetInnerHTML={{ __html: composedNotes }} />
+              <div className="anki-card-preview" onContextMenu={selectionMenu.onContextMenu} dangerouslySetInnerHTML={{ __html: composedNotes }} />
               <div className="input-action-row">
                 <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => setBranch({})}>Branch from examples</button>
                 <span className="anki-note">Or select any {language} text in the preview and right-click it to add just that.</span>
               </div>
             </div>
           )}
+
+          <div className="anki-tag-row">
+            <TagInput id="anki-note-tags" value={newTags} onChange={setNewTags} current={note.tags} suggestions={tagSuggestions} />
+            <button className="text-button" type="button" disabled={busy || !parseTags(newTags).length} onClick={() => void saveTagsOnly()}>Save tags</button>
+          </div>
 
           <div className="result-actions">
             <button className="save-input-button" type="button" disabled={busy || !draft.analysis.trim()} onClick={() => void save()}>Save to Anki &amp; next</button>

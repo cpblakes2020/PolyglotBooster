@@ -18,6 +18,10 @@ type BranchQueueProps = {
   // Given: work through just these (a right-clicked selection). Omitted:
   // extract every item from the analysis and let the user pick.
   items?: BranchItem[];
+  // 1 for a branch off the main session, 2 for a branch off an item in
+  // that branch, and so on.
+  depth: number;
+  tagSuggestions: string[];
   onFinish: () => void;
 };
 
@@ -26,7 +30,7 @@ type Tally = { added: number; commented: number; skipped: number };
 
 const kindLabels = { example: "Example", related: "Related", register: "Register" } as const;
 
-export function BranchQueue({ language, parentText, parentEnglish, analysis, options, items, onFinish }: BranchQueueProps) {
+export function BranchQueue({ language, parentText, parentEnglish, analysis, options, items, depth, tagSuggestions, onFinish }: BranchQueueProps) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [queue, setQueue] = useState<Row[] | null>(null);
   const [position, setPosition] = useState(0);
@@ -79,6 +83,7 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
     setPosition((current) => current + 1);
   }
 
+  const backLabel = depth > 1 ? "Back to previous branch" : "Back to main session";
   const current = queue?.[position];
   const finished = queue !== null && position >= queue.length;
 
@@ -86,10 +91,10 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
     <section className="anki-branch">
       <div className="panel-heading">
         <div>
-          <p className="section-kicker">Branch</p>
+          <p className="section-kicker">{depth > 1 ? `Branch · level ${depth}` : "Branch"}</p>
           <p className="anki-branch-source">From {seenIn}</p>
         </div>
-        <button className="text-button" type="button" onClick={onFinish}>{finished ? "Back to main session" : "Cancel branch"}</button>
+        <button className="text-button" type="button" onClick={onFinish}>{finished ? backLabel : depth > 1 ? "Cancel this branch" : "Cancel branch"}</button>
       </div>
 
       {status && <p className="example-status" role="status">{status}</p>}
@@ -133,6 +138,8 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
             seenIn={seenIn}
             match={index.get(cleanField(current.item.text, language).text) || null}
             options={options}
+            depth={depth}
+            tagSuggestions={tagSuggestions}
             onDone={handleDone}
           />
         </>
@@ -143,7 +150,7 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
           <p className="anki-note">
             Branch finished: {tally.added} added, {tally.commented} comment{tally.commented === 1 ? "" : "s"} added to existing notes, {tally.skipped} skipped.
           </p>
-          <button className="save-input-button" type="button" onClick={onFinish}>Back to main session</button>
+          <button className="save-input-button" type="button" onClick={onFinish}>{backLabel}</button>
         </div>
       )}
     </section>
