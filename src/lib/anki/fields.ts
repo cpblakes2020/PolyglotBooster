@@ -36,7 +36,7 @@ const scriptPatterns: Record<string, RegExp> = {
 // pauses at every space. Old lesson material often spaced out each word, so
 // runs are joined directly — except after a sentence-final particle, where a
 // space is the natural sentence break.
-const thaiSentenceEnd = /(ครับ|ค่ะ|คะ|นะ|จ้ะ|จ๊ะ|จ้า|ค่า|ไหม|มั้ย)$/;
+const thaiSentenceEnd = /(ครับ|ค่ะ|คะ|นะ|น่ะ|จ้ะ|จ๊ะ|จ้า|ค่า|ไหม|มั้ย|อะ|ล่ะ|เถอะ|หรอ|เหรอ)$/;
 
 function joinThaiRuns(runs: string[]) {
   return runs.reduce((text, run) => !text ? run : `${text}${thaiSentenceEnd.test(text) ? " " : ""}${run}`, "");
@@ -61,6 +61,19 @@ export function cleanField(html: string, language: string): CleanedField {
   const text = language === "Thai" ? joinThaiRuns(runs) : runs.join(" ").replace(/\s+/g, " ").trim();
   const leftover = plain.replace(pattern, " ").replace(/\s+/g, " ").trim();
   return { text, leftover };
+}
+
+// Text the learner selected in an analysis, reduced to the language itself:
+// romanization, translations and punctuation around it are dropped, but the
+// spacing between sentences is kept as written.
+export function selectedItemText(selection: string, language: string) {
+  const pattern = scriptPatterns[language];
+  if (!pattern) return selection.replace(/\s+/g, " ").trim().replace(/^[\s"“'‘(\[–—-]+|[\s"”'’)\]–—:;,-]+$/g, "");
+  const runs = selection.replace(/\s+/g, " ").match(new RegExp(`(?:${pattern.source})(?: (?:${pattern.source}))*`, "g")) || [];
+  // The first stretch of the language's script is the item; what follows is
+  // usually a reading or gloss selected along with it (for Japanese, a kana
+  // reading in the same script family).
+  return runs[0] || "";
 }
 
 // True when the stored field holds more than the clean text: markup,

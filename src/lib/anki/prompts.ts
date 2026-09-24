@@ -80,8 +80,8 @@ export function extractItemsPrompt(analysis: string, parentText: string, languag
 
 export function describeSelectionPrompt(selection: string, analysis: string, language: AnkiLanguage) {
   return [
-    `A learner selected this text from a ${language} language-learning analysis: "${selection}".`,
-    `Identify the ${language} word, phrase, or sentence they selected (drop any romanization, translation, or punctuation around it) and describe it as a flashcard item. Use what the analysis says about it where it can; otherwise describe it yourself.`,
+    `A learner selected this ${language} text in the language-learning analysis below: "${selection}".`,
+    `Describe exactly that text as a flashcard item — not the item the analysis is about, and not a shorter or longer piece of it. Use what the analysis says about it where it can; otherwise describe it yourself.`,
     "Return one JSON object with these fields:",
     itemFields(language),
     `"kind": "example", "related", or "register", whichever fits best.`,

@@ -1,5 +1,6 @@
 // PolyglotBooster server calls used by the Anki page.
 
+import { selectedItemText } from "@/lib/anki/fields";
 import type { BranchItem, BranchItemKind } from "@/lib/anki/prompts";
 import type { AnkiLanguage } from "@/lib/anki/vocab";
 import type { LlmProviderId } from "@/lib/llm/provider";
@@ -72,8 +73,11 @@ export async function extractItems(analysis: string, parentText: string, languag
 
 // One item the learner selected in an analysis.
 export async function describeSelection(selection: string, analysis: string, language: AnkiLanguage, providerId: LlmProviderId) {
-  const { result } = await postJson<{ result: unknown }>("/api/anki/assist", { kind: "describe", text: selection, context: analysis, language }, { "x-polyglot-provider": providerId });
+  const text = selectedItemText(selection, language);
+  if (!text) throw new Error(`The selection doesn't contain any ${language} text.`);
+  const { result } = await postJson<{ result: unknown }>("/api/anki/assist", { kind: "describe", text, context: analysis, language }, { "x-polyglot-provider": providerId });
   const item = toBranchItem(result);
   if (!item) throw new Error("The selection couldn't be turned into a flashcard item.");
-  return item;
+  // The item is what was selected, whatever the model thought was meant.
+  return { ...item, text };
 }
