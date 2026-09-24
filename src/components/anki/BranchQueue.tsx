@@ -96,6 +96,10 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
 
       {rows && !queue && rows.length > 0 && (
         <>
+          <p className="anki-branch-select">
+            Select <button className="text-button" type="button" onClick={() => setRows(rows.map((row) => ({ ...row, selected: true })))}>all</button>
+            {" · "}<button className="text-button" type="button" onClick={() => setRows(rows.map((row) => ({ ...row, selected: false })))}>none</button>
+          </p>
           <table className="anki-branch-table">
             <thead><tr><th /><th>{language}</th><th>English</th><th>Comment</th><th /></tr></thead>
             <tbody>
