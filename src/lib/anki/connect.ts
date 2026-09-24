@@ -4,7 +4,7 @@
 // works on the machine running Anki, and only once this site's origin is in
 // AnkiConnect's webCorsOriginList.
 
-import { ankiNoteType, type VocabNote } from "@/lib/anki/vocab";
+import { ankiNoteType, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
 const endpoint = "http://127.0.0.1:8765";
 
@@ -79,11 +79,12 @@ export const anki = {
   // Base64 contents of a file in collection.media, or false if missing.
   retrieveMedia: (filename: string) => invoke<string | false>("retrieveMediaFile", { filename }),
 
-  addNote: (fields: Record<string, string>, tags: string[]) =>
+  addNote: (language: AnkiLanguage, fields: Record<string, string>, tags: string[]) =>
     invoke<number>("addNote", {
-      // Deck routing comes from the note type's per-template deck overrides;
-      // this deck only receives cards whose template has no override.
-      note: { deckName: "Default", modelName: ankiNoteType, fields, tags, options: { allowDuplicate: true } },
+      // Deck routing comes from the note type's per-template deck overrides.
+      // Anki still requires a deck here, so use the language's own Polyglot
+      // deck (the collection has no "Default" deck).
+      note: { deckName: `Polyglot::${language}`, modelName: ankiNoteType, fields, tags, options: { allowDuplicate: true } },
     }),
 
   // Opens Anki's own Browse window on a note, for editing by hand.

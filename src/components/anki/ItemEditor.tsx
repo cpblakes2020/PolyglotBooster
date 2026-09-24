@@ -73,7 +73,7 @@ export function ItemEditor({ item, language, seenIn, match, options, onDone }: I
       if (!text.trim() || !english.trim()) throw new Error(`Fill in the ${language} and the English — every card pairs the two.`);
       const fields = { English: escapeHtml(english.trim()), [language]: escapeHtml(text.trim()), [notesField(language)]: preview, Origin: language };
       const tags = [pbTags.branch, ...(analysis.trim() ? [pbTags.analyzed(language, kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language))] : [])];
-      const noteId = await anki.addNote(fields, tags);
+      const noteId = await anki.addNote(language, fields, tags);
       // The note exists now, so an audio failure mustn't invite a second
       // save (a duplicate note); Bulk audio fills in anything missed.
       try {
@@ -124,7 +124,7 @@ export function ItemEditor({ item, language, seenIn, match, options, onDone }: I
         <div className="anki-template-choice" role="radiogroup" aria-label="Analysis template">
           <label><input type="radio" checked={kind === "word"} onChange={() => setKind("word")} /> Word analysis</label>
           <label><input type="radio" checked={kind === "sentence"} onChange={() => setKind("sentence")} /> Sentence guide</label>
-          <button className="text-button" type="button" disabled={busy || !text.trim()} onClick={() => void runAnalysis()}>{analysis ? "Regenerate analysis" : "Analyze fully (optional)"}</button>
+          <button className="preview-prompt-button" type="button" disabled={busy || !text.trim()} onClick={() => void runAnalysis()}>{analysis ? "Regenerate analysis" : "Analyze fully (optional)"}</button>
           {analysis && <button className="text-button" type="button" disabled={busy} onClick={() => setAnalysis("")}>Drop analysis</button>}
         </div>
       )}

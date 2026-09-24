@@ -105,7 +105,7 @@ export function SendToAnki({ sourceText, sourceLanguage, result, promptTemplateI
         await anki.updateFields(noteId, fields);
         await anki.addTags([noteId], tags);
       } else {
-        noteId = await anki.addNote({ ...fields, Origin: language }, tags);
+        noteId = await anki.addNote(language, { ...fields, Origin: language }, tags);
       }
 
       // Audio for the learning language only, if the note has none yet.
