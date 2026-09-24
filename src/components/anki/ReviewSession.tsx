@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { analyze, assist, type AnalysisOptions } from "@/components/anki/api";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { analyze, assist, describeSelection, type AnalysisOptions } from "@/components/anki/api";
+import { BranchQueue } from "@/components/anki/BranchQueue";
 import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/classify";
-import { anki } from "@/lib/anki/connect";
-import { cleanField, composeNotesField, escapeHtml, existingReading, fieldNeedsCleanup, hasRubyReading, japaneseRubyReading, markdownToAnkiHtml } from "@/lib/anki/fields";
+import { anki, ankiSearchValue } from "@/lib/anki/connect";
+import { cleanField, composeNotesField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, hasRubyReading, japaneseRubyReading, markdownToAnkiHtml } from "@/lib/anki/fields";
+import type { BranchItem } from "@/lib/anki/prompts";
 import { analysisLanguage, ankiLanguages, audioField, notesField, pbTags, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
@@ -27,16 +29,22 @@ function newDraft(note: VocabNote, language: AnkiLanguage): Draft {
   const raw = note.fields[language] || "";
   const cleaned = cleanField(raw, language);
   const classification = classifyItem(cleaned.text, language);
+  // A previously analyzed note opens with its saved analysis and template.
+  const savedTemplate = note.tags.find((tag) => tag.startsWith(`${pbTags.analyzedPrefix(language)}::`));
+  const savedKind: ItemKind | undefined = savedTemplate?.endsWith(sentenceTemplateId(language)) ? "sentence" : savedTemplate?.endsWith(wordTemplateId(language)) ? "word" : undefined;
   return {
     classification,
-    kind: classification.kind,
+    kind: savedKind || classification.kind,
     cleanedText: cleaned.text,
     fieldText: cleaned.text,
     replaceField: fieldNeedsCleanup(raw, cleaned),
     reading: existingReading(note.fields[notesField(language)] || ""),
-    analysis: "",
+    analysis: existingAnalysis(note.fields[notesField(language)] || ""),
   };
 }
+
+type SelectionMenu = { x: number; y: number; text: string };
+type Branch = { items?: BranchItem[] };
 
 function soundFilename(field: string) {
   return field.match(/\[sound:([^\]]+)\]/)?.[1];
@@ -60,6 +68,26 @@ export function ReviewSession() {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(0);
+  // "session" works through unanalyzed notes; "search" through notes found
+  // by text, analyzed or not.
+  const [mode, setMode] = useState<"session" | "search">("session");
+  const [search, setSearch] = useState("");
+  const [branch, setBranch] = useState<Branch | null>(null);
+  const [menu, setMenu] = useState<SelectionMenu | null>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [menu]);
 
   const note = queue?.[index];
   const usesReading = language === "Thai" || (language === "Japanese" && !hasRubyReading(note?.fields[notesField(language)] || ""));
@@ -72,14 +100,21 @@ export function ReviewSession() {
     setStatus(next ? "" : "That's every note in this set.");
   }
 
-  async function loadQueue() {
+  async function loadQueue(nextMode: "session" | "search") {
+    const term = search.trim();
+    if (nextMode === "search" && !term) return;
     setBusy(true);
     setStatus("Loading notes from Anki...");
     setQueue(null);
     setDraft(null);
+    setBranch(null);
     setSaved(0);
+    setMode(nextMode);
     try {
-      const notes = await anki.notesMatching(`${language}:_* -tag:${pbTags.analyzedPrefix(language)}::* -tag:${pbTags.skip(language)} ${extraQuery.trim()}`);
+      const query = nextMode === "search"
+        ? `${language}:_* ("${language}:*${ankiSearchValue(term)}*" OR "English:*${ankiSearchValue(term)}*")`
+        : `${language}:_* -tag:${pbTags.analyzedPrefix(language)}::* -tag:${pbTags.skip(language)} ${extraQuery.trim()}`;
+      const notes = await anki.notesMatching(query);
       // Analysis belongs to the note's Origin language, so e.g. an
       // Indonesian-origin note that also has Thai is analyzed as Indonesian.
       const matching = notes.filter((item) => analysisLanguage(item) === language).sort((a, b) => a.noteId - b.noteId);
@@ -87,6 +122,32 @@ export function ReviewSession() {
       goTo(0, matching);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Notes could not be loaded from Anki.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Right-click on selected text in the analysis preview offers to add
+  // just that item to Anki.
+  function openSelectionMenu(event: MouseEvent<HTMLDivElement>) {
+    const selection = window.getSelection();
+    const text = selection?.toString().trim();
+    if (!text || !selection?.anchorNode || !event.currentTarget.contains(selection.anchorNode)) return;
+    event.preventDefault();
+    setMenu({ x: event.clientX, y: event.clientY, text: text.slice(0, 300) });
+  }
+
+  async function addSelection(text: string) {
+    if (!draft) return;
+    setMenu(null);
+    setBusy(true);
+    setStatus(`Looking up “${text.slice(0, 40)}”...`);
+    try {
+      const item = await describeSelection(text, draft.analysis, language, options.providerId);
+      setStatus("");
+      setBranch({ items: [item] });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The selection could not be looked up.");
     } finally {
       setBusy(false);
     }
@@ -206,18 +267,43 @@ export function ReviewSession() {
             {outputStyles.map((style) => <option key={style}>{style}</option>)}
           </select>
         </div>
-        <button className="save-input-button" type="button" disabled={busy} onClick={() => void loadQueue()}>Start session</button>
+        <button className="save-input-button" type="button" disabled={busy} onClick={() => void loadQueue("session")}>Start session</button>
       </div>
+      <form className="anki-find" onSubmit={(event) => { event.preventDefault(); void loadQueue("search"); }}>
+        <label htmlFor="anki-find">Or find a note to edit (analyzed or not)</label>
+        <input id="anki-find" value={search} placeholder={`${language} or English text`} onChange={(event) => setSearch(event.target.value)} />
+        <button className="preview-prompt-button" type="submit" disabled={busy || !search.trim()}>Find</button>
+      </form>
 
       {queue && (
         <p className="anki-note">
-          {queue.length} {language} note{queue.length === 1 ? "" : "s"} not yet analyzed{extraQuery.trim() ? " matching your search" : ""}
+          {mode === "search"
+            ? `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} matching “${search.trim()}”`
+            : `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} not yet analyzed${extraQuery.trim() ? " matching your search" : ""}`}
           {queue.length > 0 && note && ` · note ${index + 1} of ${queue.length}`}
           {saved > 0 && ` · ${saved} saved this session`}
         </p>
       )}
 
-      {note && draft && (
+      {note && draft && branch && (
+        <BranchQueue
+          language={language}
+          parentText={draft.fieldText.trim() || draft.cleanedText}
+          parentEnglish={cleanField(note.fields.English || "", "English").text}
+          analysis={draft.analysis}
+          options={options}
+          items={branch.items}
+          onFinish={() => { setBranch(null); setStatus(""); }}
+        />
+      )}
+
+      {menu && (
+        <div className="anki-context-menu" style={{ left: menu.x, top: menu.y }} role="menu" onMouseDown={(event) => event.stopPropagation()}>
+          <button type="button" role="menuitem" onClick={() => void addSelection(menu.text)}>Add “{menu.text.length > 30 ? `${menu.text.slice(0, 30)}…` : menu.text}” to Anki…</button>
+        </div>
+      )}
+
+      {note && draft && !branch && (
         <article className="anki-note-card">
           <div className="anki-note-fields">
             <div>
@@ -272,7 +358,11 @@ export function ReviewSession() {
                 <textarea value={draft.analysis} onChange={(event) => update({ analysis: event.target.value })} />
               </label>
               <p className="result-label">{notesField(language)} as it will appear under &ldquo;more&rdquo;</p>
-              <div className="anki-card-preview" dangerouslySetInnerHTML={{ __html: composedNotes }} />
+              <div className="anki-card-preview" onContextMenu={openSelectionMenu} dangerouslySetInnerHTML={{ __html: composedNotes }} />
+              <div className="input-action-row">
+                <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => setBranch({})}>Branch from examples</button>
+                <span className="anki-note">Or select any {language} text in the preview and right-click it to add just that.</span>
+              </div>
             </div>
           )}
 

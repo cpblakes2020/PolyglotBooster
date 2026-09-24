@@ -190,3 +190,55 @@ export function japaneseRubyReading(word: string, kana: string) {
 export function hasRubyReading(html: string) {
   return /<rt>/i.test(html);
 }
+
+function inlineHtmlToMarkdown(html: string) {
+  return decodeEntities(html
+    .replace(/<b>([\s\S]*?)<\/b>/gi, "**$1**")
+    .replace(/<i>([\s\S]*?)<\/i>/gi, "*$1*")
+    .replace(/<code>([\s\S]*?)<\/code>/gi, "`$1`")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]*>/g, "")).trim();
+}
+
+// Reverses markdownToAnkiHtml so a saved analysis can be edited again.
+// Exact for HTML this app wrote; a best effort for anything hand-edited in
+// Anki since.
+export function ankiHtmlToMarkdown(html: string) {
+  const markdown = html
+    .replace(/<table>([\s\S]*?)<\/table>/gi, (_, body: string) => {
+      const rows = [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/gi)].map((row) => [...row[1].matchAll(/<t([hd])>([\s\S]*?)<\/t[hd]>/gi)]);
+      const lines = rows.map((cells) => `| ${cells.map((cell) => inlineHtmlToMarkdown(cell[2])).join(" | ")} |`);
+      if (rows[0]?.[0]?.[1] === "h") lines.splice(1, 0, `| ${rows[0].map(() => "---").join(" | ")} |`);
+      return `\n${lines.join("\n")}\n\n`;
+    })
+    .replace(/<(ul|ol)>([\s\S]*?)<\/\1>/gi, (_, kind: string, body: string) =>
+      `\n${[...body.matchAll(/<li>([\s\S]*?)<\/li>/gi)].map((item, index) => `${kind.toLowerCase() === "ol" ? `${index + 1}.` : "-"} ${inlineHtmlToMarkdown(item[1])}`).join("\n")}\n\n`)
+    .replace(/<div><b>((?:(?!<\/div>)[\s\S])*?)<\/b><\/div>/gi, (_, text: string) => `\n## ${inlineHtmlToMarkdown(text)}\n`)
+    .replace(/<div>((?:(?!<\/div>)[\s\S])*?)<\/div>/gi, (_, text: string) => `${inlineHtmlToMarkdown(text)}\n`);
+  return decodeEntities(markdown.replace(/<[^>]*>/g, "")).replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// The analysis PolyglotBooster previously wrote into a Notes field, as
+// editable Markdown ("" if none).
+export function existingAnalysis(notesHtml: string) {
+  const range = findBlock(notesHtml, "pb-analysis");
+  if (!range) return "";
+  const block = notesHtml.slice(range[0], range[1]).replace(/^<div class="pb-analysis">/i, "").replace(/<\/div>$/i, "");
+  return ankiHtmlToMarkdown(block);
+}
+
+// A short note for an item added from another note's analysis: its brief
+// comment plus where it was seen, so the source can be found again without
+// a per-note tag.
+export function branchNoteBlock(comment: string, seenIn: string) {
+  return [
+    `<div class="pb-branch">`,
+    comment.trim() ? `<div>${escapeHtml(comment.trim())}</div>` : "",
+    seenIn.trim() ? `<div><i>Seen in: ${escapeHtml(seenIn.trim())}</i></div>` : "",
+    `</div>`,
+  ].join("");
+}
+
+export function appendToField(existing: string, html: string) {
+  return `${existing.trim()}${html}`;
+}

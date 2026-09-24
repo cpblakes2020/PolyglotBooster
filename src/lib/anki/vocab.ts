@@ -42,6 +42,9 @@ export const pbTags = {
   analyzedPrefix: (language: AnkiLanguage) => `pb::analyzed::${tagSlug(language)}`,
   audio: (language: AnkiLanguage) => `pb::audio::${tagSlug(language)}`,
   skip: (language: AnkiLanguage) => `pb::skip::${tagSlug(language)}`,
+  // Notes created from an item in another note's analysis. Which note is
+  // recorded in a "Seen in" line in the Notes field, not in a tag.
+  branch: "pb::branch",
 };
 
 export function wordTemplateId(language: AnkiLanguage) {

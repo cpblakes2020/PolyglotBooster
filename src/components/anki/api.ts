@@ -1,5 +1,6 @@
 // PolyglotBooster server calls used by the Anki page.
 
+import type { BranchItem, BranchItemKind } from "@/lib/anki/prompts";
 import type { AnkiLanguage } from "@/lib/anki/vocab";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
@@ -43,4 +44,36 @@ export async function analyze(text: string, language: AnkiLanguage, templateId: 
 export async function assist(kind: "reading" | "gloss", text: string, language: AnkiLanguage, providerId: LlmProviderId) {
   const { result } = await postJson<{ result: string }>("/api/anki/assist", { kind, text, language }, { "x-polyglot-provider": providerId });
   return result;
+}
+
+const itemKinds = new Set<BranchItemKind>(["example", "related", "register"]);
+
+function toBranchItem(value: unknown): BranchItem | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  const field = (key: string) => typeof item[key] === "string" ? (item[key] as string).trim() : "";
+  if (!field("text")) return null;
+  return {
+    text: field("text"),
+    reading: field("reading"),
+    english: field("english"),
+    comment: field("comment"),
+    kind: itemKinds.has(item.kind as BranchItemKind) ? item.kind as BranchItemKind : "example",
+  };
+}
+
+// The learnable items (examples, related words, register versions) in an analysis.
+export async function extractItems(analysis: string, parentText: string, language: AnkiLanguage, providerId: LlmProviderId) {
+  const { result } = await postJson<{ result: unknown }>("/api/anki/assist", { kind: "extract", text: analysis, context: parentText, language }, { "x-polyglot-provider": providerId });
+  const items = (Array.isArray(result) ? result : []).map(toBranchItem).filter((item): item is BranchItem => item !== null);
+  // The same item can come up in several sections of one analysis.
+  return items.filter((item, index) => items.findIndex((other) => other.text === item.text) === index);
+}
+
+// One item the learner selected in an analysis.
+export async function describeSelection(selection: string, analysis: string, language: AnkiLanguage, providerId: LlmProviderId) {
+  const { result } = await postJson<{ result: unknown }>("/api/anki/assist", { kind: "describe", text: selection, context: analysis, language }, { "x-polyglot-provider": providerId });
+  const item = toBranchItem(result);
+  if (!item) throw new Error("The selection couldn't be turned into a flashcard item.");
+  return item;
 }
