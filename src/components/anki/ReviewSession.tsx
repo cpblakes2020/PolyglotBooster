@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { analyze, assist, describeSelection, type AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
+import { FieldEditor } from "@/components/anki/FieldEditor";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/classify";
 import { anki, ankiSearchValue } from "@/lib/anki/connect";
@@ -76,6 +77,7 @@ export function ReviewSession() {
   // Tags to add to the current note on save, and the collection's tags to suggest.
   const [newTags, setNewTags] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+  const [editingFields, setEditingFields] = useState(false);
   const selectionMenu = useSelectionMenu((text) => void addSelection(text));
 
   useEffect(() => {
@@ -91,6 +93,7 @@ export function ReviewSession() {
     setDraft(next ? newDraft(next, language) : null);
     setShowEnglish(false);
     setNewTags("");
+    setEditingFields(false);
     setStatus(next ? "" : "That's every note in this set.");
   }
 
@@ -230,6 +233,19 @@ export function ReviewSession() {
     } finally {
       setBusy(false);
     }
+  }
+
+  // After the Edit fields panel saves: keep the page's copy of the note in
+  // step with Anki, and refresh the draft where its source fields changed.
+  function fieldsSaved(fields: Record<string, string>, tags: string[]) {
+    if (!note || !draft) return;
+    const updated: VocabNote = { ...note, fields: { ...note.fields, ...fields }, tags: [...new Set([...note.tags, ...tags])] };
+    setQueue((current) => current && current.map((item) => item.noteId === note.noteId ? updated : item));
+    const fresh = newDraft(updated, language);
+    if (fields[language] !== undefined) update({ cleanedText: fresh.cleanedText, fieldText: fresh.fieldText, replaceField: fresh.replaceField, classification: fresh.classification });
+    if (fields[notesField(language)] !== undefined) update({ reading: fresh.reading, analysis: fresh.analysis });
+    setEditingFields(false);
+    setStatus("Fields saved to Anki");
   }
 
   // Adds the typed tags right away, without saving anything else.
@@ -379,6 +395,8 @@ export function ReviewSession() {
             </div>
           )}
 
+          {editingFields && <FieldEditor key={note.noteId} note={note} providerId={options.providerId} onSaved={fieldsSaved} onClose={() => setEditingFields(false)} />}
+
           <div className="anki-tag-row">
             <TagInput id="anki-note-tags" value={newTags} onChange={setNewTags} current={note.tags} suggestions={tagSuggestions} />
             <button className="text-button" type="button" disabled={busy || !parseTags(newTags).length} onClick={() => void saveTagsOnly()}>Save tags</button>
@@ -389,7 +407,8 @@ export function ReviewSession() {
             <button className="preview-prompt-button" type="button" disabled={busy || !draft.analysis.trim()} onClick={() => void save(false)}>Save</button>
             {draft.replaceField && <button className="preview-prompt-button" type="button" disabled={busy || !draft.fieldText.trim()} onClick={() => void saveCleanupOnly()}>Save cleanup only &amp; next</button>}
             <button className="text-button" type="button" disabled={busy} onClick={() => goTo(index + 1)}>Skip for now</button>
-            <button className="text-button" type="button" disabled={busy} onClick={() => void anki.openInBrowser(note.noteId)}>Open in Anki</button>
+            {!editingFields && <button className="text-button" type="button" disabled={busy} onClick={() => setEditingFields(true)}>Edit fields</button>}
+            <button className="text-button" type="button" disabled={busy} onClick={() => void anki.openEditor(note.noteId)}>Open in Anki</button>
             <button className="danger-button" type="button" disabled={busy} onClick={() => void neverAnalyze()}>Never analyze this note</button>
           </div>
         </article>

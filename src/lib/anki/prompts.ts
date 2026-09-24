@@ -39,6 +39,18 @@ export function glossPrompt(text: string, language: AnkiLanguage) {
   ].join("\n\n");
 }
 
+// A flashcard translation into another language the note has a field for,
+// working from the note's other filled fields.
+export function translatePrompt(sources: string, target: AnkiLanguage) {
+  return [
+    `Here is one flashcard item as it appears in several languages:`,
+    sources,
+    `Give the same item in natural, everyday ${target}, as a native speaker would say it, keeping the same register and length (a word stays a word, a sentence stays a sentence).`,
+    target === "Thai" ? "Write Thai without spaces between words; use a space only between sentences." : "",
+    `Reply with the ${target} only, in its native script: no romanization, quotes, labels, or explanation.`,
+  ].filter(Boolean).join("\n\n");
+}
+
 export type BranchItemKind = "example" | "related" | "register";
 
 // One learnable item found inside an analysis.

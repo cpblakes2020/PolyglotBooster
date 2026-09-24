@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { describeSelectionPrompt, extractItemsPrompt, glossPrompt, readingPrompt } from "@/lib/anki/prompts";
+import { describeSelectionPrompt, extractItemsPrompt, glossPrompt, readingPrompt, translatePrompt } from "@/lib/anki/prompts";
 import { isAnkiLanguage, readingLanguages } from "@/lib/anki/vocab";
 import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
 import { requireAccountApiKey } from "@/lib/storage/account";
 
-const kinds = new Set(["reading", "gloss", "extract", "describe"]);
+const kinds = new Set(["reading", "gloss", "extract", "describe", "translate"]);
 
 // Pulls the JSON value out of a model reply, tolerating code fences or a
 // sentence of preamble.
@@ -21,6 +21,7 @@ function parseJsonReply(reply: string): unknown {
 // - gloss: a short English meaning
 // - extract: the learnable items in an analysis (text = analysis, context = the analyzed item)
 // - describe: one item the learner selected (text = selection, context = the analysis)
+// - translate: the item in another language (text = its filled fields, language = the target)
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
     const prompt = kind === "reading" ? readingPrompt(trimmed, language)
       : kind === "gloss" ? glossPrompt(trimmed, language)
       : kind === "extract" ? extractItemsPrompt(trimmed, context, language)
+      : kind === "translate" ? translatePrompt(trimmed, language)
       : describeSelectionPrompt(trimmed, context, language);
     const reply = (await provider.runRawPrompt(prompt, apiKey)).trim();
     if (kind === "extract" || kind === "describe") return NextResponse.json({ result: parseJsonReply(reply) });

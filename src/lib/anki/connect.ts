@@ -90,6 +90,6 @@ export const anki = {
       note: { deckName: `Polyglot::${language}`, modelName: ankiNoteType, fields, tags, options: { allowDuplicate: true } },
     }),
 
-  // Opens Anki's own Browse window on a note, for editing by hand.
-  openInBrowser: (noteId: number) => invoke<number[]>("guiBrowse", { query: `nid:${noteId}` }),
+  // Opens Anki's own Edit window for a note, for editing by hand.
+  openEditor: (noteId: number) => invoke<null>("guiEditNote", { note: noteId }),
 };

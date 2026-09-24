@@ -168,7 +168,7 @@ export function SendToAnki({ sourceText, sourceLanguage, result, promptTemplateI
 
       <div className="result-actions">
         {draft && savedNoteId === null && <button className="save-input-button" type="button" disabled={busy || !draft.analysis.trim() || !draft.fieldText.trim()} onClick={() => void save()}>{draft.match ? "Update note in Anki" : "Add note to Anki"}</button>}
-        {savedNoteId !== null && <button className="text-button" type="button" onClick={() => void anki.openInBrowser(savedNoteId)}>Open in Anki</button>}
+        {savedNoteId !== null && <button className="text-button" type="button" onClick={() => void anki.openEditor(savedNoteId)}>Open in Anki</button>}
         {!draft && !busy && <button className="text-button" type="button" onClick={() => void start()}>Try again</button>}
         {status && <span className="example-status" role="status">{status}</span>}
       </div>
