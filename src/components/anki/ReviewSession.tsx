@@ -167,7 +167,9 @@ export function ReviewSession() {
     return composeNotesField(note.fields[notesField(language)] || "", usesReading ? readingHtml : "", markdownToAnkiHtml(draft.analysis));
   }, [note, draft, language, readingHtml, usesReading]);
 
-  async function save() {
+  // Saves the analysis (and any cleanup and tags). With advance false it
+  // stays on the note, e.g. to keep branching from the analysis.
+  async function save(advance: boolean) {
     if (!note || !draft?.analysis.trim()) return;
     setBusy(true);
     setStatus("Saving to Anki...");
@@ -175,10 +177,21 @@ export function ReviewSession() {
       const fields: Record<string, string> = { [notesField(language)]: composedNotes };
       if (draft.replaceField && draft.fieldText.trim()) fields[language] = escapeHtml(draft.fieldText.trim());
       const templateId = draft.kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language);
+      const tags = [pbTags.analyzed(language, templateId), ...parseTags(newTags)];
       await anki.updateFields(note.noteId, fields);
-      await anki.addTags([note.noteId], [pbTags.analyzed(language, templateId), ...parseTags(newTags)]);
+      await anki.addTags([note.noteId], tags);
       setSaved((count) => count + 1);
-      goTo(index + 1);
+      if (advance) {
+        goTo(index + 1);
+        return;
+      }
+      // Stay here, with the page's copy of the note matching what Anki now holds.
+      setQueue((current) => current && current.map((item) => item.noteId === note.noteId
+        ? { ...item, fields: { ...item.fields, ...fields }, tags: [...new Set([...item.tags, ...tags])] }
+        : item));
+      if (fields[language]) update({ cleanedText: draft.fieldText.trim(), replaceField: false });
+      setNewTags("");
+      setStatus("Saved to Anki");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "The note could not be saved.");
     } finally {
@@ -372,7 +385,8 @@ export function ReviewSession() {
           </div>
 
           <div className="result-actions">
-            <button className="save-input-button" type="button" disabled={busy || !draft.analysis.trim()} onClick={() => void save()}>Save to Anki &amp; next</button>
+            <button className="save-input-button" type="button" disabled={busy || !draft.analysis.trim()} onClick={() => void save(true)}>Save to Anki &amp; next</button>
+            <button className="preview-prompt-button" type="button" disabled={busy || !draft.analysis.trim()} onClick={() => void save(false)}>Save</button>
             {draft.replaceField && <button className="preview-prompt-button" type="button" disabled={busy || !draft.fieldText.trim()} onClick={() => void saveCleanupOnly()}>Save cleanup only &amp; next</button>}
             <button className="text-button" type="button" disabled={busy} onClick={() => goTo(index + 1)}>Skip for now</button>
             <button className="text-button" type="button" disabled={busy} onClick={() => void anki.openInBrowser(note.noteId)}>Open in Anki</button>
