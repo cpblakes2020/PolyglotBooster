@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { extractItems, type AnalysisOptions } from "@/components/anki/api";
-import { ItemEditor, type ItemOutcome } from "@/components/anki/ItemEditor";
+import { ItemEditor } from "@/components/anki/ItemEditor";
+import { saveItem, type ItemOutcome } from "@/components/anki/saveItem";
+import { classifyItem } from "@/lib/anki/classify";
 import { anki } from "@/lib/anki/connect";
 import { cleanField } from "@/lib/anki/fields";
 import type { BranchItem } from "@/lib/anki/prompts";
@@ -15,9 +17,16 @@ type BranchQueueProps = {
   parentEnglish: string;
   analysis: string;
   options: AnalysisOptions;
-  // Given: work through just these (a right-clicked selection). Omitted:
-  // extract every item from the analysis and let the user pick.
+  // Given: these items instead of extracting them from the analysis — a
+  // right-clicked selection (worked through directly) or, with pick, a
+  // flashcard list to choose from.
   items?: BranchItem[];
+  pick?: boolean;
+  // Label for leaving a finished top-level branch.
+  doneLabel?: string;
+  // Tags every item in this batch shares (e.g. a book-chapter tag), offered
+  // for the batch's items that are already in Anki too.
+  batchTags?: string[];
   // 1 for a branch off the main session, 2 for a branch off an item in
   // that branch, and so on.
   depth: number;
@@ -28,16 +37,20 @@ type BranchQueueProps = {
 type Row = { item: BranchItem; match: VocabNote | null; selected: boolean };
 type Tally = { added: number; commented: number; skipped: number };
 
-const kindLabels = { example: "Example", related: "Related", register: "Register" } as const;
+const kindLabels = { example: "Example", related: "Related", register: "Register", vocabulary: "Vocabulary", sentence: "Sentence" } as const;
 
-export function BranchQueue({ language, parentText, parentEnglish, analysis, options, items, depth, tagSuggestions, onFinish }: BranchQueueProps) {
+export function BranchQueue({ language, parentText, parentEnglish, analysis, options, items, pick = false, doneLabel = "Back to main session", batchTags = [], depth, tagSuggestions, onFinish }: BranchQueueProps) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [queue, setQueue] = useState<Row[] | null>(null);
   const [position, setPosition] = useState(0);
   const [tally, setTally] = useState<Tally>({ added: 0, commented: 0, skipped: 0 });
   const [status, setStatus] = useState("");
+  const [tagExisting, setTagExisting] = useState(true);
   // Cleaned learning-language text -> note, for spotting items already in Anki.
   const [index, setIndex] = useState<Map<string, VocabNote>>(new Map());
+  // "Add all": progress while items are saved with their defaults.
+  const [bulk, setBulk] = useState<{ done: number; total: number; failures: string[] } | null>(null);
+  const stopBulk = useRef(false);
 
   const seenIn = parentEnglish ? `${parentText} (${parentEnglish})` : parentText;
 
@@ -60,14 +73,77 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
         setRows(built);
         // A single right-clicked item goes straight to its editor, even if
         // it's already in Anki — the editor shows that warning itself.
-        if (items) setQueue(built);
+        if (items && !pick) setQueue(built);
         setStatus(built.length ? "" : "No separate items were found in this analysis.");
       } catch (error) {
         if (!cancelled) setStatus(error instanceof Error ? error.message : "The items could not be loaded.");
       }
     })();
     return () => { cancelled = true; };
-  }, [analysis, items, language, options.providerId, parentText]);
+  }, [analysis, items, pick, language, options.providerId, parentText]);
+
+  // Items already in Anki that won't be worked through still belong to the
+  // batch, so they can get its tags without opening each one.
+  const untickedExisting = (rows || []).filter((row) => row.match && !row.selected);
+  const tagsExisting = batchTags.length > 0 && tagExisting && untickedExisting.length > 0;
+
+  async function tagUntickedExisting() {
+    if (!tagsExisting) return true;
+    setStatus(`Tagging ${untickedExisting.length} cards already in Anki...`);
+    try {
+      await anki.addTags(untickedExisting.map((row) => row.match!.noteId), batchTags);
+      setStatus("");
+      return true;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The existing cards could not be tagged.");
+      return false;
+    }
+  }
+
+  // Saves items with the editor's defaults, without opening each one: a new
+  // note with the brief comment (and audio), or — for an item already in
+  // Anki — the comment added to that note. Tags are the item's own.
+  async function addAll(toAdd: Row[], queueLength: number, firstPosition: number) {
+    stopBulk.current = false;
+    const known = new Map(index);
+    const failures: string[] = [];
+    setBulk({ done: 0, total: toAdd.length, failures });
+    let processed = 0;
+    for (const { item } of toAdd) {
+      if (stopBulk.current) break;
+      const key = cleanField(item.text, language).text;
+      const match = known.get(key) || null;
+      try {
+        const { outcome } = await saveItem({
+          language, text: item.text, english: item.english, reading: item.reading, comment: item.comment, seenIn,
+          match, target: match ? "existing" : "new", analysis: "", kind: classifyItem(item.text, language).kind, tags: item.tags || [],
+        });
+        if (outcome.kind === "added") known.set(key, outcome.note);
+        setTally((current) => ({ ...current, [outcome.kind]: current[outcome.kind] + 1 }));
+      } catch (error) {
+        failures.push(`${item.text}: ${error instanceof Error ? error.message : "failed"}`);
+      }
+      processed += 1;
+      setBulk({ done: processed, total: toAdd.length, failures: [...failures] });
+    }
+    setIndex(known);
+    // A stop leaves the rest in the queue to review one at a time.
+    setPosition(stopBulk.current ? firstPosition + processed : queueLength);
+  }
+
+  async function addAllFromPicker() {
+    if (!rows || !(await tagUntickedExisting())) return;
+    const selected = rows.filter((row) => row.selected);
+    setQueue(selected);
+    setPosition(0);
+    await addAll(selected, selected.length, 0);
+  }
+
+  async function start() {
+    if (!rows) return;
+    if (!(await tagUntickedExisting())) return;
+    setQueue(rows.filter((row) => row.selected));
+  }
 
   function toggle(rowIndex: number) {
     setRows((current) => current && current.map((row, i) => i === rowIndex ? { ...row, selected: !row.selected } : row));
@@ -83,7 +159,7 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
     setPosition((current) => current + 1);
   }
 
-  const backLabel = depth > 1 ? "Back to previous branch" : "Back to main session";
+  const backLabel = depth > 1 ? "Back to previous branch" : doneLabel;
   const current = queue?.[position];
   const finished = queue !== null && position >= queue.length;
 
@@ -91,10 +167,10 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
     <section className="anki-branch">
       <div className="panel-heading">
         <div>
-          <p className="section-kicker">{depth > 1 ? `Branch · level ${depth}` : "Branch"}</p>
-          <p className="anki-branch-source">From {seenIn}</p>
+          <p className="section-kicker">{depth > 1 ? `Branch · level ${depth}` : pick ? "Flashcards to Anki" : "Branch"}</p>
+          {seenIn && <p className="anki-branch-source">From {seenIn}</p>}
         </div>
-        <button className="text-button" type="button" onClick={onFinish}>{finished ? backLabel : depth > 1 ? "Cancel this branch" : "Cancel branch"}</button>
+        <button className="text-button" type="button" onClick={onFinish}>{finished ? backLabel : depth > 1 ? "Cancel this branch" : pick ? "Close" : "Cancel branch"}</button>
       </div>
 
       {status && <p className="example-status" role="status">{status}</p>}
@@ -120,17 +196,38 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
             </tbody>
           </table>
           <div className="result-actions">
-            <button className="save-input-button" type="button" disabled={!rows.some((row) => row.selected)} onClick={() => setQueue(rows.filter((row) => row.selected))}>
-              Start branch ({rows.filter((row) => row.selected).length})
+            <button className="save-input-button" type="button" disabled={!rows.some((row) => row.selected) && !tagsExisting} onClick={() => void start()}>
+              {rows.some((row) => row.selected) ? `Start branch (${rows.filter((row) => row.selected).length})` : `Tag ${untickedExisting.length} existing cards`}
             </button>
+            {rows.some((row) => row.selected) && (
+              <button className="preview-prompt-button" type="button" disabled={bulk !== null} onClick={() => void addAllFromPicker()}>Add all {rows.filter((row) => row.selected).length} with brief comments</button>
+            )}
+            {batchTags.length > 0 && untickedExisting.length > 0 && (
+              <label className="anki-checkbox"><input type="checkbox" checked={tagExisting} onChange={(event) => setTagExisting(event.target.checked)} /> Also tag the {untickedExisting.length} unticked card{untickedExisting.length === 1 ? "" : "s"} already in Anki with {batchTags.join(" ")}</label>
+            )}
             <span className="anki-note">Items already in Anki start unticked. Tick one to add its comment to that note, or add it as a new note anyway.</span>
           </div>
         </>
       )}
 
-      {current && (
+      {bulk && (bulk.done < bulk.total && !finished) && (
+        <div className="result-actions">
+          <span className="anki-progress"><progress max={bulk.total} value={bulk.done} /> Adding {bulk.done} of {bulk.total}...</span>
+          <button className="danger-button" type="button" onClick={() => { stopBulk.current = true; }}>Stop</button>
+        </div>
+      )}
+      {bulk && bulk.failures.length > 0 && (
+        <ul className="anki-failures">{bulk.failures.slice(0, 30).map((failure) => <li key={failure}>{failure}</li>)}</ul>
+      )}
+
+      {current && !(bulk && bulk.done < bulk.total) && (
         <>
-          {queue.length > 1 && <p className="anki-note">Item {position + 1} of {queue.length} · {kindLabels[current.item.kind]}</p>}
+          {queue.length > 1 && (
+            <p className="anki-note">
+              Item {position + 1} of {queue.length} · {kindLabels[current.item.kind]}
+              {queue.length - position > 1 && <> · <button className="text-button" type="button" onClick={() => void addAll(queue.slice(position), queue.length, position)}>Add the remaining {queue.length - position} with brief comments</button></>}
+            </p>
+          )}
           <ItemEditor
             key={`${position}-${current.item.text}`}
             item={current.item}

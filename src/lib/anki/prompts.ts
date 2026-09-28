@@ -6,7 +6,7 @@ export const thaiRomanizationStyle = `Romanize in this exact style (example: ย
 - Tones as diacritics on the vowel: mid unmarked, low à, falling â, high á, rising ǎ.
 - Consonants: ก g, ข/ค kh, จ j, ฉ/ช ch, ด d, ต dt, ถ/ท th, บ b, ป bp, ผ/พ ph, ฟ f, ง ng, ย y, ว w, ร r, ล l, ส/ซ s, ห h, อ (silent). Final stops as k, t, p.
 - Romanize the actual spoken pronunciation of each syllable, not the spelling letter by letter. Work syllable by syllable: identify the vowel's length (the ็ mark and short vowel forms make it short), any final consonant or final ว/ย glide, then the tone.
-- Plain vowels, short/long: i/ee (ดี dee), u/uu (รู้ rúu), a/aa (มา maa), e/ay (เล็ก lék, เพลง phlayng), ae/aae (แข็ง khǎeng, แดง daaeng), aw/aw (เพราะ phráw, ก่อน gàwn), o/oh (โต๊ะ dtó, โทร thoh), eu/euu (มือ meuu), er/er (เงิน ngern), ia (เรียน rian), ua (ตัว dtua), eua (เรือ reua).
+- Plain vowels, short/long: i/ee (ดี dee), u/uu (รู้ rúu), a/aa (มา maa), e/ay (เล็ก lék, เพลง phlayng), ae/aae (แข็ง khǎeng, และ láe, แดง daaeng), aw/aw (เพราะ phráw, ก่อน gàwn), o/oh (โต๊ะ dtó, โทร thoh), eu/euu (มือ meuu), er/er (เงิน ngern), ia (เรียน rian), ua (ตัว dtua), eua (เรือ reua, เหนือ nǔea).
 - Vowel + final ว/ย glide: eo (เร็ว reo, เลว leo), aaeo (แมว maaeo, แล้ว láaeo), iu (หิว hǐu), ao/aao (เขา khǎo, ขาว khǎao), ai/aai (ไป bpai, สบาย sà-baai), awy (ร้อย ráwy, หน่อย nàwy), oy (โดย doy), ui (คุย khui), uay (สวย sǔay), oei (เลย loei).
 - ๆ repeats the preceding word (มาเร็วๆ -> "maa reo reo").
 - Hyphens between the syllables of one word (ขอบคุณ khàwp-khun, สบาย sà-baai), spaces between words. All lowercase.`;
@@ -51,7 +51,8 @@ export function translatePrompt(sources: string, target: AnkiLanguage) {
   ].filter(Boolean).join("\n\n");
 }
 
-export type BranchItemKind = "example" | "related" | "register";
+// "vocabulary" and "sentence" come from flashcard lists; the rest from analyses.
+export type BranchItemKind = "example" | "related" | "register" | "vocabulary" | "sentence";
 
 // One learnable item found inside an analysis.
 export type BranchItem = {
@@ -60,6 +61,8 @@ export type BranchItem = {
   english: string;
   comment: string;
   kind: BranchItemKind;
+  // Tags suggested for the note (flashcard lists carry topic tags).
+  tags?: string[];
 };
 
 function readingInstruction(language: AnkiLanguage) {

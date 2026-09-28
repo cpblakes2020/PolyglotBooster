@@ -47,7 +47,7 @@ export async function assist(kind: "reading" | "gloss" | "translate", text: stri
   return result;
 }
 
-const itemKinds = new Set<BranchItemKind>(["example", "related", "register"]);
+const itemKinds = new Set<BranchItemKind>(["example", "related", "register", "vocabulary", "sentence"]);
 
 function toBranchItem(value: unknown): BranchItem | null {
   if (!value || typeof value !== "object") return null;

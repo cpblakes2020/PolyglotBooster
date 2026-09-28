@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { AudioPlayback } from "@/components/audio/AudioPlayback";
+import { FlashcardsToAnki, canSendFlashcardsToAnki } from "@/components/anki/FlashcardsToAnki";
 import { SendToAnki, canSendToAnki } from "@/components/anki/SendToAnki";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { SavedTaskRun } from "@/lib/reviews";
-import { downloadAnkiPackage, downloadTaskRun } from "@/lib/exports";
+import { downloadTaskRun } from "@/lib/exports";
 
 type SavedReviewProps = {
   runs: SavedTaskRun[];
@@ -54,15 +55,13 @@ export function SavedReview({ runs, providerId, onOpen, onUpdate, onDelete }: Sa
                   )}
                   <button type="button" onClick={() => onOpen(run)}>Open in workspace to edit</button>
                   {canSendToAnki(run.sourceLanguage, run.userLanguage, run.promptTemplateId) && <SendToAnki sourceText={run.sourceText} sourceLanguage={run.sourceLanguage} result={run.result} promptTemplateId={run.promptTemplateId} providerId={providerId} />}
+                  {run.flashcards?.length && canSendFlashcardsToAnki(run.sourceLanguage, run.userLanguage) ? <FlashcardsToAnki cards={run.flashcards} sourceLanguage={run.sourceLanguage} options={{ providerId, learnerLevel: run.learnerLevel, outputStyle: run.outputStyle }} /> : null}
                 </div>
               )}
               <div className="review-footer">
                 <textarea className="review-notes" defaultValue={run.notes} aria-label={`Notes for ${run.sourceText.slice(0, 30)}`} placeholder="Add a note for later review..." onBlur={(event) => { if (event.target.value !== run.notes) onUpdate({ ...run, notes: event.target.value }); }} />
                 <div className="review-actions">
-                  <button type="button" onClick={() => downloadTaskRun(run, "txt")}>Download TXT</button>
-                  <button type="button" onClick={() => downloadTaskRun(run, "csv")}>Anki CSV</button>
-                  <button type="button" onClick={() => downloadTaskRun(run, "tsv")}>Anki TSV</button>
-                  <button type="button" onClick={() => downloadAnkiPackage(run.taskRunId)}>Anki package (.apkg){run.audio ? " with audio" : ""}</button>
+                  <button type="button" onClick={() => downloadTaskRun(run)}>Download TXT</button>
                   <button className="danger-button" type="button" onClick={() => { if (window.confirm("Delete this saved review?")) onDelete(run.taskRunId); }}>Delete</button>
                 </div>
               </div>

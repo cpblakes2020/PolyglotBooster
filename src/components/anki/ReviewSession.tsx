@@ -6,7 +6,7 @@ import { BranchQueue } from "@/components/anki/BranchQueue";
 import { FieldEditor } from "@/components/anki/FieldEditor";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/classify";
-import { anki, ankiSearchValue } from "@/lib/anki/connect";
+import { anki, ankiSearchValue, reviewFlag } from "@/lib/anki/connect";
 import { cleanField, composeNotesField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, hasRubyReading, japaneseRubyReading, markdownToAnkiHtml } from "@/lib/anki/fields";
 import type { BranchItem } from "@/lib/anki/prompts";
 import { analysisLanguage, ankiLanguages, audioField, notesField, pbTags, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
@@ -70,8 +70,9 @@ export function ReviewSession() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(0);
   // "session" works through unanalyzed notes; "search" through notes found
-  // by text, analyzed or not.
-  const [mode, setMode] = useState<"session" | "search">("session");
+  // by text, analyzed or not; "flagged" through notes you red-flagged in
+  // Anki (Ctrl+1) to look at here — the flag is cleared once it's dealt with.
+  const [mode, setMode] = useState<"session" | "search" | "flagged">("session");
   const [search, setSearch] = useState("");
   const [branch, setBranch] = useState<Branch | null>(null);
   // Tags to add to the current note on save, and the collection's tags to suggest.
@@ -97,7 +98,7 @@ export function ReviewSession() {
     setStatus(next ? "" : "That's every note in this set.");
   }
 
-  async function loadQueue(nextMode: "session" | "search") {
+  async function loadQueue(nextMode: "session" | "search" | "flagged") {
     const term = search.trim();
     if (nextMode === "search" && !term) return;
     setBusy(true);
@@ -110,6 +111,7 @@ export function ReviewSession() {
     try {
       const query = nextMode === "search"
         ? `${language}:_* ("${language}:*${ankiSearchValue(term)}*" OR "English:*${ankiSearchValue(term)}*")`
+        : nextMode === "flagged" ? `${language}:_* flag:${reviewFlag}`
         : `${language}:_* -tag:${pbTags.analyzedPrefix(language)}::* -tag:${pbTags.skip(language)} ${extraQuery.trim()}`;
       const notes = await anki.notesMatching(query);
       // Analysis belongs to the note's Origin language, so e.g. an
@@ -170,6 +172,25 @@ export function ReviewSession() {
     return composeNotesField(note.fields[notesField(language)] || "", usesReading ? readingHtml : "", markdownToAnkiHtml(draft.analysis));
   }, [note, draft, language, readingHtml, usesReading]);
 
+  // In a flagged session, a note you've saved something for is done: its
+  // red flag comes off so it doesn't come back.
+  async function clearFlagIfFlagged(noteId: number) {
+    if (mode !== "flagged") return;
+    try {
+      await anki.clearReviewFlag(noteId);
+    } catch {
+      setStatus("Saved, but the red flag couldn't be cleared — clear it in Anki.");
+    }
+  }
+
+  async function clearFlagAndNext() {
+    if (!note) return;
+    setBusy(true);
+    await clearFlagIfFlagged(note.noteId);
+    setBusy(false);
+    goTo(index + 1);
+  }
+
   // Saves the analysis (and any cleanup and tags). With advance false it
   // stays on the note, e.g. to keep branching from the analysis.
   async function save(advance: boolean) {
@@ -183,6 +204,7 @@ export function ReviewSession() {
       const tags = [pbTags.analyzed(language, templateId), ...parseTags(newTags)];
       await anki.updateFields(note.noteId, fields);
       await anki.addTags([note.noteId], tags);
+      await clearFlagIfFlagged(note.noteId);
       setSaved((count) => count + 1);
       if (advance) {
         goTo(index + 1);
@@ -211,6 +233,7 @@ export function ReviewSession() {
     try {
       await anki.updateFields(note.noteId, { [language]: escapeHtml(draft.fieldText.trim()) });
       if (parseTags(newTags).length) await anki.addTags([note.noteId], parseTags(newTags));
+      await clearFlagIfFlagged(note.noteId);
       setSaved((count) => count + 1);
       goTo(index + 1);
     } catch (error) {
@@ -227,6 +250,7 @@ export function ReviewSession() {
       // Keep a ticked field cleanup even when skipping the analysis.
       if (draft?.replaceField && draft.fieldText.trim()) await anki.updateFields(note.noteId, { [language]: escapeHtml(draft.fieldText.trim()) });
       await anki.addTags([note.noteId], [pbTags.skip(language), ...parseTags(newTags)]);
+      await clearFlagIfFlagged(note.noteId);
       goTo(index + 1);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "The note could not be tagged.");
@@ -246,6 +270,7 @@ export function ReviewSession() {
     if (fields[notesField(language)] !== undefined) update({ reading: fresh.reading, analysis: fresh.analysis });
     setEditingFields(false);
     setStatus("Fields saved to Anki");
+    void clearFlagIfFlagged(note.noteId);
   }
 
   // Adds the typed tags right away, without saving anything else.
@@ -299,6 +324,7 @@ export function ReviewSession() {
           </select>
         </div>
         <button className="save-input-button" type="button" disabled={busy} onClick={() => void loadQueue("session")}>Start session</button>
+        <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void loadQueue("flagged")} title="Notes with a card you red-flagged in Anki (Ctrl+1)">Flagged in Anki</button>
       </div>
       <form className="anki-find" onSubmit={(event) => { event.preventDefault(); void loadQueue("search"); }}>
         <label htmlFor="anki-find">Or find a note to edit (analyzed or not)</label>
@@ -310,6 +336,7 @@ export function ReviewSession() {
         <p className="anki-note">
           {mode === "search"
             ? `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} matching “${search.trim()}”`
+            : mode === "flagged" ? `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} red-flagged in Anki — the flag comes off when you save`
             : `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} not yet analyzed${extraQuery.trim() ? " matching your search" : ""}`}
           {queue.length > 0 && note && ` · note ${index + 1} of ${queue.length}`}
           {saved > 0 && ` · ${saved} saved this session`}
@@ -407,6 +434,7 @@ export function ReviewSession() {
             <button className="preview-prompt-button" type="button" disabled={busy || !draft.analysis.trim()} onClick={() => void save(false)}>Save</button>
             {draft.replaceField && <button className="preview-prompt-button" type="button" disabled={busy || !draft.fieldText.trim()} onClick={() => void saveCleanupOnly()}>Save cleanup only &amp; next</button>}
             <button className="text-button" type="button" disabled={busy} onClick={() => goTo(index + 1)}>Skip for now</button>
+            {mode === "flagged" && <button className="text-button" type="button" disabled={busy} onClick={() => void clearFlagAndNext()}>Clear flag &amp; next</button>}
             {!editingFields && <button className="text-button" type="button" disabled={busy} onClick={() => setEditingFields(true)}>Edit fields</button>}
             <button className="text-button" type="button" disabled={busy} onClick={() => void anki.openEditor(note.noteId)}>Open in Anki</button>
             <button className="danger-button" type="button" disabled={busy} onClick={() => void neverAnalyze()}>Never analyze this note</button>

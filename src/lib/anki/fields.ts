@@ -16,7 +16,9 @@ function decodeEntities(text: string) {
 // Field HTML -> plain text. Block-level breaks become newlines, everything
 // else (Word-paste spans, mso-* styles, ruby readings) is dropped.
 export function htmlToText(html: string) {
-  const withoutRubyReadings = html.replace(/<rt>[\s\S]*?<\/rt>/gi, "").replace(/<rp>[\s\S]*?<\/rp>/gi, "");
+  const withoutRubyReadings = html
+    // Thai ำ typed or scanned as two characters (nikhahit + sara aa).
+    .replace(/ํา/g, "ำ").replace(/<rt>[\s\S]*?<\/rt>/gi, "").replace(/<rp>[\s\S]*?<\/rp>/gi, "");
   const withBreaks = withoutRubyReadings.replace(/<br\s*\/?>/gi, "\n").replace(/<\/(div|p|li|tr|h\d)>/gi, "\n");
   const stripped = decodeEntities(withBreaks.replace(/<[^>]*>/g, ""));
   return stripped

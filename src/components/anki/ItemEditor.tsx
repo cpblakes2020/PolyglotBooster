@@ -1,16 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { analyze, describeSelection, speak, type AnalysisOptions } from "@/components/anki/api";
+import { useState } from "react";
+import { analyze, describeSelection, type AnalysisOptions } from "@/components/anki/api";
+import { itemNotesHtml, saveItem, type ItemDraft, type ItemOutcome } from "@/components/anki/saveItem";
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type ItemKind } from "@/lib/anki/classify";
-import { anki } from "@/lib/anki/connect";
-import { appendToField, branchNoteBlock, cleanField, composeNotesField, escapeHtml, japaneseRubyReading, markdownToAnkiHtml } from "@/lib/anki/fields";
+import { cleanField } from "@/lib/anki/fields";
 import type { BranchItem } from "@/lib/anki/prompts";
-import { audioField, audioFilename, notesField, pbTags, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { notesField, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
-export type ItemOutcome = { kind: "added"; note: VocabNote } | { kind: "commented" } | { kind: "skipped" };
+export type { ItemOutcome };
 
 type ItemEditorProps = {
   item: BranchItem;
@@ -39,7 +39,7 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
   const [target, setTarget] = useState<"new" | "existing">(match ? "existing" : "new");
   const [kind, setKind] = useState<ItemKind>(() => classifyItem(item.text, language).kind);
   const [analysis, setAnalysis] = useState("");
-  const [newTags, setNewTags] = useState("");
+  const [newTags, setNewTags] = useState((item.tags || []).join(" "));
   const [subBranch, setSubBranch] = useState<{ items?: BranchItem[] } | null>(null);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -47,16 +47,10 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
 
   const usesReading = readingLanguages.has(language);
   const matchEnglish = match ? cleanField(match.fields.English || "", "English").text : "";
-  const branchBlock = branchNoteBlock(comment, seenIn);
   const canBranch = target === "new" && Boolean(analysis.trim());
 
-  const readingHtml = !usesReading || !reading.trim() ? ""
-    : language === "Japanese" ? japaneseRubyReading(text.trim(), reading.trim()) : escapeHtml(reading.trim());
-
-  const preview = useMemo(() => target === "existing" && match
-    ? appendToField(match.fields[notesField(language)] || "", branchBlock)
-    : composeNotesField(branchBlock, readingHtml, markdownToAnkiHtml(analysis)),
-  [target, match, language, branchBlock, readingHtml, analysis]);
+  const draft: ItemDraft = { language, text, english, reading, comment, seenIn, match, target, analysis, kind, tags: parseTags(newTags) };
+  const preview = itemNotesHtml(draft);
 
   async function runAnalysis() {
     setBusy(true);
@@ -89,29 +83,10 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
   async function save() {
     setBusy(true);
     setStatus("Saving to Anki...");
-    const extraTags = parseTags(newTags);
     try {
-      if (target === "existing" && match) {
-        await anki.updateFields(match.noteId, { [notesField(language)]: preview });
-        if (extraTags.length) await anki.addTags([match.noteId], extraTags);
-        onDone({ kind: "commented" });
-        return;
-      }
-      if (!text.trim() || !english.trim()) throw new Error(`Fill in the ${language} and the English — every card pairs the two.`);
-      const fields = { English: escapeHtml(english.trim()), [language]: escapeHtml(text.trim()), [notesField(language)]: preview, Origin: language };
-      const tags = [pbTags.branch, ...(analysis.trim() ? [pbTags.analyzed(language, kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language))] : []), ...extraTags];
-      const noteId = await anki.addNote(language, fields, tags);
-      // The note exists now, so an audio failure mustn't invite a second
-      // save (a duplicate note); Bulk audio fills in anything missed.
-      try {
-        setStatus(`Recording ${language} audio...`);
-        const filename = await anki.storeMedia(audioFilename(noteId, language), await speak(text.trim(), language));
-        await anki.updateFields(noteId, { [audioField(language)]: `[sound:${filename}]` });
-        await anki.addTags([noteId], [pbTags.audio(language)]);
-      } catch {
-        window.alert("The note was added, but its audio couldn't be recorded. A Bulk audio run will add it later.");
-      }
-      onDone({ kind: "added", note: { noteId, tags, fields } });
+      const { outcome, audioFailed } = await saveItem(draft, setStatus);
+      if (audioFailed) window.alert("The note was added, but its audio couldn't be recorded. A Bulk audio run will add it later.");
+      onDone(outcome);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "The note could not be saved.");
       setBusy(false);

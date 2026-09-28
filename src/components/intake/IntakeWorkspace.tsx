@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AudioPlayback } from "@/components/audio/AudioPlayback";
+import { FlashcardsToAnki, canSendFlashcardsToAnki } from "@/components/anki/FlashcardsToAnki";
 import { SendToAnki, canSendToAnki } from "@/components/anki/SendToAnki";
 import { LanguageSettings } from "@/components/intake/LanguageSettings";
 import { PromptTemplatePicker } from "@/components/intake/PromptTemplatePicker";
@@ -34,6 +35,15 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
 
 const languagePreferenceKey = "lingua:languagePreference";
 const selectedProviderPreferenceKey = "lingua:selectedProvider";
+const draftKey = "lingua:draft";
+
+type Draft = {
+  text: string;
+  selectedTemplate: PromptTemplateId;
+  taskResult: string;
+  flashcards: Flashcard[];
+  followUps: FollowUpExchange[];
+};
 const defaultSourceLanguage: Language = "Indonesian";
 const defaultExplanationLanguage: Language = "English";
 const defaultKeyStatus: Record<LlmProviderId, boolean> = { anthropic: false, openai: false };
@@ -128,6 +138,39 @@ export function IntakeWorkspace() {
     setExplanationLanguage(preference.explanationLanguage);
   }, []);
 
+  // The work in progress — text, task, result, flashcards, follow-ups — is
+  // kept in this browser so a reload or closed tab doesn't lose it (e.g. a
+  // chapter's worth of uploaded pages). "Clear" empties it.
+  const draftLoaded = useRef(false);
+  useEffect(() => {
+    try {
+      const draft = JSON.parse(window.localStorage.getItem(draftKey) || "null") as Draft | null;
+      if (draft) {
+        setText(draft.text || "");
+        if (draft.selectedTemplate) setSelectedTemplate(draft.selectedTemplate);
+        setTaskResult(draft.taskResult || "");
+        setFlashcards(draft.flashcards || []);
+        setFollowUps(draft.followUps || []);
+      }
+    } catch {
+      // No usable draft; start empty.
+    }
+  }, []);
+
+  useEffect(() => {
+    // Skip the first run: it still sees the initial empty state, before the
+    // restored draft above has been applied, and would overwrite the draft.
+    if (!draftLoaded.current) {
+      draftLoaded.current = true;
+      return;
+    }
+    try {
+      window.localStorage.setItem(draftKey, JSON.stringify({ text, selectedTemplate, taskResult, flashcards, followUps } satisfies Draft));
+    } catch {
+      // Storage full or unavailable; the draft just isn't kept.
+    }
+  }, [text, selectedTemplate, taskResult, flashcards, followUps]);
+
   useEffect(() => {
     void (async () => {
       try {
@@ -153,7 +196,14 @@ export function IntakeWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceLanguage, templates]);
 
+  // Skip the first run, which still has the default languages rather than
+  // the restored ones and would overwrite the saved preference.
+  const languagePreferenceLoaded = useRef(false);
   useEffect(() => {
+    if (!languagePreferenceLoaded.current) {
+      languagePreferenceLoaded.current = true;
+      return;
+    }
     window.localStorage.setItem(languagePreferenceKey, JSON.stringify({ sourceLanguage, explanationLanguage }));
   }, [sourceLanguage, explanationLanguage]);
 
@@ -402,6 +452,7 @@ export function IntakeWorkspace() {
               {taskStatus && <p className="task-status" role="status">{taskStatus}</p>}
               {taskResult && <section className="task-result" aria-label="Claude task result"><div className="result-label">Claude result · {explanationLanguage}</div>{flashcards.length ? <div className="flashcard-editor">{flashcards.map((card, index) => <article className="flashcard-edit" key={`${index}-${card.front}`}><label>Front<textarea value={card.front} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, front: event.target.value } : item))} /></label><label>Back<textarea value={card.back} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, back: event.target.value } : item))} /></label><label>Tags<input value={card.tags.join(", ")} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean) } : item))} /></label><button type="button" className="remove-card-button" aria-label={`Remove flashcard ${index + 1}`} onClick={() => setFlashcards((cards) => cards.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></article>)}<button className="preview-prompt-button" type="button" onClick={() => setFlashcards((cards) => [...cards, { front: "", back: "", tags: [] }])}>Add card</button></div> : <div className="result-text">{taskResult}</div>}<div className="result-actions"><button className="save-input-button" type="button" disabled={flashcards.some((card) => !card.front.trim() || !card.back.trim())} onClick={() => void saveForReview()}>Save for review</button>{reviewStatus && <span className="example-status" role="status">{reviewStatus}</span>}</div>
                 {canSendToAnki(sourceLanguage, explanationLanguage, selectedTemplate) && <SendToAnki key={taskResult} sourceText={text} sourceLanguage={sourceLanguage} result={taskResult} promptTemplateId={selectedTemplate} providerId={providerId} />}
+                {flashcards.length > 0 && canSendFlashcardsToAnki(sourceLanguage, explanationLanguage) && <FlashcardsToAnki key={taskResult} cards={flashcards} sourceLanguage={sourceLanguage} options={{ providerId, learnerLevel, outputStyle }} />}
                 <div className="follow-up-section">
                   {followUps.map((item, index) => (
                     <div className="follow-up-entry" key={`${index}-${item.createdAt}`}>
@@ -429,7 +480,7 @@ export function IntakeWorkspace() {
               </section>}
             </>
           ) : (
-            <UploadPanel providerId={providerId} sourceLanguage={sourceLanguage} onTextExtracted={(extractedText, filename) => { setText(extractedText); setLoadedExample(`${filename} loaded`); setMode("text"); }} />
+            <UploadPanel providerId={providerId} sourceLanguage={sourceLanguage} hasText={Boolean(text.trim())} onTextExtracted={(extractedText, filename, append, last) => { setText((current) => append ? `${current.trimEnd()}\n\n${extractedText}` : extractedText); setLoadedExample(`${filename} ${append ? "added" : "loaded"}`); if (last) setMode("text"); }} />
           )}
         </div>
       </section>

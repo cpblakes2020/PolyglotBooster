@@ -1,0 +1,424 @@
+# PolyglotBooster User Manual
+
+*Last updated: September 28, 2026*
+
+PolyglotBooster is a study companion for learning languages through other languages. You give it a word, a sentence, or a whole document in the language you're learning; it explains it through a language you already know, reads it aloud, and turns it into Anki flashcards — including rich notes, audio, and new cards for the example sentences and related words it finds along the way.
+
+**App address:** <https://polyglotbooster-v2.vercel.app>
+
+## Contents
+
+1. [Getting started](#1-getting-started)
+2. [Settings: API keys and voices](#2-settings-api-keys-and-voices)
+3. [The study desk](#3-the-study-desk)
+4. [Saved reviews and exports](#4-saved-reviews-and-exports)
+5. [Setting up Anki (first-time Anki users)](#5-setting-up-anki-first-time-anki-users)
+6. [The Anki page](#6-the-anki-page)
+7. [Studying your cards in Anki](#7-studying-your-cards-in-anki)
+8. [Troubleshooting](#8-troubleshooting)
+9. [Reference](#9-reference)
+
+---
+
+## 1. Getting started
+
+### What you need
+
+- A **Google account** — it's how you sign in.
+- An **API key** from Anthropic (Claude), OpenAI (GPT), or both. PolyglotBooster uses *your* key for everything it generates, so you pay the AI provider directly for what you use — typically a few cents per analysis and well under a cent per audio clip. See [section 2](#2-settings-api-keys-and-voices).
+- For the Anki features: a **laptop or desktop computer** with the free **Anki** app. Everything else works on a phone or tablet too.
+
+### Signing in
+
+Open <https://polyglotbooster-v2.vercel.app> and click **Sign in with Google**. Your keys, settings and saved reviews belong to your Google account, so you'll see the same things on any device you sign in from.
+
+### Installing it as an app (optional)
+
+- **Chrome or Edge (computer):** click the install icon at the right end of the address bar, or the ⋮ menu → *Cast, save and share* → *Install page as app*.
+- **iPhone / iPad (Safari):** tap Share → *Add to Home Screen*.
+- **Android (Chrome):** ⋮ menu → *Add to Home screen* / *Install app*.
+
+### Finding your way around
+
+The header at the top of every page has three links:
+
+| Link | What's there |
+|---|---|
+| **Study desk** (the home page) | Analyze text, hear it read aloud, save and export results |
+| **Anki** | Work directly with your Anki collection (computer only) |
+| **Settings** | API keys and voices |
+
+---
+
+## 2. Settings: API keys and voices
+
+### API keys
+
+PolyglotBooster needs at least one key before it can run anything.
+
+**Getting an Anthropic (Claude) key**
+
+1. Go to <https://console.anthropic.com> and sign up or sign in.
+2. Add a payment method and some credit under *Billing* (a few dollars lasts a long time).
+3. Open *API Keys* → **Create Key**, and copy the key (it starts with `sk-ant-`).
+
+**Getting an OpenAI key** — needed for audio (read-aloud and Anki audio), optional for analysis
+
+1. Go to <https://platform.openai.com> and sign up or sign in.
+2. Add credit under *Billing*.
+3. Open *API keys* → **Create new secret key**, and copy it (it starts with `sk-`).
+
+**Adding them:** in **Settings**, paste each key into its box and click **Save key**. The page then says *A key is on file*. Keys are stored encrypted on the server, tied to your account, and used only for your own requests. You can replace or remove a key at any time.
+
+> Audio always uses OpenAI, whichever provider you pick for analysis — so if you want audio, add an OpenAI key.
+
+### Voices
+
+Also in **Settings**, the **Voices** section chooses the voice for each language. Each language has:
+
+- a **voice** (OpenAI's `marin` and `cedar` are the most natural), and
+- **instructions** that set the accent and pace — e.g. *"Speak natural Central Thai with a native Bangkok accent and accurate tones…"*. The voices aren't tied to a language; the instructions are what make them sound native.
+
+Click **Preview** to hear a sample, adjust, then **Save voices**. The voices are used by the 🔊 button on the study desk and for all Anki audio.
+
+---
+
+## 3. The study desk
+
+The study desk (home page) is where you analyze anything in any supported language.
+
+### Step 1 — Set the languages
+
+Across the top:
+
+- **Source** — the language you're studying (Japanese, Thai, Indonesian, Spanish, English, French or Mandarin).
+- **Explain through** — the language explanations are written in.
+- **Level** — Beginner, Intermediate or Advanced; controls how much is assumed.
+- **Style** — Concise, Detailed, Literal, Natural, Formal or Informal. *Concise* gives the essentials; *Detailed* goes deeper.
+
+The app remembers your choices.
+
+### Step 2 — Give it something to study
+
+**Enter text:** type or paste a word, sentence or passage (up to 12,000 characters). The **Try an example** buttons load a sample.
+
+Your work in progress — the text, the chosen task and its result — is kept in this browser, so reloading or closing the page doesn't lose it. **Clear** empties it. It isn't shared between devices; use **Save for review** to keep a result in your account.
+
+**Upload document:** click **Choose documents** and pick a DOCX, PDF, image (JPG/PNG), HTML, TXT or XML file (up to 4 MB each). You can select **several files at once** — for example every page of a chapter — and they're read one after another in filename order. In Chrome and Edge the picker reopens in the folder you used last. The text is extracted and placed in the text box, where you can edit it before running a task.
+
+For photos, choose how they're read under **Read photos with** (the app remembers your choice):
+
+- **This device first** — free. The photo is read in your browser; if that finds too little text, the AI reader is used instead. Works well for clear, printed text.
+- **AI reader** — about a cent per photo. Best when a photo mixes scripts (for example Thai with its romanization and an English translation), has tone-marked romanization, or is handwritten or hard to read.
+
+When there's already text in the box, **Add to the text already in the box** (on by default) appends new files instead of replacing the text, so you can also add pages in several goes (up to 12,000 characters in total).
+
+You don't need to tidy up romanization or translations that come in with a photo: PolyglotBooster writes its own romanization, and when a note goes to Anki only the learning-language script is kept in that field. Deleting obviously garbled lines before you run a task still helps.
+
+Choose the **Provider** (Anthropic or OpenAI) under the text box — the note beside it tells you whether you have a key on file for it.
+
+### Step 3 — Choose a task
+
+Pick a task from the drop-down at the top of the panel or from the cards under **Choose a lens**. The tasks shown depend on the source language:
+
+**Language-specific tasks** (shown first)
+
+- **Word Analysis** — for a single word or short term: pronunciation, meanings, origin, how it's built, classifiers (Thai), related words, how it changes across registers from formal to slang, example sentences, and nuance.
+- **Sentence Guide** — for a phrase, sentence or passage: pronunciation, meaning (literal and natural), grammar, particles and usage. The Thai version goes further, with a word-by-word table, the reusable grammar pattern, register versions from formal to slang, alternative ways to say it, an opposite where there is one, and new example sentences.
+- **Convert Thai Script** (Thai only).
+
+**General tasks** (every language): Build vocabulary, Make flashcards, Convert register, Extract text exactly, Translate naturally, Explain grammar, Add reading support, Answer questions.
+
+> Thai romanization everywhere in the app uses one consistent style with tone marks, e.g. ยินดีที่ได้รู้จัก → *yin dee thêe dâi rúu jàk*.
+
+### Step 4 — Run it
+
+- **Run task** sends it to the AI; the result appears below the text box.
+- **Preview prompt** shows exactly what will be sent, without running it.
+- **🔊** reads the source text aloud with your voice for that language, with play/pause, skip and loop controls.
+
+**Make flashcards** turns the material into a complete set of cards — every vocabulary item (including glossary asides like "(kitchen = khruua)") and every example sentence — each with its meaning, a reading, and a short note from the material. You can change the front, back or tags, **Remove** cards, or **Add card**, then send them to Anki (below).
+
+### Step 5 — Ask follow-up questions
+
+Under a result, click **Ask a follow-up question**, type your question (the **Insert a phrase** buttons give you starters such as *"What would be another way to say"*), then **Run task**. Answers stay attached to the result.
+
+### Step 6 — Save or send to Anki
+
+- **Save for review** keeps the result (with any follow-ups and audio) in your saved reviews — see [section 4](#4-saved-reviews-and-exports).
+- **Send to Anki** (shown for Indonesian, Thai and Japanese explained in English; works on a computer with Anki set up) puts it straight into your Anki collection — see [Send to Anki](#send-to-anki-from-the-study-desk).
+- **Send cards to Anki** does the same for a Make flashcards result — see [Flashcards to Anki](#flashcards-to-anki).
+
+---
+
+## 4. Saved reviews and exports
+
+Saved results appear under **Saved review** at the bottom of the study desk. Only reviews for the current source language are listed — switch the source language to see others.
+
+For each saved review you can:
+
+- click it to expand the source text, result, follow-ups and audio;
+- **Open in workspace to edit** — load it back into the study desk;
+- add a **note** for yourself (saved when you click away);
+- **Send to Anki**, or **Send cards to Anki** for a flashcard result (see [section 6](#6-the-anki-page));
+- **Download TXT** — a plain-text copy;
+- **Delete** it.
+
+Cards reach Anki only through the Anki connection (Send to Anki and the Anki page) — there are no deck files to download and import.
+
+---
+
+## 5. Setting up Anki (first-time Anki users)
+
+Anki is a free flashcard app that schedules each card just before you'd forget it. PolyglotBooster works directly with the Anki app on your computer. You do this setup **once per computer**.
+
+### 5.1 Install Anki
+
+1. Download Anki from <https://apps.ankiweb.net> (Windows, Mac or Linux) and install it.
+2. Open Anki. On first launch it asks for your language and creates a profile.
+3. *(Recommended)* Create a free **AnkiWeb** account at <https://ankiweb.net>, then in Anki click **Sync** and sign in. Syncing backs up your cards and lets you study on your phone — see [section 7](#7-studying-your-cards-in-anki).
+
+### 5.2 Install the AnkiConnect add-on
+
+AnkiConnect lets PolyglotBooster talk to Anki.
+
+1. In Anki: **Tools → Add-ons → Get Add-ons…**
+2. Enter the code **`2055492159`** and click **OK**.
+3. **Restart Anki.**
+
+### 5.3 Allow PolyglotBooster to connect
+
+1. In Anki: **Tools → Add-ons**, select **AnkiConnect**, and click **Config**.
+2. Find the `"webCorsOriginList"` setting and make it look exactly like this:
+
+   ```json
+   "webCorsOriginList": [
+       "http://localhost",
+       "https://polyglotbooster-v2.vercel.app"
+   ]
+   ```
+
+   Every line inside the brackets except the last ends with a comma — without the commas Anki won't save the configuration.
+
+3. Click **OK** and **restart Anki**.
+
+### 5.4 Create the PolyglotBooster note type
+
+1. With Anki open, go to the **Anki** page in PolyglotBooster.
+2. If your browser asks to let the site access devices on your local network, click **Allow** — that's how it reaches Anki.
+3. The page shows **Connected — setup needed**. Click **Set up Polyglot Vocab**.
+
+This adds, without touching anything already in Anki:
+
+- a note type called **Polyglot Vocab**, and
+- the decks **Polyglot::Indonesian**, **Polyglot::Thai** and **Polyglot::Japanese**.
+
+The page then shows **Connected to Anki**, and you're ready.
+
+### 5.5 How Polyglot Vocab notes work
+
+One note holds one item in several languages. Its fields are:
+
+| Field | Holds |
+|---|---|
+| English, Indonesian, Thai, Japanese | The item in each language |
+| Audio_*Language* | That language's recording |
+| Notes_*Language* | The reading (Thai romanization or Japanese furigana), the analysis, and brief comments |
+| Origin | The language the item was first learned in |
+
+Anki creates a **card for each language direction** that has both sides filled in — for example a note with English and Thai gives you *English → Thai* and *Thai → English* cards. Fill in Japanese later and the Japanese directions appear automatically.
+
+On each card, the audio plays automatically and the notes are tucked under a **more** link, so the card stays clean until you want the detail.
+
+> **Adding notes by hand in Anki:** click **Add**, choose the *Polyglot Vocab* note type, fill in English plus at least one other language, and set *Origin* to that language.
+
+---
+
+## 6. The Anki page
+
+The Anki page works on a **computer with Anki open**. At the top it shows the connection status; once connected it has two tabs: **Review & analyze** and **Bulk audio**.
+
+### 6.1 Review & analyze
+
+This is where you enrich notes one at a time — which doubles as a study session.
+
+**Choose what to work on**
+
+- **Language** — Indonesian, Thai or Japanese. A note is analyzed in the language named in its *Origin* field.
+- **Narrow with an Anki search** *(optional)* — any Anki search, e.g. `tag:food` or `deck:Polyglot::Thai`.
+- **Model, Level, Style** — the provider and settings for the analysis (defaults: Anthropic, Intermediate, Concise).
+- **Start session** — works through notes that haven't been analyzed yet, oldest first.
+- **Flagged in Anki** — works through notes you've red-flagged in Anki (see below), analyzed or not.
+- **Or find a note to edit** — type Thai/Indonesian/Japanese or English text and click **Find**; this works for any note, analyzed or not, and opens its saved analysis for editing.
+
+**Working on a note**
+
+1. The learning-language text is shown with a ▶ button for its audio. **Show English** reveals the meaning when you're ready — try recalling it first.
+2. **Clean up the field** *(when needed)* — older notes sometimes contain formatting or an old romanization in the language field. The page shows the stored version and a cleaned version you can edit; tick **Replace the field on save** to fix it.
+3. **Word analysis / Sentence guide** — the page suggests one (and says when it isn't sure); switch if you disagree.
+4. **Analyze** — generates the analysis and, for Thai and Japanese, a reading line. Both are editable, and the preview shows exactly how the note will look under **more** on the card. **Regenerate** tries again; **Regenerate reading only** redoes just the reading.
+5. **Add tags** *(optional)* — shows the note's current tags; type new ones separated by spaces (existing tags are suggested as you type). **Save tags** adds them straight away; otherwise they're added when you save.
+
+**Saving**
+
+| Button | What it does |
+|---|---|
+| **Save to Anki & next** | Saves the analysis (plus cleanup and tags) and moves to the next note |
+| **Save** | Saves and stays on the note — handy before branching (below) |
+| **Save cleanup only & next** | Saves just the cleaned field; the note comes back for analysis another time |
+| **Skip for now** | Moves on without saving |
+| **Never analyze this note** | Leaves it out of future sessions (still saves a ticked cleanup) |
+| **Edit fields** | Edit the note's fields right here (below) |
+| **Open in Anki** | Opens the note in Anki's own editor (the window may open behind your browser) |
+
+**Sending a card back from Anki:** while studying in Anki, press **Ctrl+1** (or tap the flag on your phone and choose red) on any card you want to edit or analyze in PolyglotBooster. Later, click **Flagged in Anki** on the Anki page to work through them. The red flag comes off automatically when you save anything for the note (analysis, cleanup, fields, *Never analyze*), or click **Clear flag & next** if you only wanted to look.
+
+Analyzing a note again replaces its previous analysis instead of adding a second one; anything else in the Notes field (such as a hand-written furigana reading) is kept.
+
+**Edit fields**
+
+Click **Edit fields** to change the note's English, Indonesian, Thai, Japanese or Origin fields, or its Notes (as HTML, under *Notes fields*).
+
+- An empty language field says *filling it in adds its cards*, and has a **Suggest** button that proposes a translation from the note's other languages. Suggestions only fill the box — check them before saving.
+- A new or changed language field gets a fresh recording (untick *Record new audio* if you don't want it).
+- **Save fields** writes only what you changed.
+
+### 6.2 Branching: turning examples into new cards
+
+A good analysis is full of useful material — example sentences, related words, casual and formal versions. Branching turns them into cards of their own.
+
+**Branch from examples** (under the analysis preview)
+
+1. The page lists every example, related word and register version in the analysis, with its reading, English and a brief comment. Items you **already have in Anki** are marked *In Anki* and unticked.
+2. Tick the ones you want (**Select all / none** helps), then **Start branch**.
+3. For each item you can:
+   - **Add note with brief comment** — creates a note whose Notes field has the reading, the comment, and a *Seen in:* line pointing back to where you found it;
+   - **Analyze fully** first, then **Add note with analysis**;
+   - for an item already in Anki, **Add comment to existing note** or **Add a new note anyway**;
+   - **Skip**.
+4. New notes get audio straight away and the tag `pb::branch`. When the list is done, **Back to main session** returns you to the note you branched from — with your unsaved work intact.
+
+**Right-click to add one item:** select any text in the analysis preview, right-click it and choose **Add "…" to Anki…** to add just that phrase. If it's already in Anki you'll get the same choices as above.
+
+**Branching from a branch:** an item you've analyzed fully can itself be branched from (button or right-click). The deeper list is labelled *Branch · level 2*, and **Back to previous branch** takes you back up.
+
+> Tip: click **Save** (not *Save & next*) on the main note first, then branch — your analysis is safely in Anki and stays on screen to branch from.
+
+### 6.3 Bulk audio
+
+Records audio for every note that doesn't have it yet.
+
+1. Tick the languages (Indonesian, Thai, Japanese). English isn't recorded — it's the prompt side, and Anki would otherwise read it aloud in every review.
+2. The **Voices** line shows which voice each language will use (change them in Settings).
+3. Click **Find notes needing audio**. You'll see how many clips are needed, with an estimated length and cost (roughly $0.015 per minute of audio — a thousand short clips cost about a dollar).
+4. Click **Generate**. Keep the tab open; **Stop** at any time. Finished notes are tagged `pb::audio::<language>`, so the next run picks up where you left off.
+
+**Re-recording after changing a voice:** tick **Replace existing audio too**, then find and **Re-record**. New recordings get new file names so they sync reliably to your phone.
+
+### Send to Anki from the study desk
+
+On a result or saved review (Indonesian, Thai or Japanese explained in English), click **Send to Anki**:
+
+- If a note with exactly that text exists, it's updated — the analysis is added under its Notes, and audio if it has none.
+- Otherwise a new note is created. It suggests the **English** meaning for you to edit (every card pairs with English), and adds a reading and audio.
+
+Everything is shown for review before anything is written.
+
+### Flashcards to Anki
+
+After **Make flashcards** (Indonesian, Thai or Japanese, explained in English), click **Send cards to Anki**:
+
+1. Optionally say where the cards are from, e.g. *Speak Thai Today, chapter 22* — it's added to each note as a *Seen in:* line.
+2. **Tag every card** fills in a short tag from that name (e.g. *STT22*); edit it if you like. Every note in the batch gets it, so you can study the set together later — see [Studying one chapter or set](#studying-one-chapter-or-set).
+3. **Choose cards** shows the list with each card's type (*Vocabulary* or *Sentence*), reading and meaning. Cards you already have in Anki are marked *In Anki* and unticked; **Also tag the unticked cards already in Anki** (on by default) gives them the batch tag too, so the set is complete. Use **Select all / none** and the checkboxes, then **Start branch**.
+4. Each card then opens in the same editor as branching: **Add note with brief comment**, **Analyze fully** first, add its note to an existing card, or **Skip**. The card's topic tags are filled in for you and can be edited. New notes get audio straight away.
+
+**Adding a long list quickly:** instead of **Start branch**, click **Add all N with brief comments** to add every ticked card with the defaults — a new note with its reading, comment, *Seen in* line, tags and audio, or, for a card already in Anki, its comment added to that note. Midway through a one-at-a-time session, **Add the remaining N with brief comments** does the same for the rest. A progress bar shows how far it's got, and **Stop** returns you to one-at-a-time. Fix any card later in Anki, or find it on the Anki page.
+
+**Picking up where you left off:** if you close the list partway through, just open **Send cards to Anki** again on the same result or saved review. Cards you've already added show as *In Anki* and start unticked, so the ones still to do are ticked (anything you skipped is ticked again too).
+
+### Turning a textbook chapter into cards
+
+1. On the study desk, set **Source** to the language and **Explain through** to English.
+2. **Upload document**, choose **AI reader**, click **Choose documents** and select all the page photos at once (name them so they sort in page order). Each page is read and added to the text box.
+3. Choose **Make flashcards** and **Run task**. Check the cards, remove any you don't want.
+4. **Send cards to Anki**, enter the book and chapter (the tag, e.g. *STT22*, is filled in for you), pick the cards, and work through them.
+
+---
+
+## 7. Studying your cards in Anki
+
+### Studying
+
+Click a deck in Anki (e.g. **Polyglot::Thai**) and **Study Now**. Show the answer, then rate how well you knew it — Anki schedules the next review. Click **more** on a card to see the reading, analysis and comments.
+
+### Studying one chapter or set
+
+To study only the cards from one batch — say everything tagged *STT22*:
+
+1. In Anki, **Tools → Create Filtered Deck**.
+2. Search: `tag:STT22` — or `tag:STT22 tag:prepositions` for just part of it. Set the limit high (e.g. 1000) and leave *Reschedule cards based on my answers* on.
+3. **Build**, then study it like any deck. When you're done, **Empty** the filtered deck and the cards return to their usual decks.
+
+You can also search for the *Seen in* text, e.g. `"Speak Thai Today, chapter 22"`, but the tag is more reliable: it also covers cards that were already in Anki. In PolyglotBooster's review sessions, type `tag:STT22` into **Narrow with an Anki search** to work through just that set.
+
+### On your phone
+
+Install **AnkiMobile** (iPhone/iPad, paid) or **AnkiDroid** (Android, free), sign in with your AnkiWeb account, and sync. Sync on your computer after working in PolyglotBooster, then sync on your phone — the notes and audio come across. (PolyglotBooster's Anki page itself only works on the computer running Anki.)
+
+### Previewing a card from the Browse window
+
+In Anki's **Browse** window, select a note and press **Ctrl+Shift+P** (or click **Preview**). Space shows the answer. Switch the list from *Notes* to *Cards* to choose a particular direction. Previewing doesn't count as a review.
+
+### Hands-free listening
+
+Anki's **Auto Advance** (deck *Options → Auto Advance*) can play a card's audio, pause, show the answer and play its audio, then move on — like a listening drill. Auto Advance also answers each card, which affects scheduling, so for pure listening create a **filtered deck** (*Tools → Create Filtered Deck*) with *Reschedule cards based on my answers* turned off, and run Auto Advance there.
+
+### Tidying up media
+
+After re-recording audio, old clips remain in Anki's media folder. **Tools → Check Media** lists unused files and can delete them.
+
+---
+
+## 8. Troubleshooting
+
+| Problem | What to do |
+|---|---|
+| **"Can't reach Anki"** on the Anki page | Make sure Anki is open, AnkiConnect is installed, and the app's address is in `webCorsOriginList` exactly as in [5.3](#53-allow-polyglotbooster-to-connect) (restart Anki after changing it). If you use the installed app, its address is still `https://polyglotbooster-v2.vercel.app`. |
+| AnkiConnect config won't save | The list needs commas between items (but not after the last one). |
+| Browser asks about "local network" | Click **Allow** — it's how the page reaches Anki on your computer. |
+| "Add your … API key" | Add a key for the selected provider in **Settings**, or switch provider. Audio always needs an OpenAI key. |
+| **Open in Anki** does nothing | The Anki window probably opened behind your browser — check the taskbar/dock. |
+| A card has no audio | Run **Bulk audio**; it records anything missing. |
+| A romanization or suggestion looks wrong | Edit it before saving — every generated text is editable. |
+| Changes don't appear on your phone | Sync in Anki on the computer, then on the phone. |
+| Something's off after an update | Reload the page (the ⟳ button in the installed app). |
+
+---
+
+## 9. Reference
+
+### Languages
+
+| | Study desk | Anki page |
+|---|---|---|
+| Indonesian, Thai, Japanese | ✓ | ✓ (analysis, audio, branching) |
+| English | ✓ | ✓ (the meaning side of every card) |
+| Spanish, French, Mandarin | ✓ | coming later |
+
+### Tags PolyglotBooster adds in Anki
+
+| Tag | Meaning |
+|---|---|
+| `pb::analyzed::<language>::<task>` | The note has an analysis (and which task made it) |
+| `pb::audio::<language>` | The note has a recording for that language |
+| `pb::skip::<language>` | You chose *Never analyze this note* — remove the tag to bring it back |
+| `pb::branch` | The note was created from another note's analysis (see its *Seen in:* line) |
+
+Search for them in Anki's Browse window, e.g. `tag:pb::branch`.
+
+### Privacy
+
+- The text you study is sent to the AI provider you choose (Anthropic or OpenAI), using your own API key.
+- Your API keys (encrypted), voice settings and saved reviews are stored on the PolyglotBooster server, tied to your Google account.
+- Your Anki collection stays on your computer (and AnkiWeb, if you sync). The Anki page talks to it directly from your browser; your cards aren't copied to the PolyglotBooster server.

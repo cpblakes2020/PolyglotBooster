@@ -6,11 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "manual": "node scripts/build-manual.mjs"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",
-    "anki-apkg-export": "^4.0.3",
     "mammoth": "^1.12.1",
     "next": "15.5.24",
     "next-auth": "^5.0.0-beta.32",
@@ -26,6 +26,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.24",
+    "marked": "^16.4.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

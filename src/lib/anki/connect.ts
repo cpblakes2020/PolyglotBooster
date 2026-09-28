@@ -4,9 +4,13 @@
 // works on the machine running Anki, and only once this site's origin is in
 // AnkiConnect's webCorsOriginList.
 
-import { ankiNoteType, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { vocabCardTemplates, vocabNoteCss, vocabNoteFields } from "@/lib/anki/noteType";
+import { ankiNoteType, audioLanguages, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
 const endpoint = "http://127.0.0.1:8765";
+
+// Anki's red flag: what you set in Anki to send a card back to PolyglotBooster.
+export const reviewFlag = 1;
 
 export class AnkiConnectError extends Error {}
 
@@ -75,6 +79,28 @@ export const anki = {
   // Writes an MP3 into collection.media. Returns the stored filename.
   storeMedia: (filename: string, base64: string) =>
     invoke<string>("storeMediaFile", { filename, data: base64 }),
+
+  modelNames: () => invoke<string[]>("modelNames"),
+
+  // Removes the red flag (Ctrl+1 in Anki, used to mark cards for
+  // PolyglotBooster) from a note's cards once it has been dealt with.
+  async clearReviewFlag(noteId: number) {
+    const cards = await invoke<number[]>("findCards", { query: `nid:${noteId} flag:${reviewFlag}` });
+    for (const card of cards) await invoke<unknown>("setSpecificValueOfCard", { card, keys: ["flags"], newValues: [0] });
+  },
+
+  // First-time setup for a profile without the note type: creates Polyglot
+  // Vocab and one deck per learning language (where addNote puts new notes).
+  async setUpNoteType() {
+    await invoke<unknown>("createModel", {
+      modelName: ankiNoteType,
+      inOrderFields: vocabNoteFields,
+      css: vocabNoteCss,
+      isCloze: false,
+      cardTemplates: vocabCardTemplates,
+    });
+    for (const language of audioLanguages) await invoke<number>("createDeck", { deck: `Polyglot::${language}` });
+  },
 
   // Every tag in the collection, for suggestions.
   getTags: () => invoke<string[]>("getTags"),

@@ -47,11 +47,11 @@ async function sendClaudeMessage(content: unknown, apiKey: string | undefined, m
 
 export async function runClaudeTask(input: ClaudeInput, apiKey?: string) {
   const prompt = await buildStudyPrompt(input);
-  return sendClaudeMessage(prompt, apiKey, 4096, "Add your Anthropic API key before running a task.", "Claude could not complete the task.", "Claude returned an empty result.");
+  return sendClaudeMessage(prompt, apiKey, 8192, "Add your Anthropic API key before running a task.", "Claude could not complete the task.", "Claude returned an empty result.");
 }
 
 export async function runClaudeRawPrompt(prompt: string, apiKey?: string) {
-  return sendClaudeMessage(prompt, apiKey, 4096, "Add your Anthropic API key before running a task.", "Claude could not complete the task.", "Claude returned an empty result.");
+  return sendClaudeMessage(prompt, apiKey, 8192, "Add your Anthropic API key before running a task.", "Claude could not complete the task.", "Claude returned an empty result.");
 }
 
 export async function extractTextWithClaude(source: Buffer, mimeType: string, apiKey?: string) {
