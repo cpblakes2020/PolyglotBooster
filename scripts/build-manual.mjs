@@ -3,7 +3,7 @@
 // the .md. Needs Chrome or Edge installed (used headless to print the PDF).
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -58,12 +58,22 @@ const browsers = [
 const browser = browsers.find((path) => existsSync(path));
 if (!browser) throw new Error("Chrome or Edge not found; set CHROME_PATH.");
 
+// Print to a temporary file, then copy it over the manual. Chrome fails
+// silently when it can't write the output (e.g. the PDF is open in a viewer),
+// so the copy is where a locked file shows up — with a clear message.
 const dir = mkdtempSync(join(tmpdir(), "pb-manual-"));
 try {
   const htmlPath = join(dir, "manual.html");
+  const pdfPath = join(dir, "manual.pdf");
   writeFileSync(htmlPath, html);
-  execFileSync(browser, ["--headless=new", "--disable-gpu", "--no-pdf-header-footer", `--user-data-dir=${join(dir, "profile")}`, `--print-to-pdf=${output}`, pathToFileURL(htmlPath).href], { stdio: "ignore" });
-  console.log(`Wrote ${output}`);
+  execFileSync(browser, ["--headless=new", "--disable-gpu", "--no-pdf-header-footer", `--user-data-dir=${join(dir, "profile")}`, `--print-to-pdf=${pdfPath}`, pathToFileURL(htmlPath).href], { stdio: "ignore" });
+  if (!existsSync(pdfPath) || statSync(pdfPath).size === 0) throw new Error("Chrome didn't produce a PDF.");
+  try {
+    copyFileSync(pdfPath, output);
+  } catch (error) {
+    throw new Error(`Couldn't replace ${output} — close it if it's open in a PDF viewer, then run again. (${error.code || error.message})`);
+  }
+  console.log(`Wrote ${output} (${Math.round(statSync(output).size / 1024)} KB)`);
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
