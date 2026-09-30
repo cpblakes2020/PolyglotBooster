@@ -1,6 +1,6 @@
 # PolyglotBooster User Manual
 
-*Last updated: September 28, 2026*
+*Last updated: September 30, 2026*
 
 PolyglotBooster is a study companion for learning languages through other languages. You give it a word, a sentence, or a whole document in the language you're learning; it explains it through a language you already know, reads it aloud, and turns it into Anki flashcards — including rich notes, audio, and new cards for the example sentences and related words it finds along the way.
 
@@ -271,7 +271,7 @@ This is where you enrich notes one at a time — which doubles as a study sessio
 | **Edit fields** | Edit the note's fields right here (below) |
 | **Open in Anki** | Opens the note in Anki's own editor (the window may open behind your browser) |
 
-**Sending a card back from Anki:** while studying in Anki, press **Ctrl+1** (or tap the flag on your phone and choose red) on any card you want to edit or analyze in PolyglotBooster. Later, click **Flagged in Anki** on the Anki page to work through them. The red flag comes off automatically when you save anything for the note (analysis, cleanup, fields, *Never analyze*), or click **Clear flag & next** if you only wanted to look.
+**Sending a card back from Anki:** while studying in Anki, press **Ctrl+1** (on iPhone/iPad, use a flag button — see [On your phone](#on-your-phone)) on any card you want to edit or analyze in PolyglotBooster. Later, click **Flagged in Anki** on the Anki page to work through them. The red flag comes off automatically when you save anything for the note (analysis, cleanup, fields, *Never analyze*), or click **Clear flag & next** if you only wanted to look.
 
 Analyzing a note again replaces its previous analysis instead of adding a second one; anything else in the Notes field (such as a hand-written furigana reading) is kept.
 
@@ -360,11 +360,15 @@ To study only the cards from one batch — say everything tagged *STT22*:
 2. Search: `tag:STT22` — or `tag:STT22 tag:prepositions` for just part of it. Set the limit high (e.g. 1000) and leave *Reschedule cards based on my answers* on.
 3. **Build**, then study it like any deck. When you're done, **Empty** the filtered deck and the cards return to their usual decks.
 
+**On your phone (AnkiMobile):** open the parent **Polyglot** deck (so every sub-deck is included), then **Custom Study** and one of the tag options — *Learn new cards with certain tags* for a freshly added chapter, *Review due cards with certain tags* for daily study, or *Preview all cards with certain tags* to go through every card without affecting scheduling — and choose the tag. AnkiMobile builds a temporary filtered deck for you. Alternatively, build the filtered deck on your computer and sync; it appears on the phone.
+
 You can also search for the *Seen in* text, e.g. `"Speak Thai Today, chapter 22"`, but the tag is more reliable: it also covers cards that were already in Anki. In PolyglotBooster's review sessions, type `tag:STT22` into **Narrow with an Anki search** to work through just that set.
 
 ### On your phone
 
-Install **AnkiMobile** (iPhone/iPad, paid) or **AnkiDroid** (Android, free), sign in with your AnkiWeb account, and sync. Sync on your computer after working in PolyglotBooster, then sync on your phone — the notes and audio come across. (PolyglotBooster's Anki page itself only works on the computer running Anki.)
+Install **AnkiMobile Flashcards** by Ankitects (iPhone/iPad, paid) or **AnkiDroid** (Android, free), sign in with your AnkiWeb account, and sync. (*AnkiApp Flashcards* is an unrelated app that doesn't sync with Anki.)
+
+**Flagging on AnkiMobile:** there's no flag icon by default. In AnkiMobile's review settings, add a button (or a tap/gesture) for **Flag 1 (red)**; tapping it during review flags the card, and the flag syncs to your computer for **Flagged in Anki**. Sync on your computer after working in PolyglotBooster, then sync on your phone — the notes and audio come across. (PolyglotBooster's Anki page itself only works on the computer running Anki.)
 
 ### Previewing a card from the Browse window
 
