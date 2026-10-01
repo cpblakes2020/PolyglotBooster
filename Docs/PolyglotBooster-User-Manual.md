@@ -1,6 +1,6 @@
 # PolyglotBooster User Manual
 
-*Last updated: September 30, 2026*
+*Last updated: October 1, 2026*
 
 PolyglotBooster is a study companion for learning languages through other languages. You give it a word, a sentence, or a whole document in the language you're learning; it explains it through a language you already know, reads it aloud, and turns it into Anki flashcards — including rich notes, audio, and new cards for the example sentences and related words it finds along the way.
 
@@ -124,7 +124,7 @@ Pick a task from the drop-down at the top of the panel or from the cards under *
 **Language-specific tasks** (shown first)
 
 - **Word Analysis** — for a single word or short term: pronunciation, meanings, origin, how it's built, classifiers (Thai), related words, how it changes across registers from formal to slang, example sentences, and nuance.
-- **Sentence Guide** — for a phrase, sentence or passage: pronunciation, meaning (literal and natural), grammar, particles and usage. The Thai version goes further, with a word-by-word table, the reusable grammar pattern, register versions from formal to slang, alternative ways to say it, an opposite where there is one, and new example sentences.
+- **Sentence Guide** — for a phrase, sentence or passage: pronunciation and meaning (literal and natural), with a word-by-word table, the reusable grammar pattern, register versions from formal to slang, alternative ways to say it, an opposite where there is one, and new example sentences.
 - **Convert Thai Script** (Thai only).
 
 **General tasks** (every language): Build vocabulary, Make flashcards, Convert register, Extract text exactly, Translate naturally, Explain grammar, Add reading support, Answer questions.
@@ -146,7 +146,7 @@ Under a result, click **Ask a follow-up question**, type your question (the **In
 ### Step 6 — Save or send to Anki
 
 - **Save for review** keeps the result (with any follow-ups and audio) in your saved reviews — see [section 4](#4-saved-reviews-and-exports).
-- **Send to Anki** (shown for Indonesian, Thai and Japanese explained in English; works on a computer with Anki set up) puts it straight into your Anki collection — see [Send to Anki](#send-to-anki-from-the-study-desk).
+- **Send to Anki** (shown for Indonesian, Thai, Japanese, Spanish, French or Mandarin explained in English; works on a computer with Anki set up) puts it straight into your Anki collection — see [Send to Anki](#send-to-anki-from-the-study-desk).
 - **Send cards to Anki** does the same for a Make flashcards result — see [Flashcards to Anki](#flashcards-to-anki).
 
 ---
@@ -211,9 +211,17 @@ AnkiConnect lets PolyglotBooster talk to Anki.
 This adds, without touching anything already in Anki:
 
 - a note type called **Polyglot Vocab**, and
-- the decks **Polyglot::Indonesian**, **Polyglot::Thai** and **Polyglot::Japanese**.
+- a deck for each language: **Polyglot::Indonesian**, **::Thai**, **::Japanese**, **::Spanish**, **::French** and **::Mandarin**.
 
 The page then shows **Connected to Anki**, and you're ready.
+
+### 5.4a Adding Spanish, French and Mandarin to an older setup
+
+If you set up Polyglot Vocab before these languages were added, the Anki page shows a panel offering to **Add Spanish, French, Mandarin**. It adds their fields, their card directions and their decks, without changing your existing notes or cards (it also repairs an older card-layout glitch on a few card directions).
+
+1. **Sync your phone first** — the change needs a one-way sync, and anything not yet synced from the phone would be lost.
+2. Click **Add Spanish, French, Mandarin**.
+3. Sync Anki on your computer; when it asks, choose **Upload to AnkiWeb**. Then sync your phone.
 
 ### 5.5 How Polyglot Vocab notes work
 
@@ -221,12 +229,16 @@ One note holds one item in several languages. Its fields are:
 
 | Field | Holds |
 |---|---|
-| English, Indonesian, Thai, Japanese | The item in each language |
+| English, Indonesian, Thai, Japanese, Spanish, French, Mandarin | The item in each language |
 | Audio_*Language* | That language's recording |
-| Notes_*Language* | The reading (Thai romanization or Japanese furigana), the analysis, and brief comments |
+| Notes_*Language* | The reading (Thai romanization, Japanese furigana or Mandarin pinyin), the analysis, and brief comments |
 | Origin | The language the item was first learned in |
 
 Anki creates a **card for each language direction** that has both sides filled in — for example a note with English and Thai gives you *English → Thai* and *Thai → English* cards. Fill in Japanese later and the Japanese directions appear automatically.
+
+Card directions exist between each language and English, plus Indonesian–Thai, Indonesian–Japanese, Thai–Japanese, Spanish–French, Mandarin–Japanese and Mandarin–Thai.
+
+**Chinese characters:** Mandarin is entered in simplified characters. Its reading under **more** shows the pinyin, then the other script — *Traditional:* for simplified text, or *Simplified:* if you entered traditional text from Taiwan or Hong Kong — and, for words, the *Japanese kanji* form when it differs (e.g. 经济 → 経済). On a Japanese note that also has Mandarin, the reading adds the *Simplified Chinese* form of the kanji. These are character-form conversions, not translations.
 
 On each card, the audio plays automatically and the notes are tucked under a **more** link, so the card stays clean until you want the detail.
 
@@ -244,7 +256,7 @@ This is where you enrich notes one at a time — which doubles as a study sessio
 
 **Choose what to work on**
 
-- **Language** — Indonesian, Thai or Japanese. A note is analyzed in the language named in its *Origin* field.
+- **Language** — Indonesian, Thai, Japanese, Spanish, French or Mandarin. A note is analyzed in the language named in its *Origin* field.
 - **Narrow with an Anki search** *(optional)* — any Anki search, e.g. `tag:food` or `deck:Polyglot::Thai`.
 - **Model, Level, Style** — the provider and settings for the analysis (defaults: Anthropic, Intermediate, Concise).
 - **Start session** — works through notes that haven't been analyzed yet, oldest first.
@@ -277,7 +289,7 @@ Analyzing a note again replaces its previous analysis instead of adding a second
 
 **Edit fields**
 
-Click **Edit fields** to change the note's English, Indonesian, Thai, Japanese or Origin fields, or its Notes (as HTML, under *Notes fields*).
+Click **Edit fields** to change the note's language fields (English, Indonesian, Thai, Japanese, Spanish, French, Mandarin) or Origin, or its Notes (as HTML, under *Notes fields*).
 
 - An empty language field says *filling it in adds its cards*, and has a **Suggest** button that proposes a translation from the note's other languages. Suggestions only fill the box — check them before saving.
 - A new or changed language field gets a fresh recording (untick *Record new audio* if you don't want it).
@@ -308,7 +320,7 @@ A good analysis is full of useful material — example sentences, related words,
 
 Records audio for every note that doesn't have it yet.
 
-1. Tick the languages (Indonesian, Thai, Japanese). English isn't recorded — it's the prompt side, and Anki would otherwise read it aloud in every review.
+1. Tick the languages (Indonesian, Thai, Japanese, Spanish, French, Mandarin). English isn't recorded — it's the prompt side, and Anki would otherwise read it aloud in every review.
 2. The **Voices** line shows which voice each language will use (change them in Settings).
 3. Click **Find notes needing audio**. You'll see how many clips are needed, with an estimated length and cost (roughly $0.015 per minute of audio — a thousand short clips cost about a dollar).
 4. Click **Generate**. Keep the tab open; **Stop** at any time. Finished notes are tagged `pb::audio::<language>`, so the next run picks up where you left off.
@@ -317,7 +329,7 @@ Records audio for every note that doesn't have it yet.
 
 ### Send to Anki from the study desk
 
-On a result or saved review (Indonesian, Thai or Japanese explained in English), click **Send to Anki**:
+On a result or saved review (Indonesian, Thai, Japanese, Spanish, French or Mandarin explained in English), click **Send to Anki**:
 
 - If a note with exactly that text exists, it's updated — the analysis is added under its Notes, and audio if it has none.
 - Otherwise a new note is created. It suggests the **English** meaning for you to edit (every card pairs with English), and adds a reading and audio.
@@ -326,7 +338,7 @@ Everything is shown for review before anything is written.
 
 ### Flashcards to Anki
 
-After **Make flashcards** (Indonesian, Thai or Japanese, explained in English), click **Send cards to Anki**:
+After **Make flashcards** (Indonesian, Thai, Japanese, Spanish, French or Mandarin, explained in English), click **Send cards to Anki**:
 
 1. Optionally say where the cards are from, e.g. *Speak Thai Today, chapter 22* — it's added to each note as a *Seen in:* line.
 2. **Tag every card** fills in a short tag from that name (e.g. *STT22*); edit it if you like. Every note in the batch gets it, so you can study the set together later — see [Studying one chapter or set](#studying-one-chapter-or-set).
@@ -406,9 +418,8 @@ After re-recording audio, old clips remain in Anki's media folder. **Tools → C
 
 | | Study desk | Anki page |
 |---|---|---|
-| Indonesian, Thai, Japanese | ✓ | ✓ (analysis, audio, branching) |
+| Indonesian, Thai, Japanese, Spanish, French, Mandarin | ✓ | ✓ (analysis, audio, branching) |
 | English | ✓ | ✓ (the meaning side of every card) |
-| Spanish, French, Mandarin | ✓ | coming later |
 
 ### Tags PolyglotBooster adds in Anki
 

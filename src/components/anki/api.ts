@@ -42,8 +42,10 @@ export async function analyze(text: string, language: AnkiLanguage, templateId: 
   return result;
 }
 
-export async function assist(kind: "reading" | "gloss" | "translate", text: string, language: AnkiLanguage, providerId: LlmProviderId) {
-  const { result } = await postJson<{ result: string }>("/api/anki/assist", { kind, text, language }, { "x-polyglot-provider": providerId });
+// context "chinese": for a Japanese reading on a note also studied in
+// Mandarin, add the Simplified Chinese form of the characters.
+export async function assist(kind: "reading" | "gloss" | "translate", text: string, language: AnkiLanguage, providerId: LlmProviderId, context?: "chinese") {
+  const { result } = await postJson<{ result: string }>("/api/anki/assist", { kind, text, language, context }, { "x-polyglot-provider": providerId });
   return result;
 }
 

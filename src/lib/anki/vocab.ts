@@ -5,11 +5,11 @@ import type { Language } from "@/lib/types";
 // templates are wired.
 export const ankiNoteType = "Polyglot Vocab";
 
-// Languages that have fields in Polyglot Vocab. Spanish, French and Mandarin
-// are supported elsewhere in PolyglotBooster but hidden from the Anki
-// features until their fields exist in the note type — add them here then.
-// Balinese has fields but is intentionally never touched by PolyglotBooster.
-export const ankiLanguages = ["English", "Indonesian", "Thai", "Japanese"] as const satisfies readonly Language[];
+// Languages with fields in Polyglot Vocab (see noteType.ts). Spanish, French
+// and Mandarin were added later, so an older note type may lack them until
+// "Add languages" on the Anki page has run. Balinese may have fields from
+// before but is intentionally never touched by PolyglotBooster.
+export const ankiLanguages = ["English", "Indonesian", "Thai", "Japanese", "Spanish", "French", "Mandarin"] as const satisfies readonly Language[];
 export type AnkiLanguage = typeof ankiLanguages[number];
 
 // Languages that get recorded audio. English is left out on purpose: Anki
@@ -17,9 +17,13 @@ export type AnkiLanguage = typeof ankiLanguages[number];
 // hearing it in every normal review isn't wanted.
 export const audioLanguages = ankiLanguages.filter((language) => language !== "English");
 
-// Languages whose Notes field gets a reading line (romanization or kana)
-// above the analysis.
-export const readingLanguages: ReadonlySet<AnkiLanguage> = new Set(["Thai", "Japanese"]);
+// Languages whose Notes field gets a reading line (Thai romanization,
+// Japanese kana, Mandarin pinyin) above the analysis.
+export const readingLanguages: ReadonlySet<AnkiLanguage> = new Set(["Thai", "Japanese", "Mandarin"]);
+
+export function readingLabel(language: AnkiLanguage) {
+  return language === "Thai" ? "Romanization" : language === "Mandarin" ? "Pinyin (and other scripts)" : "Reading (hiragana)";
+}
 
 export function isAnkiLanguage(value: string): value is AnkiLanguage {
   return (ankiLanguages as readonly string[]).includes(value);

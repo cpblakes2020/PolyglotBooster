@@ -244,6 +244,7 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-template-choice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; border-top: 1px solid var(--line); padding-top: 14px; font-size: 13px; }
 .anki-template-choice .anki-note { margin: 0; }
 .anki-note-card .input-action-row { margin-top: 14px; padding-bottom: 14px; }
+.anki-field-edit textarea.anki-reading-input { min-height: 0; resize: vertical; font-family: inherit; font-size: 13px; line-height: 1.5; }
 .anki-draft { border-top: 1px solid var(--line); padding-top: 14px; padding-bottom: 14px; }
 .anki-field-edit { display: grid; gap: 6px; margin-bottom: 14px; color: var(--muted); font-size: 11px; }
 .anki-field-edit textarea { width: 100%; min-height: 220px; resize: vertical; border: 1px solid var(--line); background: #f3f1e7; padding: 10px; color: var(--ink); font-family: var(--font-geist-mono), monospace; font-size: 12px; line-height: 1.5; }

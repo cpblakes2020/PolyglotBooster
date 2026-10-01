@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { assist, speak } from "@/components/anki/api";
 import { anki } from "@/lib/anki/connect";
-import { cleanField, composeNotesField, escapeHtml, existingReading, fieldNeedsCleanup, hasRubyReading, japaneseRubyReading, markdownToAnkiHtml } from "@/lib/anki/fields";
-import { audioField, audioFilename, isAnkiLanguage, notesField, pbTags, readingLanguages, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { cleanField, composeNotesField, escapeHtml, existingReading, fieldNeedsCleanup, hasRubyReading, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
+import { audioField, audioFilename, isAnkiLanguage, notesField, pbTags, readingLabel, readingLanguages, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { Language, PromptTemplateId } from "@/lib/types";
 
@@ -78,9 +78,7 @@ export function SendToAnki({ sourceText, sourceLanguage, result, promptTemplateI
 
   const composedNotes = useMemo(() => {
     if (!draft) return "";
-    const readingHtml = !usesReading || !draft.reading.trim() ? ""
-      : language === "Japanese" ? japaneseRubyReading(draft.fieldText.trim(), draft.reading.trim()) : escapeHtml(draft.reading.trim());
-    return composeNotesField(existingNotes, readingHtml, markdownToAnkiHtml(draft.analysis));
+    return composeNotesField(existingNotes, usesReading ? readingHtml(draft.reading, language, draft.fieldText) : "", markdownToAnkiHtml(draft.analysis));
   }, [draft, existingNotes, usesReading, language]);
 
   async function save() {
@@ -154,8 +152,8 @@ export function SendToAnki({ sourceText, sourceLanguage, result, promptTemplateI
             </label>
           )}
           {usesReading && (
-            <label className="anki-field-edit">{language === "Thai" ? "Romanization" : "Reading (hiragana)"}
-              <input value={draft.reading} onChange={(event) => update({ reading: event.target.value })} />
+            <label className="anki-field-edit">{readingLabel(language)}
+              <textarea className="anki-reading-input" rows={Math.max(1, draft.reading.split("\n").length)} value={draft.reading} onChange={(event) => update({ reading: event.target.value })} />
             </label>
           )}
           <label className="anki-field-edit">Analysis (Markdown, editable)

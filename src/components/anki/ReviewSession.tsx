@@ -7,9 +7,9 @@ import { FieldEditor } from "@/components/anki/FieldEditor";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/classify";
 import { anki, ankiSearchValue, reviewFlag } from "@/lib/anki/connect";
-import { cleanField, composeNotesField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, hasRubyReading, japaneseRubyReading, markdownToAnkiHtml } from "@/lib/anki/fields";
+import { cleanField, composeNotesField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, hasRubyReading, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
 import type { BranchItem } from "@/lib/anki/prompts";
-import { analysisLanguage, ankiLanguages, audioField, notesField, pbTags, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { analysisLanguage, ankiLanguages, audioField, notesField, pbTags, readingLabel, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
 
@@ -86,7 +86,7 @@ export function ReviewSession() {
   }, []);
 
   const note = queue?.[index];
-  const usesReading = language === "Thai" || (language === "Japanese" && !hasRubyReading(note?.fields[notesField(language)] || ""));
+  const usesReading = language === "Thai" || language === "Mandarin" || (language === "Japanese" && !hasRubyReading(note?.fields[notesField(language)] || ""));
 
   function goTo(nextIndex: number, notes = queue) {
     const next = notes?.[nextIndex];
@@ -151,7 +151,7 @@ export function ReviewSession() {
       const templateId = draft.kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language);
       const [analysis, reading] = await Promise.all([
         which === "reading" ? Promise.resolve(draft.analysis) : analyze(text, language, templateId, options),
-        which === "analysis" || !usesReading ? Promise.resolve(draft.reading) : assist("reading", text, language, options.providerId),
+        which === "analysis" || !usesReading ? Promise.resolve(draft.reading) : assist("reading", text, language, options.providerId, language === "Japanese" && note?.fields.Mandarin?.trim() ? "chinese" : undefined),
       ]);
       setDraft((current) => current && { ...current, analysis, reading });
       setStatus("");
@@ -162,15 +162,15 @@ export function ReviewSession() {
     }
   }
 
-  const readingHtml = useMemo(() => {
+  const readingBlock = useMemo(() => {
     if (!draft?.reading.trim()) return "";
-    return language === "Japanese" ? japaneseRubyReading(draft.fieldText.trim() || draft.cleanedText, draft.reading.trim()) : escapeHtml(draft.reading.trim());
+    return readingHtml(draft.reading, language, draft.fieldText.trim() || draft.cleanedText);
   }, [draft, language]);
 
   const composedNotes = useMemo(() => {
     if (!note || !draft) return "";
-    return composeNotesField(note.fields[notesField(language)] || "", usesReading ? readingHtml : "", markdownToAnkiHtml(draft.analysis));
-  }, [note, draft, language, readingHtml, usesReading]);
+    return composeNotesField(note.fields[notesField(language)] || "", usesReading ? readingBlock : "", markdownToAnkiHtml(draft.analysis));
+  }, [note, draft, language, readingBlock, usesReading]);
 
   // In a flagged session, a note you've saved something for is done: its
   // red flag comes off so it doesn't come back.
@@ -406,8 +406,8 @@ export function ReviewSession() {
           {draft.analysis && (
             <div className="anki-draft">
               {usesReading && (
-                <label className="anki-field-edit">{language === "Thai" ? "Romanization" : "Reading (hiragana)"}
-                  <input value={draft.reading} onChange={(event) => update({ reading: event.target.value })} />
+                <label className="anki-field-edit">{readingLabel(language)}
+                  <textarea className="anki-reading-input" rows={Math.max(1, draft.reading.split("\n").length)} value={draft.reading} onChange={(event) => update({ reading: event.target.value })} />
                 </label>
               )}
               <label className="anki-field-edit">Analysis (Markdown, editable)

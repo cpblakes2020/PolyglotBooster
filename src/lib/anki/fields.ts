@@ -32,6 +32,8 @@ const scriptPatterns: Record<string, RegExp> = {
   Thai: /[฀-๿]+/g,
   // Kana, kanji, iteration marks and Japanese punctuation.
   Japanese: /[　-〿぀-ゟ゠-ヿ一-鿿！-｠々〆]+/g,
+  // Hanzi (simplified or traditional) and Chinese punctuation.
+  Mandarin: /[　-〿㐀-䶿一-鿿！-｠]+/g,
 };
 
 // Thai doesn't put spaces between words, only between sentences, and TTS
@@ -200,6 +202,16 @@ export function existingReading(notesHtml: string) {
 // that were written by hand.
 export function japaneseRubyReading(word: string, kana: string) {
   return `<ruby>${escapeHtml(word)}<rt>${escapeHtml(kana)}</rt></ruby>`;
+}
+
+// The reading line(s) for a Notes field. The first line is the reading
+// itself (Thai romanization, Mandarin pinyin, or Japanese kana shown as ruby
+// over the word); any further lines — e.g. "Traditional: 學習" — follow it.
+export function readingHtml(reading: string, language: string, word: string) {
+  const [first, ...rest] = reading.split(/\n/).map((line) => line.trim()).filter(Boolean);
+  if (!first) return "";
+  const lead = language === "Japanese" ? japaneseRubyReading(word.trim(), first) : escapeHtml(first);
+  return [lead, ...rest.map(escapeHtml)].join("<br>");
 }
 
 export function hasRubyReading(html: string) {

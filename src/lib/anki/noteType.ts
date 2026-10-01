@@ -1,23 +1,85 @@
-// The Polyglot Vocab note type, for setting up a fresh Anki profile. Copied
-// from the original collection's note type (without its Balinese fields and
-// card templates), so new users get the same cards: one card per language
-// direction, audio inline, and Notes under a "more" disclosure.
+// The Polyglot Vocab note type: its fields, card styling and card
+// templates, used to set up a fresh Anki profile and to add languages to an
+// existing one. The templates are generated from one pattern, matching the
+// original hand-built note type: one card per language direction, audio
+// inline, Notes under a "more" disclosure, and the Origin on the back.
 
-export const vocabNoteFields = ["English", "Indonesian", "Thai", "Japanese", "Audio_English", "Audio_Indonesian", "Audio_Thai", "Audio_Japanese", "Notes_English", "Notes_Indonesian", "Notes_Thai", "Notes_Japanese", "Origin"];
+// Languages in the order their fields appear. (A collection may also have
+// Balinese fields from before; PolyglotBooster leaves those alone.)
+export const noteLanguages = ["English", "Indonesian", "Thai", "Japanese", "Spanish", "French", "Mandarin"] as const;
+export type NoteLanguage = typeof noteLanguages[number];
+
+export const vocabNoteFields = [
+  ...noteLanguages,
+  ...noteLanguages.map((language) => `Audio_${language}`),
+  ...noteLanguages.map((language) => `Notes_${language}`),
+  "Origin",
+];
+
+// Card directions. Each pair gets a card both ways; a card only exists for a
+// note when both of its fields are filled.
+const pairs: [NoteLanguage, NoteLanguage][] = [
+  ["English", "Indonesian"], ["English", "Thai"], ["English", "Japanese"],
+  ["Indonesian", "Thai"], ["Indonesian", "Japanese"], ["Thai", "Japanese"],
+  ["English", "Spanish"], ["English", "French"], ["English", "Mandarin"],
+  ["Spanish", "French"], ["Mandarin", "Japanese"], ["Mandarin", "Thai"],
+];
+
+// Languages whose reading (romanization, furigana, pinyin) is worth seeing
+// on the front of a card into English.
+const readingOnFront = new Set<NoteLanguage>(["Thai", "Japanese", "Mandarin"]);
+
+function front(from: NoteLanguage, to: NoteLanguage) {
+  const notes = to === "English" && readingOnFront.has(from)
+    ? `{{#Notes_${from}}}
+<details class="more">
+<summary>more</summary>
+{{Notes_${from}}}
+</details>
+{{/Notes_${from}}}
+`
+    : "";
+  return `{{#${from}}}{{#${to}}}
+<div class="tag">${from.toUpperCase()}</div>
+<div class="prompt">{{${from}}}</div>
+{{#Audio_${from}}}{{Audio_${from}}}{{/Audio_${from}}}
+${notes}{{/${to}}}{{/${from}}}`;
+}
+
+function back(to: NoteLanguage) {
+  return `{{FrontSide}}
+<hr id="answer">
+<div class="tag">${to.toUpperCase()}</div>
+<div class="answer">{{${to}}}</div>
+{{#Audio_${to}}}{{Audio_${to}}}{{/Audio_${to}}}
+{{#Origin}}
+<details class="more">
+<summary>more</summary>
+<div class="origin">origin: {{Origin}}</div>
+{{#Notes_${to}}}{{Notes_${to}}}{{/Notes_${to}}}
+</details>
+{{/Origin}}
+{{^Origin}}
+{{#Notes_${to}}}
+<details class="more">
+<summary>more</summary>
+{{Notes_${to}}}
+</details>
+{{/Notes_${to}}}
+{{/Origin}}`;
+}
+
+export type CardTemplate = { Name: string; Front: string; Back: string };
+
+export function cardTemplate(from: NoteLanguage, to: NoteLanguage): CardTemplate {
+  return { Name: `${from} → ${to}`, Front: front(from, to), Back: back(to) };
+}
+
+// Into-English directions first, then the rest, as in the original.
+export const vocabCardTemplates: CardTemplate[] = [
+  ...pairs.filter(([a]) => a === "English").map(([, b]) => cardTemplate("English", b)),
+  ...pairs.filter(([a]) => a === "English").map(([, b]) => cardTemplate(b, "English")),
+  ...pairs.filter(([a]) => a !== "English").flatMap(([a, b]) => [cardTemplate(a, b), cardTemplate(b, a)]),
+];
 
 export const vocabNoteCss = ".card {\n  font-family: -apple-system, \"Segoe UI\", \"Noto Sans Thai\", \"Noto Sans JP\", \"Noto Sans\", sans-serif;\n  font-size: 28px;\n  text-align: center;\n  color: #1a1a1a;\n  background-color: #fafafa;\n  padding: 24px 20px;\n}\n\n.tag {\n  font-size: 13px;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n  color: #8a8a8a;\n  margin-bottom: 8px;\n}\n\n.prompt {\n  font-size: 34px;\n  line-height: 1.3;\n}\n\nhr#answer {\n  margin: 22px auto;\n  width: 60%;\n  border: none;\n  border-top: 1px solid #ddd;\n}\n\n.answer {\n  font-size: 34px;\n  line-height: 1.3;\n  color: #0e6b56;\n  margin-bottom: 10px;\n}\n\ndetails.more {\n  margin: 18px auto 0;\n  text-align: left;\n  display: inline-block;\n  max-width: 480px;\n  font-size: 16px;\n  line-height: 1.5;\n  color: #3a3a3a;\n}\n\ndetails.more summary {\n  cursor: pointer;\n  text-align: center;\n  color: #8a8a8a;\n  font-size: 13px;\n  letter-spacing: 0.04em;\n}\n\ndetails.more[open] summary {\n  margin-bottom: 10px;\n}\n\n.origin {\n  margin-top: 16px;\n  display: inline-block;\n  font-size: 11px;\n  letter-spacing: 0.03em;\n  padding: 3px 10px;\n  border-radius: 20px;\n  background: #eeeeee;\n  color: #999999;\n}\n\ndetails.more .origin {\n  margin-top: 0;\n  margin-bottom: 10px;\n}";
-
-export const vocabCardTemplates: { Name: string; Front: string; Back: string }[] = [
-  { Name: "English → Indonesian", Front: "{{#English}}{{#Indonesian}}\n<div class=\"tag\">ENGLISH</div>\n<div class=\"prompt\">{{English}}</div>\n{{#Audio_English}}{{Audio_English}}{{/Audio_English}}\n{{/Indonesian}}{{/English}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">INDONESIAN</div>\n<div class=\"answer\">{{Indonesian}}</div>\n{{#Audio_Indonesian}}{{Audio_Indonesian}}{{/Audio_Indonesian}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more</summary>\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_Indonesian}}{{Notes_Indonesian}}{{/Notes_Indonesian}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_Indonesian}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_Indonesian}}\n</details>\n{{/Notes_Indonesian}}\n{{/Origin}}" },
-  { Name: "English → Thai", Front: "{{#English}}{{#Thai}}\n<div class=\"tag\">ENGLISH</div>\n<div class=\"prompt\">{{English}}</div>\n{{#Audio_English}}{{Audio_English}}{{/Audio_English}}\n{{/Thai}}{{/English}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">THAI</div>\n<div class=\"answer\">{{Thai}}</div>\n{{#Audio_Thai}}{{Audio_Thai}}{{/Audio_Thai}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more</summary>\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_Thai}}{{Notes_Thai}}{{/Notes_Thai}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_Thai}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_Thai}}\n</details>\n{{/Notes_Thai}}\n{{/Origin}}" },
-  { Name: "English → Japanese", Front: "{{#English}}{{#Japanese}}\n<div class=\"tag\">ENGLISH</div>\n<div class=\"prompt\">{{English}}</div>\n{{#Audio_English}}{{Audio_English}}{{/Audio_English}}\n{{/Japanese}}{{/English}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">JAPANESE</div>\n<div class=\"answer\">{{Japanese}}</div>\n{{#Audio_Japanese}}{{Audio_Japanese}}{{/Audio_Japanese}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more</summary>\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_Japanese}}{{Notes_Japanese}}{{/Notes_Japanese}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_Japanese}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_Japanese}}\n</details>\n{{/Notes_Japanese}}\n{{/Origin}}" },
-  { Name: "Indonesian → English", Front: "{{#Indonesian}}{{#English}}\n<div class=\"tag\">INDONESIAN</div>\n<div class=\"prompt\">{{Indonesian}}</div>\n{{#Audio_Indonesian}}{{Audio_Indonesian}}{{/Audio_Indonesian}}\n{{/English}}{{/Indonesian}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">ENGLISH</div>\n<div class=\"answer\">{{English}}</div>\n{{#Audio_English}}{{Audio_English}}{{/Audio_English}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more</summary>\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_English}}{{Notes_English}}{{/Notes_English}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_English}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_English}}\n</details>\n{{/Notes_English}}\n{{/Origin}}" },
-  { Name: "Thai → English", Front: "{{#Thai}}{{#English}}\n<div class=\"tag\">THAI</div>\n<div class=\"prompt\">{{Thai}}</div>\n{{#Audio_Thai}}{{Audio_Thai}}{{/Audio_Thai}}\n{{#Notes_Thai}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_Thai}}\n</details>\n{{/Notes_Thai}}\n{{/English}}{{/Thai}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">ENGLISH</div>\n<div class=\"answer\">{{English}}</div>\n{{#Audio_English}}{{Audio_English}}{{/Audio_English}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more</summary>\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_English}}{{Notes_English}}{{/Notes_English}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_English}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_English}}\n</details>\n{{/Notes_English}}\n{{/Origin}}" },
-  { Name: "Japanese → English", Front: "{{#Japanese}}{{#English}}\n<div class=\"tag\">JAPANESE</div>\n<div class=\"prompt\">{{Japanese}}</div>\n{{#Audio_Japanese}}{{Audio_Japanese}}{{/Audio_Japanese}}\n{{#Notes_Japanese}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_Japanese}}\n</details>\n{{/Notes_Japanese}}\n{{/English}}{{/Japanese}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">ENGLISH</div>\n<div class=\"answer\">{{English}}</div>\n{{#Audio_English}}{{Audio_English}}{{/Audio_English}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more</summary>\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_English}}{{Notes_English}}{{/Notes_English}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_English}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_English}}\n</details>\n{{/Notes_English}}\n{{/Origin}}" },
-  { Name: "Indonesian → Thai", Front: "{{#Indonesian}}{{#Thai}}\n<div class=\"tag\">INDONESIAN</div>\n<div class=\"prompt\">{{Indonesian}}</div>\n{{#Audio_Indonesian}}{{Audio_Indonesian}}{{/Audio_Indonesian}}\n{{/Thai}}{{/Indonesian}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">THAI</div>\n<div class=\"answer\">{{Thai}}</div>\n{{#Audio_Thai}}{{Audio_Thai}}{{/Audio_Thai}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more</summary>\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_Thai}}{{Notes_Thai}}{{/Notes_Thai}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_Thai}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_Thai}}\n</details>\n{{/Notes_Thai}}\n{{/Origin}}" },
-  { Name: "Indonesian → Japanese", Front: "{{#Indonesian}}{{#Japanese}}\n<div class=\"tag\">INDONESIAN</div>\n<div class=\"prompt\">{{Indonesian}}</div>\n{{#Audio_Indonesian}}{{Audio_Indonesian}}{{/Audio_Indonesian}}\n{{/Japanese}}{{/Indonesian}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">JAPANESE</div>\n<div class=\"answer\">{{Japanese}}</div>\n{{#Audio_Japanese}}{{Audio_Japanese}}{{/Audio_Japanese}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more</summary>\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_Japanese}}{{Notes_Japanese}}{{/Notes_Japanese}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_Japanese}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_Japanese}}\n</details>\n{{/Notes_Japanese}}\n{{/Origin}}" },
-  { Name: "Thai → Indonesian", Front: "{{#Thai}}{{#Indonesian}}\n<div class=\"tag\">THAI</div>\n<div class=\"prompt\">{{Thai}}</div>\n{{#Audio_Thai}}{{Audio_Thai}}{{/Audio_Thai}}\n{{/Indonesian}}{{/Thai}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">INDONESIAN</div>\n<div class=\"answer\">{{Indonesian}}</div>\n{{#Audio_Indonesian}}{{Audio_Indonesian}}{{/Audio_Indonesian}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_Indonesian}}{{Notes_Indonesian}}{{/Notes_Indonesian}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_Indonesian}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_Indonesian}}\n</details>\n{{/Notes_Indonesian}}\n{{/Origin}}" },
-  { Name: "Thai → Japanese", Front: "{{#Thai}}{{#Japanese}}\n<div class=\"tag\">THAI</div>\n<div class=\"prompt\">{{Thai}}</div>\n{{#Audio_Thai}}{{Audio_Thai}}{{/Audio_Thai}}\n{{/Japanese}}{{/Thai}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">JAPANESE</div>\n<div class=\"answer\">{{Japanese}}</div>\n{{#Audio_Japanese}}{{Audio_Japanese}}{{/Audio_Japanese}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more</summary>\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_Japanese}}{{Notes_Japanese}}{{/Notes_Japanese}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_Japanese}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_Japanese}}\n</details>\n{{/Notes_Japanese}}\n{{/Origin}}" },
-  { Name: "Japanese → Indonesian", Front: "{{#Japanese}}{{#Indonesian}}\n<div class=\"tag\">JAPANESE</div>\n<div class=\"prompt\">{{Japanese}}</div>\n{{#Audio_Japanese}}{{Audio_Japanese}}{{/Audio_Japanese}}\n{{/Indonesian}}{{/Japanese}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">INDONESIAN</div>\n<div class=\"answer\">{{Indonesian}}</div>\n{{#Audio_Indonesian}}{{Audio_Indonesian}}{{/Audio_Indonesian}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_Indonesian}}{{Notes_Indonesian}}{{/Notes_Indonesian}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_Indonesian}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_Indonesian}}\n</details>\n{{/Notes_Indonesian}}\n{{/Origin}}" },
-  { Name: "Japanese → Thai", Front: "{{#Japanese}}{{#Thai}}\n<div class=\"tag\">JAPANESE</div>\n<div class=\"prompt\">{{Japanese}}</div>\n{{#Audio_Japanese}}{{Audio_Japanese}}{{/Audio_Japanese}}\n{{/Thai}}{{/Japanese}}", Back: "{{FrontSide}}\n<hr id=\"answer\">\n<div class=\"tag\">THAI</div>\n<div class=\"answer\">{{Thai}}</div>\n{{#Audio_Thai}}{{Audio_Thai}}{{/Audio_Thai}}\n{{#Origin}}\n<details class=\"more\">\n<summary>more\n<div class=\"origin\">origin: {{Origin}}</div>\n{{#Notes_Thai}}{{Notes_Thai}}{{/Notes_Thai}}\n</details>\n{{/Origin}}\n{{^Origin}}\n{{#Notes_Thai}}\n<details class=\"more\">\n<summary>more</summary>\n{{Notes_Thai}}\n</details>\n{{/Notes_Thai}}\n{{/Origin}}" },
-];

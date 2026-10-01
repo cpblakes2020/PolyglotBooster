@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { describeSelectionPrompt, extractItemsPrompt, glossPrompt, readingPrompt, translatePrompt } from "@/lib/anki/prompts";
 import { isAnkiLanguage, readingLanguages } from "@/lib/anki/vocab";
+import { japaneseChineseLine, mandarinVariantLines } from "@/lib/chineseScripts";
 import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
 import { requireAccountApiKey } from "@/lib/storage/account";
 
@@ -17,7 +18,9 @@ function parseJsonReply(reply: string): unknown {
 }
 
 // Small single-purpose LLM calls for the Anki page:
-// - reading: Thai romanization / Japanese kana for a text
+// - reading: Thai romanization / Japanese kana / Mandarin pinyin for a text, plus
+//   for Mandarin the other Chinese script and the Japanese kanji form, and for
+//   Japanese (context "chinese") the Simplified Chinese form
 // - gloss: a short English meaning
 // - extract: the learnable items in an analysis (text = analysis, context = the analyzed item)
 // - describe: one item the learner selected (text = selection, context = the analysis)
@@ -58,6 +61,11 @@ export async function POST(request: Request) {
       : describeSelectionPrompt(trimmed, context, language);
     const reply = (await provider.runRawPrompt(prompt, apiKey)).trim();
     if (kind === "extract" || kind === "describe") return NextResponse.json({ result: parseJsonReply(reply) });
+    if (kind === "reading") {
+      const reading = reply.replace(/^["“]|["”]$/g, "");
+      const extra = language === "Mandarin" ? mandarinVariantLines(trimmed) : language === "Japanese" && context === "chinese" ? [japaneseChineseLine(trimmed)] : [];
+      return NextResponse.json({ result: [reading, ...extra.filter(Boolean)].join("\n") });
+    }
     return NextResponse.json({ result: reply.replace(/^["“]|["”]$/g, "") });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "The request could not be completed." }, { status: 502 });

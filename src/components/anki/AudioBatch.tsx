@@ -14,7 +14,7 @@ type Failure = { job: Job; message: string };
 
 // Rough learner-pace speaking rates (characters per second) for the cost
 // estimate. gpt-4o-mini-tts costs about $0.015 per minute of audio.
-const charsPerSecond: Record<AnkiLanguage, number> = { English: 14, Indonesian: 14, Thai: 9, Japanese: 7 };
+const charsPerSecond: Record<AnkiLanguage, number> = { English: 14, Indonesian: 14, Thai: 9, Japanese: 7, Spanish: 14, French: 14, Mandarin: 5 };
 const dollarsPerMinute = 0.015;
 const concurrency = 3;
 const maxConsecutiveFailures = 5;

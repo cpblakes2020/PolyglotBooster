@@ -8,7 +8,7 @@ import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selecti
 import { classifyItem, type ItemKind } from "@/lib/anki/classify";
 import { cleanField } from "@/lib/anki/fields";
 import type { BranchItem } from "@/lib/anki/prompts";
-import { notesField, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { notesField, readingLabel, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
 export type { ItemOutcome };
 
@@ -131,7 +131,7 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
           </label>
         )}
         {target === "new" && usesReading && (
-          <label className="anki-field-edit">{language === "Thai" ? "Romanization" : "Reading (hiragana)"}
+          <label className="anki-field-edit">{readingLabel(language)}
             <input value={reading} onChange={(event) => setReading(event.target.value)} />
           </label>
         )}

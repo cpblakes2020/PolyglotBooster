@@ -4,7 +4,7 @@
 // works on the machine running Anki, and only once this site's origin is in
 // AnkiConnect's webCorsOriginList.
 
-import { vocabCardTemplates, vocabNoteCss, vocabNoteFields } from "@/lib/anki/noteType";
+import { noteLanguages, vocabCardTemplates, vocabNoteCss, vocabNoteFields, type NoteLanguage } from "@/lib/anki/noteType";
 import { ankiNoteType, audioLanguages, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
 const endpoint = "http://127.0.0.1:8765";
@@ -81,6 +81,51 @@ export const anki = {
     invoke<string>("storeMediaFile", { filename, data: base64 }),
 
   modelNames: () => invoke<string[]>("modelNames"),
+
+  // Languages PolyglotBooster supports that this profile's note type has no
+  // fields for yet (it predates them).
+  async missingLanguages(): Promise<NoteLanguage[]> {
+    const fields = await anki.fieldNames();
+    return noteLanguages.filter((language) => !fields.includes(language));
+  },
+
+  // Brings an existing Polyglot Vocab up to date: adds the missing
+  // languages' fields (each next to the existing fields of its kind), adds
+  // every card direction it lacks, repairs older card backs whose "more"
+  // disclosure lost its </summary>, and creates the new languages' decks.
+  // This changes the note type, so Anki asks for a one-way sync afterwards.
+  async addLanguages() {
+    const missing = await anki.missingLanguages();
+    for (const language of missing) {
+      for (const field of [language, `Audio_${language}`, `Notes_${language}`]) {
+        const fields = await anki.fieldNames();
+        const prefix = field.startsWith("Audio_") ? "Audio_" : field.startsWith("Notes_") ? "Notes_" : "";
+        const sameKind = fields
+          .map((name, index) => ({ name, index }))
+          .filter(({ name }) => prefix ? name.startsWith(prefix) : !name.includes("_") && name !== "Origin");
+        const index = sameKind.length ? sameKind[sameKind.length - 1].index + 1 : fields.length;
+        await invoke<null>("modelFieldAdd", { modelName: ankiNoteType, fieldName: field, index });
+      }
+    }
+
+    const existing = await invoke<Record<string, { Front: string; Back: string }>>("modelTemplates", { modelName: ankiNoteType });
+    const added: string[] = [];
+    for (const template of vocabCardTemplates) {
+      if (existing[template.Name]) continue;
+      await invoke<null>("modelTemplateAdd", { modelName: ankiNoteType, template });
+      added.push(template.Name);
+    }
+
+    const repairs: Record<string, { Front: string; Back: string }> = {};
+    for (const [name, template] of Object.entries(existing)) {
+      const correct = vocabCardTemplates.find((candidate) => candidate.Name === name);
+      if (correct && /<summary>more\n<div class="origin">/.test(template.Back)) repairs[name] = { Front: template.Front, Back: correct.Back };
+    }
+    if (Object.keys(repairs).length) await invoke<null>("updateModelTemplates", { model: { name: ankiNoteType, templates: repairs } });
+
+    for (const language of missing) if (language !== "English") await invoke<number>("createDeck", { deck: `Polyglot::${language}` });
+    return { languages: missing, directions: added, repaired: Object.keys(repairs) };
+  },
 
   // Removes the red flag (Ctrl+1 in Anki, used to mark cards for
   // PolyglotBooster) from a note's cards once it has been dealt with.

@@ -4,7 +4,7 @@
 import { speak } from "@/components/anki/api";
 import type { ItemKind } from "@/lib/anki/classify";
 import { anki } from "@/lib/anki/connect";
-import { appendToField, branchNoteBlock, composeNotesField, escapeHtml, japaneseRubyReading, markdownToAnkiHtml } from "@/lib/anki/fields";
+import { appendToField, branchNoteBlock, composeNotesField, escapeHtml, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
 import { audioField, audioFilename, notesField, pbTags, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
 export type ItemOutcome = { kind: "added"; note: VocabNote } | { kind: "commented" } | { kind: "skipped" };
@@ -31,9 +31,7 @@ export function itemNotesHtml(draft: ItemDraft) {
   const { language, text, reading, comment, seenIn, match, target, analysis } = draft;
   const block = branchNoteBlock(comment, seenIn);
   if (target === "existing" && match) return appendToField(match.fields[notesField(language)] || "", block);
-  const readingHtml = !readingLanguages.has(language) || !reading.trim() ? ""
-    : language === "Japanese" ? japaneseRubyReading(text.trim(), reading.trim()) : escapeHtml(reading.trim());
-  return composeNotesField(block, readingHtml, markdownToAnkiHtml(analysis));
+  return composeNotesField(block, readingLanguages.has(language) ? readingHtml(reading, language, text) : "", markdownToAnkiHtml(analysis));
 }
 
 export async function saveItem(draft: ItemDraft, onProgress: (message: string) => void = () => {}): Promise<{ outcome: ItemOutcome; audioFailed: boolean }> {

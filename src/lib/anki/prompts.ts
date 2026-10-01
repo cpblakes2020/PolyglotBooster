@@ -11,6 +11,9 @@ export const thaiRomanizationStyle = `Romanize in this exact style (example: ย
 - ๆ repeats the preceding word (มาเร็วๆ -> "maa reo reo").
 - Hyphens between the syllables of one word (ขอบคุณ khàwp-khun, สบาย sà-baai), spaces between words. All lowercase.`;
 
+// Mandarin readings: standard Hanyu Pinyin with tone marks.
+export const pinyinStyle = "Use Hanyu Pinyin with tone marks (nǐ hǎo, not ni3 hao3), applying tone sandhi as spoken only where the standard writes it (e.g. 不 and 一 keep their dictionary tones). Write the syllables of one word together and separate words with spaces (我们明天去市场 → wǒmen míngtiān qù shìchǎng). All lowercase except proper nouns.";
+
 export function readingPrompt(text: string, language: AnkiLanguage) {
   if (language === "Thai") {
     return [
@@ -18,6 +21,15 @@ export function readingPrompt(text: string, language: AnkiLanguage) {
       thaiRomanizationStyle,
       "Reply with the romanization only: no Thai script, no quotes, no explanation.",
       "Thai text:",
+      text,
+    ].join("\n\n");
+  }
+  if (language === "Mandarin") {
+    return [
+      "Give the pinyin for the following Chinese text, as a learner would read it aloud.",
+      pinyinStyle,
+      "Reply with the pinyin only: no characters, no quotes, no explanation.",
+      "Chinese text:",
       text,
     ].join("\n\n");
   }
@@ -47,6 +59,7 @@ export function translatePrompt(sources: string, target: AnkiLanguage) {
     sources,
     `Give the same item in natural, everyday ${target}, as a native speaker would say it, keeping the same register and length (a word stays a word, a sentence stays a sentence).`,
     target === "Thai" ? "Write Thai without spaces between words; use a space only between sentences." : "",
+    target === "Mandarin" ? "Use simplified characters." : "",
     `Reply with the ${target} only, in its native script: no romanization, quotes, labels, or explanation.`,
   ].filter(Boolean).join("\n\n");
 }
@@ -68,6 +81,7 @@ export type BranchItem = {
 function readingInstruction(language: AnkiLanguage) {
   if (language === "Thai") return `"reading": its romanization. ${thaiRomanizationStyle}`;
   if (language === "Japanese") return `"reading": its hiragana reading.`;
+  if (language === "Mandarin") return `"reading": its pinyin. ${pinyinStyle}`;
   return `"reading": an empty string (${language} needs no reading).`;
 }
 

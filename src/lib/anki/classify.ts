@@ -28,6 +28,14 @@ export function classifyItem(text: string, language: string): Classification {
     return { kind: "word", certain: false, reason: "long compound with no particles" };
   }
 
+  if (language === "Mandarin") {
+    const compact = trimmed.replace(/\s+/g, "");
+    if (/[。？！?!，,]/.test(compact) || /(吗|呢|吧|啊|嘛|了)$/.test(compact)) return { kind: "sentence", certain: true, reason: "has sentence punctuation or a sentence-final particle" };
+    if (compact.length <= 4) return { kind: "word", certain: true, reason: "short term" };
+    if (compact.length >= 8) return { kind: "sentence", certain: false, reason: "long phrase" };
+    return { kind: "word", certain: false, reason: "short phrase with no sentence markers" };
+  }
+
   const words = trimmed.split(/\s+/).filter(Boolean);
   if (latinSentenceEnd.test(trimmed) && words.length >= 2) return { kind: "sentence", certain: true, reason: "ends with sentence punctuation" };
   if (words.length <= 2) return { kind: "word", certain: true, reason: `${words.length} word${words.length === 1 ? "" : "s"}` };
