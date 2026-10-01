@@ -238,6 +238,8 @@ Anki creates a **card for each language direction** that has both sides filled i
 
 Card directions exist between each language and English, plus Indonesian–Thai, Indonesian–Japanese, Thai–Japanese, Spanish–French, Mandarin–Japanese and Mandarin–Thai.
 
+Cards with English go in that language's deck (an *English → Spanish* card in **Polyglot::Spanish**); cards between two languages go in **Polyglot::Cross-Language::***A*-*B* (e.g. **Cross-Language::Thai-Mandarin**). When PolyglotBooster saves a note, it puts any new cards in those decks. When you fill in a language directly in Anki or on your phone, Anki puts the new cards in the right deck only if that card direction has a *deck override* (Anki: **Tools → Manage Note Types → Polyglot Vocab → Cards → Options → Deck Override**); without one, they land in the deck of the note's other cards.
+
 **Chinese characters:** Mandarin is entered in simplified characters. Its reading under **more** shows the pinyin, then the other script — *Traditional:* for simplified text, or *Simplified:* if you entered traditional text from Taiwan or Hong Kong — and, for words, the *Japanese kanji* form when it differs (e.g. 经济 → 経済). On a Japanese note that also has Mandarin, the reading adds the *Simplified Chinese* form of the kanji. These are character-form conversions, not translations.
 
 On each card, the audio plays automatically and the notes are tucked under a **more** link, so the card stays clean until you want the detail.

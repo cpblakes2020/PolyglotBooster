@@ -44,6 +44,37 @@ export function ankiSearchValue(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/\*/g, "\\*").replace(/_/g, "\\_");
 }
 
+// The deck a card direction belongs in: Polyglot::X for X ↔ English, and
+// Polyglot::Cross-Language::A-B (in field order) for a language pair.
+// Undefined for directions PolyglotBooster doesn't know (e.g. Balinese),
+// which are left where Anki put them.
+export function directionDeck(direction: string) {
+  const sides = direction.split(" → ") as NoteLanguage[];
+  if (sides.length !== 2 || !sides.every((side) => noteLanguages.includes(side))) return undefined;
+  const [a, b] = [...sides].sort((x, y) => noteLanguages.indexOf(x) - noteLanguages.indexOf(y));
+  return a === "English" ? `Polyglot::${b}` : `Polyglot::Cross-Language::${a}-${b}`;
+}
+
+async function noteCards(noteId: number) {
+  const [info] = await invoke<{ cards: number[] }[]>("notesInfo", { notes: [noteId] });
+  return info?.cards ?? [];
+}
+
+// Moves newly created cards into their direction's deck. Anki only does this
+// itself for directions with a deck override in the note type; others land
+// in the deck of the note's existing cards.
+async function fileCards(cardIds: number[]) {
+  if (!cardIds.length) return;
+  const directions = Object.keys(await invoke<Record<string, unknown>>("modelTemplates", { modelName: ankiNoteType }));
+  const cards = await invoke<{ cardId: number; ord: number; deckName: string }[]>("cardsInfo", { cards: cardIds });
+  const moves = new Map<string, number[]>();
+  for (const card of cards) {
+    const deck = directionDeck(directions[card.ord]);
+    if (deck && deck !== card.deckName) moves.set(deck, [...(moves.get(deck) ?? []), card.cardId]);
+  }
+  for (const [deck, ids] of moves) await invoke<null>("changeDeck", { cards: ids, deck });
+}
+
 export const anki = {
   version: () => invoke<number>("version"),
 
@@ -70,8 +101,13 @@ export const anki = {
 
   // Note: Anki ignores field updates to a note that's currently open in its
   // Browse window editor — close or move off it first.
-  updateFields: (noteId: number, fields: Record<string, string>) =>
-    invoke<null>("updateNoteFields", { note: { id: noteId, fields } }),
+  async updateFields(noteId: number, fields: Record<string, string>) {
+    // Only language fields can create cards; audio and notes fields can't.
+    const languageFields = Object.keys(fields).some((name) => !name.startsWith("Audio_") && !name.startsWith("Notes_"));
+    const before = languageFields ? await noteCards(noteId) : [];
+    await invoke<null>("updateNoteFields", { note: { id: noteId, fields } });
+    if (languageFields) await fileCards((await noteCards(noteId)).filter((card) => !before.includes(card)));
+  },
 
   addTags: (noteIds: number[], tags: string[]) =>
     invoke<null>("addTags", { notes: noteIds, tags: tags.join(" ") }),
@@ -153,13 +189,16 @@ export const anki = {
   // Base64 contents of a file in collection.media, or false if missing.
   retrieveMedia: (filename: string) => invoke<string | false>("retrieveMediaFile", { filename }),
 
-  addNote: (language: AnkiLanguage, fields: Record<string, string>, tags: string[]) =>
-    invoke<number>("addNote", {
-      // Deck routing comes from the note type's per-template deck overrides.
-      // Anki still requires a deck here, so use the language's own Polyglot
-      // deck (the collection has no "Default" deck).
+  async addNote(language: AnkiLanguage, fields: Record<string, string>, tags: string[]) {
+    // Anki requires a deck here, so use the language's own Polyglot deck (the
+    // collection has no "Default" deck); fileCards then moves each card to
+    // its direction's deck.
+    const noteId = await invoke<number>("addNote", {
       note: { deckName: `Polyglot::${language}`, modelName: ankiNoteType, fields, tags, options: { allowDuplicate: true } },
-    }),
+    });
+    await fileCards(await noteCards(noteId));
+    return noteId;
+  },
 
   // Opens Anki's own Edit window for a note, for editing by hand.
   openEditor: (noteId: number) => invoke<null>("guiEditNote", { note: noteId }),
