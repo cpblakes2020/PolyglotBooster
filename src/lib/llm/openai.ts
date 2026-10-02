@@ -1,5 +1,7 @@
 import { buildStudyPrompt } from "@/lib/prompts/buildPrompt";
 import type { LlmTaskInput } from "@/lib/llm/provider";
+import { transcriptionPrompt } from "@/lib/llm/transcribe";
+import type { Language } from "@/lib/types";
 
 const openAiEndpoint = "https://api.openai.com/v1/chat/completions";
 
@@ -40,9 +42,9 @@ export async function runOpenAiRawPrompt(prompt: string, apiKey?: string) {
   return sendOpenAiMessage(prompt, apiKey, "Add your OpenAI API key before running a task.", "OpenAI could not complete the task.", "OpenAI returned an empty result.");
 }
 
-export async function extractTextWithOpenAi(source: Buffer, mimeType: string, apiKey?: string) {
+export async function extractTextWithOpenAi(source: Buffer, mimeType: string, apiKey?: string, language?: Language) {
   const content = [
-    { type: "text", text: "Transcribe all readable text exactly. Preserve the original script, paragraph breaks, headings, and reading order. Return only the transcription, with no commentary." },
+    { type: "text", text: transcriptionPrompt(language) },
     { type: "image_url", image_url: { url: `data:${mimeType};base64,${source.toString("base64")}`, detail: "high" } },
   ];
   return sendOpenAiMessage(content, apiKey, "Add your OpenAI API key before extracting text from an image.", "OpenAI could not extract text from this image.", "OpenAI returned no readable text.");

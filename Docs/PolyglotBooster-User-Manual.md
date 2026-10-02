@@ -81,6 +81,8 @@ Also in **Settings**, the **Voices** section chooses the voice for each language
 
 Click **Preview** to hear a sample, adjust, then **Save voices**. The voices are used by the 🔊 button on the study desk and for all Anki audio.
 
+**Thai pronunciation:** the voice reads Thai largely from its spelling, so words with silent letters or hidden vowels would come out wrong (the silent ร in ศีรษะ sounded, for example). Before recording a Thai word, phrase or sentence (up to 300 characters), PolyglotBooster has the AI find the words that aren't read as spelled and respell just those the way they sound — ศีรษะ → สีสะ, ผลไม้ → ผนละไม้ — guided by the note's romanization; every other word is left exactly as written. Only the recording uses the respelling; the Thai on your card keeps its correct spelling. It uses your Anthropic key if you have one (with Claude Sonnet 5.5, which gets the Thai tone rules right), otherwise OpenAI, and costs a fraction of a cent per recording. Longer passages are read as written.
+
 ---
 
 ## 3. The study desk
@@ -104,7 +106,7 @@ The app remembers your choices.
 
 Your work in progress — the text, the chosen task and its result — is kept in this browser, so reloading or closing the page doesn't lose it. **Clear** empties it. It isn't shared between devices; use **Save for review** to keep a result in your account.
 
-**Upload document:** click **Choose documents** and pick a DOCX, PDF, image (JPG/PNG), HTML, TXT or XML file (up to 4 MB each). You can select **several files at once** — for example every page of a chapter — and they're read one after another in filename order. In Chrome and Edge the picker reopens in the folder you used last. The text is extracted and placed in the text box, where you can edit it before running a task.
+**Upload document:** click **Choose documents** and pick a DOCX, PDF, image (JPG, PNG, or HEIC — the iPhone camera's format), HTML, TXT or XML file (up to 4 MB each). HEIC photos are converted to JPG in your browser first, so iPhone photos synced to your PC (e.g. the **iCloud Photos** folder) can be picked as they are. You can select **several files at once** — for example every page of a chapter — and they're read one after another in filename order. In Chrome and Edge the picker reopens in the folder you used last. The text is extracted and placed in the text box, where you can edit it before running a task.
 
 For photos, choose how they're read under **Read photos with** (the app remembers your choice):
 

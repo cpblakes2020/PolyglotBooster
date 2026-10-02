@@ -3,6 +3,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { auth } from "@/lib/auth";
 import { extractDocumentText } from "@/lib/extraction";
+import { languages } from "@/lib/languages";
 import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
 import { requireAccountApiKey } from "@/lib/storage/account";
 import { storeDocument } from "@/lib/storage/filesystem";
@@ -40,6 +41,9 @@ export async function POST(request: Request) {
     const provider = getLlmProvider(providerId);
     const formData = await request.formData();
     const file = formData.get("file");
+    // The language being studied, as a hint for the AI reader.
+    const languageValue = formData.get("language");
+    const language = languages.find((candidate) => candidate === languageValue);
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Choose an HTML, text, XML, DOCX, or PDF file to upload." }, { status: 400 });
@@ -58,7 +62,7 @@ export async function POST(request: Request) {
     if (documentType === "image/jpeg" || documentType === "image/png") {
       if (!provider.extractText) return NextResponse.json({ error: "Image extraction is unavailable for the selected provider." }, { status: 400 });
       const apiKey = await requireAccountApiKey(session.user.id, providerId);
-      extracted.text = await provider.extractText(source, documentType, apiKey);
+      extracted.text = await provider.extractText(source, documentType, apiKey, language);
     } else {
       try {
         extracted = await extractDocumentText(storedDocument.storagePath, documentType);
@@ -68,7 +72,7 @@ export async function POST(request: Request) {
       if (!extracted.text && documentType === "application/pdf") {
         if (providerId !== "anthropic" || !provider.extractText) return NextResponse.json({ error: "Scanned-PDF extraction currently requires an Anthropic API key." }, { status: 400 });
         const apiKey = await requireAccountApiKey(session.user.id, providerId);
-        extracted.text = await provider.extractText(source, documentType, apiKey);
+        extracted.text = await provider.extractText(source, documentType, apiKey, language);
       }
     }
     if (!extracted.text) {

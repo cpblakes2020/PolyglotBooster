@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { heicToJpeg, isHeicFile } from "@/lib/heic";
 import { isUsableOcrResult, recognizeImageText } from "@/lib/ocr";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { Language } from "@/lib/types";
@@ -15,7 +16,7 @@ type UploadPanelProps = {
 };
 
 const imageTypes = new Set(["image/jpeg", "image/png"]);
-const acceptedTypes = ".html,.htm,.txt,.xml,.docx,.pdf,.jpg,.jpeg,.png,text/html,text/plain,text/xml,application/xml,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,image/jpeg,image/png";
+const acceptedTypes = ".html,.htm,.txt,.xml,.docx,.pdf,.jpg,.jpeg,.png,.heic,.heif,text/html,text/plain,text/xml,application/xml,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,image/jpeg,image/png,image/heic,image/heif";
 
 // Chrome and Edge's file picker, which reopens in the folder last used for
 // the same id. Not in TypeScript's DOM types yet.
@@ -30,6 +31,7 @@ const pickerTypes = [{
   accept: {
     "image/jpeg": [".jpg", ".jpeg"],
     "image/png": [".png"],
+    "image/heic": [".heic", ".heif"],
     "application/pdf": [".pdf"],
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
     "text/html": [".html", ".htm"],
@@ -71,6 +73,7 @@ export function UploadPanel({ onTextExtracted, hasText, providerId, sourceLangua
   async function uploadToServer(file: File, appendThis: boolean, last: boolean) {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("language", sourceLanguage);
     const response = await fetch("/api/uploads", { method: "POST", headers: { "x-polyglot-provider": providerId }, body: formData });
     const raw = await response.text();
     let result: { error?: string; text?: string; filename?: string; pageCount?: number };
@@ -113,7 +116,17 @@ export function UploadPanel({ onTextExtracted, hasText, providerId, sourceLangua
     }
   }
 
-  async function uploadFile(file: File, appendThis: boolean, last: boolean, prefix: string): Promise<boolean> {
+  async function uploadFile(original: File, appendThis: boolean, last: boolean, prefix: string): Promise<boolean> {
+    let file = original;
+    if (isHeicFile(original)) {
+      setStatus(`${prefix}Converting ${original.name} from HEIC...`);
+      try {
+        file = await heicToJpeg(original);
+      } catch {
+        setStatus(`${prefix}${original.name} couldn't be converted from HEIC. Save it as a JPG in Photos and upload that.`);
+        return false;
+      }
+    }
     if (file.size > 4 * 1024 * 1024) {
       setStatus(`${prefix}${file.name} is over 4 MB. Try a smaller scan or lower resolution.`);
       return false;

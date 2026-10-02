@@ -23,8 +23,10 @@ async function postJson<T>(url: string, body: unknown, headers: Record<string, s
   return data;
 }
 
-export async function speak(text: string, language: AnkiLanguage) {
-  const { data } = await postJson<{ data: string }>("/api/tts", { text, language, delivery: "inline" });
+// Thai is respelled the way it sounds before recording (see
+// spokenSpelling.ts); reading, the note's romanization, guides that.
+export async function speak(text: string, language: AnkiLanguage, reading?: string) {
+  const { data } = await postJson<{ data: string }>("/api/tts", { text, language, delivery: "inline", respell: true, reading });
   return data;
 }
 

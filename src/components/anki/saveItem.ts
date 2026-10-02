@@ -54,7 +54,7 @@ export async function saveItem(draft: ItemDraft, onProgress: (message: string) =
   let audioFailed = false;
   try {
     onProgress(`Recording ${language} audio...`);
-    const filename = await anki.storeMedia(audioFilename(noteId, language), await speak(text.trim(), language));
+    const filename = await anki.storeMedia(audioFilename(noteId, language), await speak(text.trim(), language, draft.reading));
     await anki.updateFields(noteId, { [audioField(language)]: `[sound:${filename}]` });
     await anki.addTags([noteId], [pbTags.audio(language)]);
   } catch {

@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { thaiSpokenSpelling } from "@/lib/llm/spokenSpelling";
 import { synthesizeSpeech } from "@/lib/llm/tts";
 import { isSupportedLanguage } from "@/lib/presets";
-import { getAccountSettings, requireAccountApiKey, saveAccountAudio } from "@/lib/storage/account";
+import { getAccountApiKey, getAccountSettings, requireAccountApiKey, saveAccountAudio } from "@/lib/storage/account";
 import { isTtsVoice, resolveVoiceSetting, type VoiceSetting } from "@/lib/voices";
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
 
-  const body = await request.json().catch(() => null) as { text?: unknown; language?: unknown; delivery?: unknown; voice?: unknown } | null;
+  const body = await request.json().catch(() => null) as { text?: unknown; language?: unknown; delivery?: unknown; voice?: unknown; respell?: unknown; reading?: unknown } | null;
   const text = body?.text;
   if (typeof text !== "string" || !text.trim() || text.length > 12000) {
     return NextResponse.json({ error: "Add up to 12,000 characters of text before generating audio." }, { status: 400 });
@@ -29,7 +30,15 @@ export async function POST(request: Request) {
     const voice = override && isTtsVoice(override.voice) && typeof override.instructions === "string"
       ? { voice: override.voice, instructions: override.instructions.slice(0, 1000) }
       : resolveVoiceSetting(language, settings.voices);
-    const audio = await synthesizeSpeech(text, apiKey, voice);
+    // respell: Thai is respelled the way it sounds before recording, so
+    // silent letters aren't pronounced. Uses the Anthropic key if there is
+    // one, otherwise OpenAI.
+    let spoken = text;
+    if (body?.respell === true && language === "Thai") {
+      const reading = typeof body.reading === "string" ? body.reading.slice(0, 500) : undefined;
+      spoken = await thaiSpokenSpelling(text, { anthropic: await getAccountApiKey(session.user.id, "anthropic"), openai: apiKey }, reading);
+    }
+    const audio = await synthesizeSpeech(spoken, apiKey, voice);
     const voiceName = voice?.voice || "alloy";
     if (inline) return NextResponse.json({ data: audio.toString("base64"), voice: voiceName });
     const url = await saveAccountAudio(session.user.id, audio);

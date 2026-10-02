@@ -21,7 +21,7 @@ export type LlmTaskInput = {
 export type LlmProvider = {
   runTask: (input: LlmTaskInput, apiKey?: string) => Promise<string>;
   runRawPrompt?: (prompt: string, apiKey?: string) => Promise<string>;
-  extractText?: (source: Buffer, mimeType: string, apiKey?: string) => Promise<string>;
+  extractText?: (source: Buffer, mimeType: string, apiKey?: string, language?: Language) => Promise<string>;
 };
 
 const providers: Record<LlmProviderId, LlmProvider> = {
