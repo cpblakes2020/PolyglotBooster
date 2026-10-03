@@ -1,7 +1,7 @@
 // PolyglotBooster server calls used by the Anki page.
 
 import { selectedItemText } from "@/lib/anki/fields";
-import type { BranchItem, BranchItemKind } from "@/lib/anki/prompts";
+import type { BranchItem, BranchItemKind, FollowUpExchange } from "@/lib/anki/prompts";
 import type { AnkiLanguage } from "@/lib/anki/vocab";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
@@ -51,7 +51,24 @@ export async function assist(kind: "reading" | "gloss" | "translate", text: stri
   return result;
 }
 
-const itemKinds = new Set<BranchItemKind>(["example", "related", "register", "vocabulary", "sentence"]);
+// A follow-up question about a note, answered with its analysis and the
+// earlier questions in the thread as context.
+export async function askFollowUp(question: string, item: { text: string; english: string; analysis: string }, earlier: FollowUpExchange[], language: AnkiLanguage, options: AnalysisOptions) {
+  const { result } = await postJson<{ result: string }>("/api/anki/assist", {
+    kind: "followup",
+    text: question,
+    context: item.analysis,
+    item: item.text,
+    english: item.english,
+    thread: earlier,
+    language,
+    learnerLevel: options.learnerLevel,
+    outputStyle: options.outputStyle,
+  }, { "x-polyglot-provider": options.providerId });
+  return result;
+}
+
+const itemKinds =new Set<BranchItemKind>(["example", "related", "register", "vocabulary", "sentence"]);
 
 function toBranchItem(value: unknown): BranchItem | null {
   if (!value || typeof value !== "object") return null;

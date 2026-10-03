@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { analyze, assist, describeSelection, type AnalysisOptions } from "@/components/anki/api";
+import { analyze, askFollowUp, assist, describeSelection, type AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { FieldEditor } from "@/components/anki/FieldEditor";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/classify";
 import { anki, ankiSearchValue, reviewFlag } from "@/lib/anki/connect";
 import { cleanField, composeNotesField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, hasRubyReading, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
-import type { BranchItem } from "@/lib/anki/prompts";
+import type { BranchItem, FollowUpExchange } from "@/lib/anki/prompts";
 import { analysisLanguage, ankiLanguages, audioField, notesField, pbTags, readingLabel, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
@@ -79,6 +79,15 @@ export function ReviewSession() {
   const [newTags, setNewTags] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const [editingFields, setEditingFields] = useState(false);
+  // Follow-up questions about the current note and their answers. They're
+  // never saved to the note; text in an answer goes to Anki only by
+  // right-clicking it.
+  const [followUps, setFollowUps] = useState<FollowUpExchange[]>([]);
+  const [followUpQuestion, setFollowUpQuestion] = useState("");
+  const [askingFollowUp, setAskingFollowUp] = useState(false);
+  // Shown beside the Ask button: progress while waiting, or why it failed.
+  const [followUpStatus, setFollowUpStatus] = useState("");
+  const [waitingForAnswer, setWaitingForAnswer] = useState(false);
   const selectionMenu = useSelectionMenu((text) => void addSelection(text));
 
   useEffect(() => {
@@ -95,6 +104,10 @@ export function ReviewSession() {
     setShowEnglish(false);
     setNewTags("");
     setEditingFields(false);
+    setFollowUps([]);
+    setFollowUpQuestion("");
+    setAskingFollowUp(false);
+    setFollowUpStatus("");
     setStatus(next ? "" : "That's every note in this set.");
   }
 
@@ -126,19 +139,51 @@ export function ReviewSession() {
     }
   }
 
-  // Right-click on selected text in the analysis preview adds just that item.
+  // The analysis plus any follow-up questions and answers: the context for
+  // describing text selected in either.
+  const studyContext = useMemo(() => [
+    draft?.analysis || "",
+    ...followUps.flatMap((exchange) => [`Follow-up question: ${exchange.question}`, `Answer:\n${exchange.answer}`]),
+  ].join("\n\n"), [draft?.analysis, followUps]);
+
+  // Right-click on selected text in the analysis preview or a follow-up
+  // answer adds just that item.
   async function addSelection(text: string) {
     if (!draft) return;
     setBusy(true);
     setStatus(`Looking up “${text.slice(0, 40)}”...`);
     try {
-      const item = await describeSelection(text, draft.analysis, language, options.providerId);
+      const item = await describeSelection(text, studyContext, language, options.providerId);
       setStatus("");
       setBranch({ items: [item] });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "The selection could not be looked up.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function askQuestion() {
+    const question = followUpQuestion.trim();
+    if (!note || !draft || !question) return;
+    setBusy(true);
+    setWaitingForAnswer(true);
+    const providerLabel = llmProviderOptions.find((provider) => provider.id === options.providerId)?.label || "the AI";
+    setFollowUpStatus(`Asking ${providerLabel}… this can take up to half a minute.`);
+    try {
+      const answer = await askFollowUp(question, {
+        text: draft.fieldText.trim() || draft.cleanedText,
+        english: cleanField(note.fields.English || "", "English").text,
+        analysis: draft.analysis,
+      }, followUps, language, options);
+      setFollowUps((current) => [...current, { question, answer }]);
+      setFollowUpQuestion("");
+      setFollowUpStatus("");
+    } catch (error) {
+      setFollowUpStatus(error instanceof Error ? error.message : "The question couldn't be answered.");
+    } finally {
+      setBusy(false);
+      setWaitingForAnswer(false);
     }
   }
 
@@ -418,6 +463,31 @@ export function ReviewSession() {
               <div className="input-action-row">
                 <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => setBranch({})}>Branch from examples</button>
                 <span className="anki-note">Or select any {language} text in the preview and right-click it to add just that.</span>
+              </div>
+
+              <div className="anki-follow-ups">
+                {followUps.map((exchange, position) => (
+                  <div className="anki-follow-up" key={position}>
+                    <p className="follow-up-question"><strong>Q:</strong> {exchange.question}</p>
+                    <div className="anki-card-preview" onContextMenu={selectionMenu.onContextMenu} dangerouslySetInnerHTML={{ __html: markdownToAnkiHtml(exchange.answer) }} />
+                  </div>
+                ))}
+                {followUps.length > 0 && <p className="anki-note">Answers aren&apos;t saved to the note. To keep a phrase, select it and right-click to add it to Anki.</p>}
+                {askingFollowUp ? (
+                  <form className="anki-follow-up-form" onSubmit={(event) => { event.preventDefault(); void askQuestion(); }}>
+                    <label className="anki-field-edit">{followUps.length ? "Ask another follow-up question" : "Ask a follow-up question"}
+                      <textarea value={followUpQuestion} rows={2} placeholder={`e.g. How would you say “…” in ${language}?`} onChange={(event) => setFollowUpQuestion(event.target.value)}
+                        onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); void askQuestion(); } }} />
+                    </label>
+                    <div className="input-action-row">
+                      <button className="save-input-button" type="submit" disabled={busy || !followUpQuestion.trim()}>{waitingForAnswer ? "Asking..." : "Ask"}</button>
+                      <button className="text-button" type="button" disabled={busy} onClick={() => setAskingFollowUp(false)}>Close</button>
+                      {followUpStatus && <span className="example-status" role="status">{followUpStatus}</span>}
+                    </div>
+                  </form>
+                ) : (
+                  <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => setAskingFollowUp(true)}>{followUps.length ? "Ask another follow-up question" : "Ask a follow-up question"}</button>
+                )}
               </div>
             </div>
           )}

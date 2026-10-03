@@ -316,6 +316,11 @@ A good analysis is full of useful material — example sentences, related words,
 
 **Right-click to add one item:** select any text in the analysis preview, right-click it and choose **Add "…" to Anki…** to add just that phrase. If it's already in Anki you'll get the same choices as above.
 
+**Ask a follow-up question:** under the analysis preview, click **Ask a follow-up question** and type your question — for example, on *คุณควรบอกเขาก่อนเธอ* ("You should tell him before she does"), ask *How would you say "You should tell him before you tell her"?* — then **Ask** (or Ctrl+Enter). The answer appears below, with each Thai phrase in bold, its romanization and its English. Ask as many as you like; each answer takes the analysis and the earlier questions into account (uses the **Model**, **Level** and **Style** at the top of the page).
+
+- Answers are **not saved** to the note, and nothing from them goes to Anki on its own. To keep a phrase, select it in the answer, right-click and choose **Add "…" to Anki…** — it then works exactly like right-clicking in the analysis.
+- The questions and answers stay while you branch and come back, and are cleared when you move to another note.
+
 **Branching from a branch:** an item you've analyzed fully can itself be branched from (button or right-click). The deeper list is labelled *Branch · level 2*, and **Back to previous branch** takes you back up.
 
 > Tip: click **Save** (not *Save & next*) on the main note first, then branch — your analysis is safely in Anki and stays on screen to branch from.

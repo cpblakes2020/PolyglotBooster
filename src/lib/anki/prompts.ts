@@ -107,6 +107,38 @@ export function extractItemsPrompt(analysis: string, parentText: string, languag
   ].join("\n\n");
 }
 
+export type FollowUpExchange = { question: string; answer: string };
+
+// A follow-up question about a note, asked after its analysis. Every
+// <language> phrase in the answer is written so the learner can right-click
+// it into a flashcard: native script, then its reading, then the English.
+export function followUpPrompt(input: {
+  question: string;
+  item: string;
+  english: string;
+  analysis: string;
+  earlier: FollowUpExchange[];
+  language: AnkiLanguage;
+  learnerLevel: string;
+  outputStyle: string;
+}) {
+  const { language } = input;
+  const reading = language === "Thai" ? `its romanization. ${thaiRomanizationStyle}`
+    : language === "Japanese" ? "its hiragana reading"
+    : language === "Mandarin" ? `its pinyin. ${pinyinStyle}`
+    : "";
+  return [
+    `You are a careful ${language} tutor. A ${input.learnerLevel.toLowerCase()} learner is studying the ${language} item "${input.item}"${input.english ? ` ("${input.english}")` : ""} and has read the analysis below. Answer their follow-up question.`,
+    `Style: ${input.outputStyle}. Use natural, everyday ${language} as a native speaker would say it, and explain in English.`,
+    `Format the answer in Markdown. Put each ${language} phrase or sentence you give on its own line in bold, in native script with no romanization mixed in${language === "Thai" ? " and no spaces between words" : ""}; ${reading ? `on the next line give ${reading}, then ` : "on the next line give "}its English meaning. Keep explanations short and after the phrases they explain.`,
+    "Analysis:",
+    input.analysis,
+    ...input.earlier.flatMap((exchange) => ["Earlier question:", exchange.question, "Your earlier answer:", exchange.answer]),
+    "Follow-up question:",
+    input.question,
+  ].join("\n\n");
+}
+
 export function describeSelectionPrompt(selection: string, analysis: string, language: AnkiLanguage) {
   return [
     `A learner selected this ${language} text in the language-learning analysis below: "${selection}".`,

@@ -1,12 +1,23 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { describeSelectionPrompt, extractItemsPrompt, glossPrompt, readingPrompt, translatePrompt } from "@/lib/anki/prompts";
+import { describeSelectionPrompt, extractItemsPrompt, followUpPrompt, glossPrompt, readingPrompt, translatePrompt, type FollowUpExchange } from "@/lib/anki/prompts";
 import { isAnkiLanguage, readingLanguages } from "@/lib/anki/vocab";
 import { japaneseChineseLine, mandarinVariantLines } from "@/lib/chineseScripts";
 import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
 import { requireAccountApiKey } from "@/lib/storage/account";
 
-const kinds = new Set(["reading", "gloss", "extract", "describe", "translate"]);
+const kinds = new Set(["reading", "gloss", "extract", "describe", "translate", "followup"]);
+
+// The earlier questions and answers of a follow-up thread, as sent by the page.
+function parseThread(value: unknown): FollowUpExchange[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is FollowUpExchange => typeof item?.question === "string" && typeof item?.answer === "string")
+    .slice(-10)
+    .map((item) => ({ question: item.question.slice(0, 2000), answer: item.answer.slice(0, 10000) }));
+}
+
+const levels = new Set(["Beginner", "Intermediate", "Advanced"]);
 
 // Pulls the JSON value out of a model reply, tolerating code fences or a
 // sentence of preamble.
@@ -25,11 +36,16 @@ function parseJsonReply(reply: string): unknown {
 // - extract: the learnable items in an analysis (text = analysis, context = the analyzed item)
 // - describe: one item the learner selected (text = selection, context = the analysis)
 // - translate: the item in another language (text = its filled fields, language = the target)
+// - followup: answers a question about a note (text = the question, context =
+//   the analysis, plus item, english, thread, learnerLevel and outputStyle)
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
 
-  const body = await request.json().catch(() => null) as { kind?: unknown; text?: unknown; language?: unknown; context?: unknown } | null;
+  const body = await request.json().catch(() => null) as {
+    kind?: unknown; text?: unknown; language?: unknown; context?: unknown;
+    item?: unknown; english?: unknown; thread?: unknown; learnerLevel?: unknown; outputStyle?: unknown;
+  } | null;
   const kind = body?.kind;
   const text = body?.text;
   const language = body?.language;
@@ -58,8 +74,19 @@ export async function POST(request: Request) {
       : kind === "gloss" ? glossPrompt(trimmed, language)
       : kind === "extract" ? extractItemsPrompt(trimmed, context, language)
       : kind === "translate" ? translatePrompt(trimmed, language)
+      : kind === "followup" ? followUpPrompt({
+        question: trimmed,
+        item: typeof body?.item === "string" ? body.item.slice(0, 2000) : "",
+        english: typeof body?.english === "string" ? body.english.slice(0, 2000) : "",
+        analysis: context,
+        earlier: parseThread(body?.thread),
+        language,
+        learnerLevel: typeof body?.learnerLevel === "string" && levels.has(body.learnerLevel) ? body.learnerLevel : "Intermediate",
+        outputStyle: typeof body?.outputStyle === "string" ? body.outputStyle.slice(0, 40) : "Concise",
+      })
       : describeSelectionPrompt(trimmed, context, language);
     const reply = (await provider.runRawPrompt(prompt, apiKey)).trim();
+    if (kind === "followup") return NextResponse.json({ result: reply });
     if (kind === "extract" || kind === "describe") return NextResponse.json({ result: parseJsonReply(reply) });
     if (kind === "reading") {
       const reading = reply.replace(/^["“]|["”]$/g, "");

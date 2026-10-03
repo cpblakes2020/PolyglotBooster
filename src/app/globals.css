@@ -254,6 +254,10 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-card-preview ul, .anki-card-preview ol { margin: 4px 0 8px; padding-left: 22px; }
 .anki-card-preview td, .anki-card-preview th { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
 .anki-card-preview rt { font-size: 10px; }
+.anki-follow-ups { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+.anki-follow-up { margin-bottom: 14px; }
+.anki-follow-up .follow-up-question { font-size: 13px; }
+.anki-follow-up-form textarea { min-height: 0; }
 .anki-find { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
 .anki-find label { width: 100%; color: var(--muted); font-size: 11px; }
 .anki-find input { flex: 1 1 220px; border: 1px solid var(--line); background: #f3f1e7; padding: 7px 8px; color: var(--ink); font-size: 13px; }
