@@ -150,6 +150,7 @@ Under a result, click **Ask a follow-up question**, type your question (the **In
 - **Save for review** keeps the result (with any follow-ups and audio) in your saved reviews — see [section 4](#4-saved-reviews-and-exports).
 - **Send to Anki** (shown for Indonesian, Thai, Japanese, Spanish, French or Mandarin explained in English; works on a computer with Anki set up) puts it straight into your Anki collection — see [Send to Anki](#send-to-anki-from-the-study-desk).
 - **Send cards to Anki** does the same for a Make flashcards result — see [Flashcards to Anki](#flashcards-to-anki).
+- **Right-click a phrase** in the result or a follow-up answer to add just that phrase to Anki — see [Right-click to add a phrase](#right-click-to-add-a-phrase-from-the-study-desk).
 
 ---
 
@@ -160,9 +161,9 @@ Saved results appear under **Saved review** at the bottom of the study desk. Onl
 For each saved review you can:
 
 - click it to expand the source text, result, follow-ups and audio;
-- **Open in workspace to edit** — load it back into the study desk;
+- **Open full size on the study desk ↑** — loads it back into the study desk above (replacing what's there) and scrolls up to it: the result is shown full size, ready to read, right-click phrases from, ask more follow-ups about, or re-save;
 - add a **note** for yourself (saved when you click away);
-- **Send to Anki**, or **Send cards to Anki** for a flashcard result (see [section 6](#6-the-anki-page));
+- **Send to Anki**, or **Send cards to Anki** for a flashcard result (see [section 6](#6-the-anki-page)), or right-click a phrase in the expanded review to add just that;
 - **Download TXT** — a plain-text copy;
 - **Delete** it.
 
@@ -345,6 +346,10 @@ On a result or saved review (Indonesian, Thai, Japanese, Spanish, French or Mand
 - Otherwise a new note is created. It suggests the **English** meaning for you to edit (every card pairs with English), and adds a reading and audio.
 
 Everything is shown for review before anything is written.
+
+### Right-click to add a phrase from the study desk
+
+On a result or an expanded saved review (same languages, explained in English), select any phrase — in the result, a follow-up answer or the source text — then right-click and choose **Add "…" to Anki…**. The same item screen as on the Anki page opens right there, under the result: the phrase with its reading, English and a brief comment, a *Seen in:* line pointing back to the source text, the *In Anki* check with its choices, tags and audio. **Add** or **Skip**, and you're back where you were; right-click the next phrase to add another. Only text in the review's language can be added, and it needs Anki open on this computer.
 
 ### Flashcards to Anki
 

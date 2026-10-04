@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AudioPlayback } from "@/components/audio/AudioPlayback";
+import { AnkiSelectionArea, studyContext } from "@/components/anki/AnkiSelectionArea";
 import { FlashcardsToAnki, canSendFlashcardsToAnki } from "@/components/anki/FlashcardsToAnki";
 import { SendToAnki, canSendToAnki } from "@/components/anki/SendToAnki";
 import type { LlmProviderId } from "@/lib/llm/provider";
@@ -38,22 +39,24 @@ export function SavedReview({ runs, providerId, onOpen, onUpdate, onDelete }: Sa
               </button>
               {isExpanded && (
                 <div className="review-detail">
-                  <label className="text-label">Source text</label>
-                  <textarea className="review-detail-text" readOnly value={run.sourceText} />
-                  {run.audio && <AudioPlayback url={run.audio.url} label="Play the source text aloud" />}
-                  <label className="text-label">Result</label>
-                  <textarea className="review-detail-text" readOnly value={run.result} />
-                  {run.followUps && run.followUps.length > 0 && (
-                    <div className="follow-up-section">
-                      {run.followUps.map((item, index) => (
-                        <div className="follow-up-entry" key={`${index}-${item.createdAt}`}>
-                          <p className="follow-up-question"><strong>Q:</strong> {item.question}</p>
-                          <p className="follow-up-answer"><strong>A:</strong> {item.answer}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <button type="button" onClick={() => onOpen(run)}>Open in workspace to edit</button>
+                  <AnkiSelectionArea sourceLanguage={run.sourceLanguage} userLanguage={run.userLanguage} sourceText={run.sourceText} context={studyContext(run.result, run.followUps)} options={{ providerId, learnerLevel: run.learnerLevel, outputStyle: run.outputStyle }}>
+                    <label className="text-label">Source text</label>
+                    <textarea className="review-detail-text" readOnly value={run.sourceText} />
+                    {run.audio && <AudioPlayback url={run.audio.url} label="Play the source text aloud" />}
+                    <label className="text-label">Result</label>
+                    <textarea className="review-detail-text" readOnly value={run.result} />
+                    {run.followUps && run.followUps.length > 0 && (
+                      <div className="follow-up-section">
+                        {run.followUps.map((item, index) => (
+                          <div className="follow-up-entry" key={`${index}-${item.createdAt}`}>
+                            <p className="follow-up-question"><strong>Q:</strong> {item.question}</p>
+                            <p className="follow-up-answer"><strong>A:</strong> {item.answer}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </AnkiSelectionArea>
+                  <button type="button" onClick={() => onOpen(run)}>Open full size on the study desk ↑</button>
                   {canSendToAnki(run.sourceLanguage, run.userLanguage, run.promptTemplateId) && <SendToAnki sourceText={run.sourceText} sourceLanguage={run.sourceLanguage} result={run.result} promptTemplateId={run.promptTemplateId} providerId={providerId} />}
                   {run.flashcards?.length && canSendFlashcardsToAnki(run.sourceLanguage, run.userLanguage) ? <FlashcardsToAnki cards={run.flashcards} sourceLanguage={run.sourceLanguage} options={{ providerId, learnerLevel: run.learnerLevel, outputStyle: run.outputStyle }} /> : null}
                 </div>

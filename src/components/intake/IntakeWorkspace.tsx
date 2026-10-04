@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AudioPlayback } from "@/components/audio/AudioPlayback";
+import { AnkiSelectionArea, studyContext } from "@/components/anki/AnkiSelectionArea";
 import { FlashcardsToAnki, canSendFlashcardsToAnki } from "@/components/anki/FlashcardsToAnki";
 import { SendToAnki, canSendToAnki } from "@/components/anki/SendToAnki";
 import { LanguageSettings } from "@/components/intake/LanguageSettings";
@@ -84,6 +85,12 @@ export function IntakeWorkspace() {
   const [followUpPreview, setFollowUpPreview] = useState("");
   const [followUpStatus, setFollowUpStatus] = useState("");
   const followUpTextareaRef = useRef<HTMLTextAreaElement>(null);
+  // A saved review opened from the list below: scroll up to it once shown.
+  const resultRef = useRef<HTMLElement>(null);
+  const [scrollToResult, setScrollToResult] = useState(0);
+  useEffect(() => {
+    if (scrollToResult) resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [scrollToResult]);
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [templatesAdmin, setTemplatesAdmin] = useState(false);
   const [templatesStatus, setTemplatesStatus] = useState("Loading tasks...");
@@ -310,6 +317,7 @@ export function IntakeWorkspace() {
     setFollowUpPreview("");
     setFollowUpStatus("");
     setTaskStatus("Saved result opened");
+    setScrollToResult((count) => count + 1);
     setReviewStatus("");
     if (run.audio) {
       setAudioUrl(run.audio.url);
@@ -451,7 +459,7 @@ export function IntakeWorkspace() {
               <div className="example-row" aria-label="Quick examples"><span className="example-label">Try an example</span>{examples.map((example) => <button type="button" key={example.label} onClick={() => loadExample(example)}>{example.label}</button>)}{loadedExample && <span className="example-status" role="status">{loadedExample}</span>}</div>
               {promptPreview && <pre className="prompt-preview" aria-label="Task prompt preview">{promptPreview}</pre>}
               {taskStatus && <p className="task-status" role="status">{taskStatus}</p>}
-              {taskResult && <section className="task-result" aria-label="Claude task result"><div className="result-label">Claude result · {explanationLanguage}</div>{flashcards.length ? <div className="flashcard-editor">{flashcards.map((card, index) => <article className="flashcard-edit" key={`${index}-${card.front}`}><label>Front<textarea value={card.front} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, front: event.target.value } : item))} /></label><label>Back<textarea value={card.back} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, back: event.target.value } : item))} /></label><label>Tags<input value={card.tags.join(", ")} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean) } : item))} /></label><button type="button" className="remove-card-button" aria-label={`Remove flashcard ${index + 1}`} onClick={() => setFlashcards((cards) => cards.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></article>)}<button className="preview-prompt-button" type="button" onClick={() => setFlashcards((cards) => [...cards, { front: "", back: "", tags: [] }])}>Add card</button></div> : <div className="result-text">{taskResult}</div>}<div className="result-actions"><button className="save-input-button" type="button" disabled={flashcards.some((card) => !card.front.trim() || !card.back.trim())} onClick={() => void saveForReview()}>Save for review</button>{reviewStatus && <span className="example-status" role="status">{reviewStatus}</span>}</div>
+              {taskResult && <section ref={resultRef} className="task-result" aria-label="Claude task result"><AnkiSelectionArea sourceLanguage={sourceLanguage} userLanguage={explanationLanguage} sourceText={text} context={studyContext(taskResult, followUps)} options={{ providerId, learnerLevel, outputStyle }}><div className="result-label">Claude result · {explanationLanguage}</div>{flashcards.length ? <div className="flashcard-editor">{flashcards.map((card, index) => <article className="flashcard-edit" key={`${index}-${card.front}`}><label>Front<textarea value={card.front} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, front: event.target.value } : item))} /></label><label>Back<textarea value={card.back} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, back: event.target.value } : item))} /></label><label>Tags<input value={card.tags.join(", ")} onChange={(event) => setFlashcards((cards) => cards.map((item, itemIndex) => itemIndex === index ? { ...item, tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean) } : item))} /></label><button type="button" className="remove-card-button" aria-label={`Remove flashcard ${index + 1}`} onClick={() => setFlashcards((cards) => cards.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></article>)}<button className="preview-prompt-button" type="button" onClick={() => setFlashcards((cards) => [...cards, { front: "", back: "", tags: [] }])}>Add card</button></div> : <div className="result-text">{taskResult}</div>}<div className="result-actions"><button className="save-input-button" type="button" disabled={flashcards.some((card) => !card.front.trim() || !card.back.trim())} onClick={() => void saveForReview()}>Save for review</button>{reviewStatus && <span className="example-status" role="status">{reviewStatus}</span>}</div>
                 {canSendToAnki(sourceLanguage, explanationLanguage, selectedTemplate) && <SendToAnki key={taskResult} sourceText={text} sourceLanguage={sourceLanguage} result={taskResult} promptTemplateId={selectedTemplate} providerId={providerId} />}
                 {flashcards.length > 0 && canSendFlashcardsToAnki(sourceLanguage, explanationLanguage) && <FlashcardsToAnki key={taskResult} cards={flashcards} sourceLanguage={sourceLanguage} options={{ providerId, learnerLevel, outputStyle }} />}
                 <div className="follow-up-section">
@@ -478,7 +486,7 @@ export function IntakeWorkspace() {
                     </div>
                   )}
                 </div>
-              </section>}
+              </AnkiSelectionArea></section>}
             </>
           ) : (
             <UploadPanel providerId={providerId} sourceLanguage={sourceLanguage} hasText={Boolean(text.trim())} onTextExtracted={(extractedText, filename, append, last) => { setText((current) => append ? `${current.trimEnd()}\n\n${extractedText}` : extractedText); setLoadedExample(`${filename} ${append ? "added" : "loaded"}`); if (last) setMode("text"); }} />

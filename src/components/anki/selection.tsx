@@ -4,6 +4,20 @@ import { useEffect, useState, type MouseEvent } from "react";
 
 type Menu = { x: number; y: number; text: string };
 
+// The text selected inside the element being right-clicked. A selection
+// inside a text box isn't part of the page selection, so it's read from the
+// box itself.
+function selectedText(event: MouseEvent<HTMLElement>) {
+  const target = event.target;
+  if ((target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement) && event.currentTarget.contains(target)) {
+    const { selectionStart, selectionEnd, value } = target;
+    return selectionStart !== null && selectionEnd !== null ? value.slice(selectionStart, selectionEnd).trim() : "";
+  }
+  const selection = window.getSelection();
+  if (!selection?.anchorNode || !event.currentTarget.contains(selection.anchorNode)) return "";
+  return selection.toString().trim();
+}
+
 // Right-click on selected text inside an element offers "Add … to Anki".
 // Returns the onContextMenu handler for that element and the menu to render.
 export function useSelectionMenu(onPick: (text: string) => void) {
@@ -24,10 +38,9 @@ export function useSelectionMenu(onPick: (text: string) => void) {
   }, [menu]);
 
   function onContextMenu(event: MouseEvent<HTMLElement>) {
-    const selection = window.getSelection();
-    const text = selection?.toString().trim();
+    const text = selectedText(event);
     // Without a selection inside this element, keep the browser's own menu.
-    if (!text || !selection?.anchorNode || !event.currentTarget.contains(selection.anchorNode)) return;
+    if (!text) return;
     event.preventDefault();
     setMenu({ x: event.clientX, y: event.clientY, text: text.slice(0, 300) });
   }
