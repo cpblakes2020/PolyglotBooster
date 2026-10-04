@@ -260,7 +260,7 @@ This is where you enrich notes one at a time — which doubles as a study sessio
 
 **Choose what to work on**
 
-- **Language** — Indonesian, Thai, Japanese, Spanish, French or Mandarin. A note is analyzed in the language named in its *Origin* field.
+- **Language** — Indonesian, Thai, Japanese, Spanish, French or Mandarin. **Start session** only brings up notes whose *Origin* is this language (an Indonesian-origin note that also has Thai comes up in Indonesian sessions); **Flagged in Anki** and **Find** show every note with this language filled in, whatever its origin.
 - **Narrow with an Anki search** *(optional)* — any Anki search, e.g. `tag:food` or `deck:Polyglot::Thai`.
 - **Model, Level, Style** — the provider and settings for the analysis (defaults: Anthropic, Intermediate, Concise).
 - **Start session** — works through notes that haven't been analyzed yet, oldest first.
@@ -273,7 +273,8 @@ This is where you enrich notes one at a time — which doubles as a study sessio
 2. **Clean up the field** *(when needed)* — older notes sometimes contain formatting or an old romanization in the language field. The page shows the stored version and a cleaned version you can edit; tick **Replace the field on save** to fix it.
 3. **Word analysis / Sentence guide** — the page suggests one (and says when it isn't sure); switch if you disagree.
 4. **Analyze** — generates the analysis and, for Thai and Japanese, a reading line. Both are editable, and the preview shows exactly how the note will look under **more** on the card. **Regenerate** tries again; **Regenerate reading only** redoes just the reading.
-5. **Add tags** *(optional)* — shows the note's current tags; type new ones separated by spaces (existing tags are suggested as you type). **Save tags** adds them straight away; otherwise they're added when you save.
+5. **English note** — under English, the note's *Notes_English* field, e.g. a question you typed in Anki when you flagged the card. Edit it, or empty the box to delete it; it's saved with any of the save buttons, or straight away with **Save English note** (or **Delete English note**). **Undo** puts back what's in Anki.
+6. **Add tags** *(optional)* — shows the note's current tags; type new ones separated by spaces (existing tags are suggested as you type). **Save tags** adds them straight away; otherwise they're added when you save.
 
 **Saving**
 

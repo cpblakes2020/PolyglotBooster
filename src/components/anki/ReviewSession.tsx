@@ -7,7 +7,7 @@ import { FieldEditor } from "@/components/anki/FieldEditor";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/classify";
 import { anki, ankiSearchValue, reviewFlag } from "@/lib/anki/connect";
-import { cleanField, composeNotesField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, hasRubyReading, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
+import { cleanField, composeNotesField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, hasRubyReading, htmlToText, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
 import type { BranchItem, FollowUpExchange } from "@/lib/anki/prompts";
 import { analysisLanguage, ankiLanguages, audioField, notesField, pbTags, readingLabel, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
@@ -25,7 +25,14 @@ type Draft = {
   replaceField: boolean;
   reading: string;
   analysis: string;
+  // The Notes_English field as plain text, e.g. a question written in Anki
+  // when flagging the card. Empty it to delete the note.
+  englishNote: string;
 };
+
+function englishNoteText(note: VocabNote) {
+  return htmlToText(note.fields[notesField("English")] || "");
+}
 
 function newDraft(note: VocabNote, language: AnkiLanguage): Draft {
   const raw = note.fields[language] || "";
@@ -42,6 +49,7 @@ function newDraft(note: VocabNote, language: AnkiLanguage): Draft {
     replaceField: fieldNeedsCleanup(raw, cleaned),
     reading: existingReading(note.fields[notesField(language)] || ""),
     analysis: existingAnalysis(note.fields[notesField(language)] || ""),
+    englishNote: englishNoteText(note),
   };
 }
 
@@ -127,9 +135,11 @@ export function ReviewSession() {
         : nextMode === "flagged" ? `${language}:_* flag:${reviewFlag}`
         : `${language}:_* -tag:${pbTags.analyzedPrefix(language)}::* -tag:${pbTags.skip(language)} ${extraQuery.trim()}`;
       const notes = await anki.notesMatching(query);
-      // Analysis belongs to the note's Origin language, so e.g. an
-      // Indonesian-origin note that also has Thai is analyzed as Indonesian.
-      const matching = notes.filter((item) => analysisLanguage(item) === language).sort((a, b) => a.noteId - b.noteId);
+      // A session analyzes each note in its Origin language, so e.g. an
+      // Indonesian-origin note that also has Thai comes up as Indonesian. Find
+      // and Flagged show every note with this language filled in: you asked
+      // for that text, or flagged that card, whatever the note's origin.
+      const matching = notes.filter((item) => nextMode !== "session" || analysisLanguage(item) === language).sort((a, b) => a.noteId - b.noteId);
       setQueue(matching);
       goTo(0, matching);
     } catch (error) {
@@ -228,6 +238,28 @@ export function ReviewSession() {
     }
   }
 
+  // The English note's field, if it was edited here (an emptied box deletes
+  // the note). Written along with whichever save is used.
+  function englishNoteChange(): Record<string, string> {
+    if (!note || !draft || draft.englishNote.trim() === englishNoteText(note)) return {};
+    return { [notesField("English")]: escapeHtml(draft.englishNote.trim()).replace(/\n/g, "<br>") };
+  }
+
+  async function saveEnglishNote() {
+    const fields = englishNoteChange();
+    if (!note || !Object.keys(fields).length) return;
+    setBusy(true);
+    try {
+      await anki.updateFields(note.noteId, fields);
+      setQueue((current) => current && current.map((item) => item.noteId === note.noteId ? { ...item, fields: { ...item.fields, ...fields } } : item));
+      setStatus(draft?.englishNote.trim() ? "English note saved to Anki" : "English note deleted");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The English note could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function clearFlagAndNext() {
     if (!note) return;
     setBusy(true);
@@ -243,7 +275,7 @@ export function ReviewSession() {
     setBusy(true);
     setStatus("Saving to Anki...");
     try {
-      const fields: Record<string, string> = { [notesField(language)]: composedNotes };
+      const fields: Record<string, string> = { [notesField(language)]: composedNotes, ...englishNoteChange() };
       if (draft.replaceField && draft.fieldText.trim()) fields[language] = escapeHtml(draft.fieldText.trim());
       const templateId = draft.kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language);
       const tags = [pbTags.analyzed(language, templateId), ...parseTags(newTags)];
@@ -276,7 +308,7 @@ export function ReviewSession() {
     setBusy(true);
     setStatus("Saving cleanup to Anki...");
     try {
-      await anki.updateFields(note.noteId, { [language]: escapeHtml(draft.fieldText.trim()) });
+      await anki.updateFields(note.noteId, { [language]: escapeHtml(draft.fieldText.trim()), ...englishNoteChange() });
       if (parseTags(newTags).length) await anki.addTags([note.noteId], parseTags(newTags));
       await clearFlagIfFlagged(note.noteId);
       setSaved((count) => count + 1);
@@ -292,8 +324,10 @@ export function ReviewSession() {
     if (!note) return;
     setBusy(true);
     try {
-      // Keep a ticked field cleanup even when skipping the analysis.
-      if (draft?.replaceField && draft.fieldText.trim()) await anki.updateFields(note.noteId, { [language]: escapeHtml(draft.fieldText.trim()) });
+      // Keep a ticked field cleanup and an edited English note even when
+      // skipping the analysis.
+      const fields = { ...(draft?.replaceField && draft.fieldText.trim() ? { [language]: escapeHtml(draft.fieldText.trim()) } : {}), ...englishNoteChange() };
+      if (Object.keys(fields).length) await anki.updateFields(note.noteId, fields);
       await anki.addTags([note.noteId], [pbTags.skip(language), ...parseTags(newTags)]);
       await clearFlagIfFlagged(note.noteId);
       goTo(index + 1);
@@ -313,6 +347,7 @@ export function ReviewSession() {
     const fresh = newDraft(updated, language);
     if (fields[language] !== undefined) update({ cleanedText: fresh.cleanedText, fieldText: fresh.fieldText, replaceField: fresh.replaceField, classification: fresh.classification });
     if (fields[notesField(language)] !== undefined) update({ reading: fresh.reading, analysis: fresh.analysis });
+    if (fields[notesField("English")] !== undefined) update({ englishNote: fresh.englishNote });
     setEditingFields(false);
     setStatus("Fields saved to Anki");
     void clearFlagIfFlagged(note.noteId);
@@ -420,6 +455,17 @@ export function ReviewSession() {
                     {soundFilename(note.fields.Audio_English || "") && <button className="text-button" type="button" aria-label="Play English audio" onClick={() => void playAnkiSound(note.fields.Audio_English)}>▶</button>}
                   </p>
                 : <button className="text-button" type="button" onClick={() => setShowEnglish(true)}>Show English</button>}
+              <label className="anki-english-note">English note
+                <textarea value={draft.englishNote} rows={Math.max(2, draft.englishNote.split("\n").length)} placeholder="e.g. a question you wrote when flagging the card"
+                  onChange={(event) => update({ englishNote: event.target.value })} />
+              </label>
+              {Object.keys(englishNoteChange()).length > 0 && (
+                <p className="anki-english-note-actions">
+                  <button className="text-button" type="button" disabled={busy} onClick={() => void saveEnglishNote()}>{draft.englishNote.trim() ? "Save English note" : "Delete English note"}</button>
+                  <button className="text-button" type="button" disabled={busy} onClick={() => update({ englishNote: englishNoteText(note) })}>Undo</button>
+                  <span className="anki-note">Also saved by Save, Save &amp; next and the other save buttons.</span>
+                </p>
+              )}
             </div>
           </div>
 

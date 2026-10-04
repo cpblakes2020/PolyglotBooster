@@ -235,6 +235,9 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-note-card > * { padding-left: 16px; padding-right: 16px; }
 .anki-note-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 20px; padding-top: 4px; }
 .anki-note-fields .result-label { padding-left: 0; }
+.anki-english-note { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; }
+.anki-english-note textarea { display: block; width: 100%; margin-top: 4px; resize: vertical; border: 1px solid var(--line); background: #f3f1e7; padding: 8px 10px; color: var(--ink); font-size: 14px; line-height: 1.5; }
+.anki-english-note-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 12px; }
 .anki-front { margin: 10px 0 14px; color: var(--ink); font-size: 26px; line-height: 1.35; }
 .anki-back { margin: 10px 0 14px; color: var(--ink); font-size: 17px; }
 .anki-front .text-button, .anki-back .text-button { margin-left: 10px; font-size: 14px; }
