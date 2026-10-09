@@ -7,9 +7,9 @@ import { FieldEditor } from "@/components/anki/FieldEditor";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/classify";
 import { anki, ankiSearchValue, reviewFlag } from "@/lib/anki/connect";
-import { cleanField, composeNotesField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, hasRubyReading, htmlToText, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
+import { cleanField, composeNotesField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, hasReading, hasRubyReading, htmlToText, markdownToAnkiHtml, readingHtml, withReadingBlock } from "@/lib/anki/fields";
 import type { BranchItem, FollowUpExchange } from "@/lib/anki/prompts";
-import { analysisLanguage, ankiLanguages, audioField, notesField, pbTags, readingLabel, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { analysisLanguage, ankiLanguages, audioField, notesField, pbTags, readingLabel, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
 
@@ -55,6 +55,11 @@ function newDraft(note: VocabNote, language: AnkiLanguage): Draft {
 
 type Branch = { items?: BranchItem[] };
 
+// "session": notes not yet analyzed; "search": found by text; "flagged":
+// red-flagged in Anki; "reading": Thai/Japanese/Mandarin notes with no
+// reading yet (e.g. made in Anki, or a language added later), newest first.
+type SessionMode = "session" | "search" | "flagged" | "reading";
+
 function soundFilename(field: string) {
   return field.match(/\[sound:([^\]]+)\]/)?.[1];
 }
@@ -80,7 +85,7 @@ export function ReviewSession() {
   // "session" works through unanalyzed notes; "search" through notes found
   // by text, analyzed or not; "flagged" through notes you red-flagged in
   // Anki (Ctrl+1) to look at here — the flag is cleared once it's dealt with.
-  const [mode, setMode] = useState<"session" | "search" | "flagged">("session");
+  const [mode, setMode] = useState<SessionMode>("session");
   const [search, setSearch] = useState("");
   const [branch, setBranch] = useState<Branch | null>(null);
   // Tags to add to the current note on save, and the collection's tags to suggest.
@@ -119,7 +124,7 @@ export function ReviewSession() {
     setStatus(next ? "" : "That's every note in this set.");
   }
 
-  async function loadQueue(nextMode: "session" | "search" | "flagged") {
+  async function loadQueue(nextMode: SessionMode) {
     const term = search.trim();
     if (nextMode === "search" && !term) return;
     setBusy(true);
@@ -133,13 +138,18 @@ export function ReviewSession() {
       const query = nextMode === "search"
         ? `${language}:_* ("${language}:*${ankiSearchValue(term)}*" OR "English:*${ankiSearchValue(term)}*")`
         : nextMode === "flagged" ? `${language}:_* flag:${reviewFlag}`
+        : nextMode === "reading" ? `${language}:_* -"${notesField(language)}:*pb-reading*" ${extraQuery.trim()}`
         : `${language}:_* -tag:${pbTags.analyzedPrefix(language)}::* -tag:${pbTags.skip(language)} ${extraQuery.trim()}`;
       const notes = await anki.notesMatching(query);
       // A session analyzes each note in its Origin language, so e.g. an
-      // Indonesian-origin note that also has Thai comes up as Indonesian. Find
-      // and Flagged show every note with this language filled in: you asked
-      // for that text, or flagged that card, whatever the note's origin.
-      const matching = notes.filter((item) => nextMode !== "session" || analysisLanguage(item) === language).sort((a, b) => a.noteId - b.noteId);
+      // Indonesian-origin note that also has Thai comes up as Indonesian. The
+      // other modes show every note with this language filled in: you asked
+      // for that text, flagged that card, or it lacks this reading, whatever
+      // the note's origin. Missing reading goes newest first.
+      const matching = notes
+        .filter((item) => nextMode !== "session" || analysisLanguage(item) === language)
+        .filter((item) => nextMode !== "reading" || !hasReading(item.fields[notesField(language)] || "", language))
+        .sort((a, b) => nextMode === "reading" ? b.noteId - a.noteId : a.noteId - b.noteId);
       setQueue(matching);
       goTo(0, matching);
     } catch (error) {
@@ -216,6 +226,13 @@ export function ReviewSession() {
       setBusy(false);
     }
   }
+
+  // Missing reading writes each note's reading as soon as it comes up.
+  useEffect(() => {
+    if (mode === "reading" && note && draft && usesReading && !draft.reading.trim()) void generate("reading");
+    // Once per note: a failed attempt isn't retried until you click Regenerate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note?.noteId, mode]);
 
   const readingBlock = useMemo(() => {
     if (!draft?.reading.trim()) return "";
@@ -296,6 +313,27 @@ export function ReviewSession() {
       setStatus("Saved to Anki");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "The note could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Missing reading: saves just the reading (plus any cleanup, English note
+  // and tags), leaving the rest of the Notes field — and whether the note
+  // counts as analyzed — as it was.
+  async function saveReadingOnly() {
+    if (!note || !draft?.reading.trim()) return;
+    setBusy(true);
+    setStatus("Saving the reading to Anki...");
+    try {
+      const fields: Record<string, string> = { [notesField(language)]: withReadingBlock(note.fields[notesField(language)] || "", readingBlock), ...englishNoteChange() };
+      if (draft.replaceField && draft.fieldText.trim()) fields[language] = escapeHtml(draft.fieldText.trim());
+      await anki.updateFields(note.noteId, fields);
+      if (parseTags(newTags).length) await anki.addTags([note.noteId], parseTags(newTags));
+      setSaved((count) => count + 1);
+      goTo(index + 1);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The reading could not be saved.");
     } finally {
       setBusy(false);
     }
@@ -405,6 +443,7 @@ export function ReviewSession() {
         </div>
         <button className="save-input-button" type="button" disabled={busy} onClick={() => void loadQueue("session")}>Start session</button>
         <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void loadQueue("flagged")} title="Notes with a card you red-flagged in Anki (Ctrl+1)">Flagged in Anki</button>
+        {readingLanguages.has(language) && <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void loadQueue("reading")} title={`${language} notes with no ${readingLabel(language).split(" ")[0].toLowerCase()} yet, newest first`}>Missing {language === "Thai" ? "romanization" : "reading"}</button>}
       </div>
       <form className="anki-find" onSubmit={(event) => { event.preventDefault(); void loadQueue("search"); }}>
         <label htmlFor="anki-find">Or find a note to edit (analyzed or not)</label>
@@ -417,6 +456,7 @@ export function ReviewSession() {
           {mode === "search"
             ? `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} matching “${search.trim()}”`
             : mode === "flagged" ? `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} red-flagged in Anki — the flag comes off when you save`
+            : mode === "reading" ? `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} with no ${readingLabel(language).split(" ")[0].toLowerCase()} yet, newest first`
             : `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} not yet analyzed${extraQuery.trim() ? " matching your search" : ""}`}
           {queue.length > 0 && note && ` · note ${index + 1} of ${queue.length}`}
           {saved > 0 && ` · ${saved} saved this session`}
@@ -493,6 +533,19 @@ export function ReviewSession() {
             {draft.analysis && usesReading && <button className="text-button" type="button" disabled={busy} onClick={() => void generate("reading")}>Regenerate reading only</button>}
             {status && <span className="example-status" role="status">{status}</span>}
           </div>
+
+          {mode === "reading" && !draft.analysis && usesReading && (
+            <div className="anki-draft">
+              <label className="anki-field-edit">{readingLabel(language)}
+                <textarea className="anki-reading-input" rows={Math.max(1, draft.reading.split("\n").length)} value={draft.reading} placeholder="Writing the reading..." onChange={(event) => update({ reading: event.target.value })} />
+              </label>
+              <div className="input-action-row">
+                <button className="save-input-button" type="button" disabled={busy || !draft.reading.trim()} onClick={() => void saveReadingOnly()}>Save {language === "Thai" ? "romanization" : "reading"} &amp; next</button>
+                <button className="text-button" type="button" disabled={busy} onClick={() => void generate("reading")}>Regenerate {language === "Thai" ? "romanization" : "reading"}</button>
+                <span className="anki-note">Only the reading is saved; Analyze above if you also want an analysis.</span>
+              </div>
+            </div>
+          )}
 
           {draft.analysis && (
             <div className="anki-draft">

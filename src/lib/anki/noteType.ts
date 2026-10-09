@@ -9,10 +9,14 @@
 export const noteLanguages = ["English", "Indonesian", "Thai", "Japanese", "Spanish", "French", "Mandarin"] as const;
 export type NoteLanguage = typeof noteLanguages[number];
 
+// Notes_English sits right under English so a question written in it (e.g.
+// when flagging a card) is in view in Anki's editor without scrolling.
 export const vocabNoteFields = [
-  ...noteLanguages,
+  "English",
+  "Notes_English",
+  ...noteLanguages.filter((language) => language !== "English"),
   ...noteLanguages.map((language) => `Audio_${language}`),
-  ...noteLanguages.map((language) => `Notes_${language}`),
+  ...noteLanguages.filter((language) => language !== "English").map((language) => `Notes_${language}`),
   "Origin",
 ];
 

@@ -129,7 +129,7 @@ Pick a task from the drop-down at the top of the panel or from the cards under *
 - **Sentence Guide** — for a phrase, sentence or passage: pronunciation and meaning (literal and natural), with a word-by-word table, the reusable grammar pattern, register versions from formal to slang, alternative ways to say it, an opposite where there is one, and new example sentences.
 - **Convert Thai Script** (Thai only).
 
-**General tasks** (every language): Build vocabulary, Make flashcards, Convert register, Extract text exactly, Translate naturally, Explain grammar, Add reading support, Answer questions.
+**General tasks** (every language): Build vocabulary, Make flashcards, Convert register, Extract text exactly, Translate naturally, Explain grammar, Add reading support, Answer questions, and **Word-by-word** — a quick, abbreviated breakdown: each word with its reading and literal meaning, a short definition written in the learned language itself (translated in brackets), and one to three synonyms, ending with a word-for-word and a natural translation of the whole text.
 
 > Thai romanization everywhere in the app uses one consistent style with tone marks, e.g. ยินดีที่ได้รู้จัก → *yin dee thêe dâi rúu jàk*.
 
@@ -266,6 +266,7 @@ This is where you enrich notes one at a time — which doubles as a study sessio
 - **Model, Level, Style** — the provider and settings for the analysis (defaults: Anthropic, Intermediate, Concise).
 - **Start session** — works through notes that haven't been analyzed yet, oldest first.
 - **Flagged in Anki** — works through notes you've red-flagged in Anki (see below), analyzed or not.
+- **Missing romanization** (Thai) / **Missing reading** (Japanese, Mandarin) — every note with that language filled in but no reading yet, **newest first**: notes you made in Anki itself, notes marked *Never analyze*, and languages added to a note later. Each note's reading is written as soon as it comes up; check or edit it, then **Save romanization & next** (or **Save reading & next**), which saves only the reading — the note isn't marked as analyzed, and anything else in its Notes field stays as it was. You can still **Analyze** a note here if you want the full analysis too.
 - **Or find a note to edit** — type Thai/Indonesian/Japanese or English text and click **Find**; this works for any note, analyzed or not, and opens its saved analysis for editing.
 
 **Working on a note**
@@ -295,10 +296,11 @@ Analyzing a note again replaces its previous analysis instead of adding a second
 
 **Edit fields**
 
-Click **Edit fields** to change the note's language fields (English, Indonesian, Thai, Japanese, Spanish, French, Mandarin) or Origin, or its Notes (as HTML, under *Notes fields*).
+Click **Edit fields** to change the note's language fields (English, Indonesian, Thai, Japanese, Spanish, French, Mandarin) or Origin, its **English note** (right under English, as plain text), or its other Notes (as HTML, under *Notes fields*).
 
 - An empty language field says *filling it in adds its cards*, and has a **Suggest** button that proposes a translation from the note's other languages. Suggestions only fill the box — check them before saving.
 - A new or changed language field gets a fresh recording (untick *Record new audio* if you don't want it).
+- A new or changed Thai, Japanese or Mandarin field also gets its reading written into that language's Notes (untick *Write the reading* if you don't want it).
 - **Save fields** writes only what you changed.
 
 ### 6.2 Branching: turning examples into new cards

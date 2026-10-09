@@ -192,6 +192,19 @@ export function composeNotesField(existing: string, reading: string, analysisHtm
   ].filter(Boolean).join("");
 }
 
+// A Notes_<Language> value with its reading block set to the given reading
+// HTML (from readingHtml), and everything else in the field left as it is.
+export function withReadingBlock(existing: string, reading: string) {
+  const kept = removeBlock(existing, "pb-reading").trim();
+  return reading.trim() ? `<div class="pb-reading">${reading.trim()}</div>${kept}` : kept;
+}
+
+// Whether a Notes_<Language> value already shows a reading: PolyglotBooster's
+// own block, or for Japanese a hand-written furigana reading.
+export function hasReading(notesHtml: string, language: string) {
+  return Boolean(findBlock(notesHtml, "pb-reading")) || (language === "Japanese" && hasRubyReading(notesHtml));
+}
+
 // The reading PolyglotBooster previously wrote, if any, as plain text.
 export function existingReading(notesHtml: string) {
   const range = findBlock(notesHtml, "pb-reading");
