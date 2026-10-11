@@ -465,5 +465,18 @@ Search for them in Anki's Browse window, e.g. `tag:pb::branch`.
 ### Privacy
 
 - The text you study is sent to the AI provider you choose (Anthropic or OpenAI), using your own API key.
-- Your API keys (encrypted), voice settings and saved reviews are stored on the PolyglotBooster server, tied to your Google account.
+- Your API keys (encrypted), voice settings, saved reviews, their audio and your saved-for-later list are stored on the PolyglotBooster server, tied to your Google account.
 - Your Anki collection stays on your computer (and AnkiWeb, if you sync). The Anki page talks to it directly from your browser; your cards aren't copied to the PolyglotBooster server.
+
+### Backups
+
+PolyglotBooster's data — the task templates, saved reviews and their audio, the saved-for-later list, settings and encrypted API keys — lives in the app's Vercel storage. A backup copies all of it:
+
+- **On your laptop:** `Documents\PolyglotBooster backups\<date>\`, everything including the encrypted keys. The newest 8 backups are kept.
+- **On GitHub:** the private repository **PolyglotBooster-data**, everything except the API keys. Each backup is a commit, so earlier versions (e.g. a template before an edit) can be recovered there.
+
+It runs **every Sunday at 8 PM** (Windows Task Scheduler, task *PolyglotBooster data backup*; if the laptop was off, it runs at the next chance). Each run is logged in `Documents\PolyglotBooster backups\backup.log`. To back up right away, run `npm run backup` in the PolyglotBooster project folder.
+
+To restore — e.g. into a new Vercel storage after moving accounts — run `npm run restore -- "<backup folder>"` to see what would be uploaded, then add `--yes` to upload it. Then re-enter your API keys in Settings if you restored from GitHub.
+
+Keep a copy of the project's `.env.local` file (in a password manager): with it, the code on GitHub and a backup, the whole app can be rebuilt. Your Anki cards are backed up separately, by Anki and AnkiWeb.
