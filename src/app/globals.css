@@ -124,7 +124,8 @@ h2 { margin-bottom: 0; color: var(--ink); font-family: Georgia, serif; font-size
 .flashcard-edit label { display: grid; gap: 5px; color: var(--muted); font-size: 10px; }
 .flashcard-edit textarea, .flashcard-edit input { width: 100%; border: 1px solid var(--line); background: var(--paper); padding: 7px; color: var(--ink); font-size: 12px; }
 .flashcard-edit textarea { min-height: 78px; resize: vertical; }
-.flashcard-edit label:last-of-type { grid-column: 1 / -1; }
+.flashcard-edit textarea.short { min-height: 56px; }
+.flashcard-edit label.wide { grid-column: 1 / -1; }
 .remove-card-button { justify-self: start; border: 0; background: transparent; color: #a54c3e; font-size: 10px; }
 .follow-up-section { border-top: 1px solid var(--line); padding: 14px; }
 .follow-up-entry { margin-bottom: 12px; }

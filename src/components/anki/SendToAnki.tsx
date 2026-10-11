@@ -5,6 +5,7 @@ import { assist, speak } from "@/components/anki/api";
 import { anki } from "@/lib/anki/connect";
 import { cleanField, composeNotesField, escapeHtml, existingReading, fieldNeedsCleanup, hasRubyReading, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
 import { audioField, audioFilename, isAnkiLanguage, notesField, pbTags, readingLabel, readingLanguages, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { isFlashcardTemplate } from "@/lib/flashcards";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { Language, PromptTemplateId } from "@/lib/types";
 
@@ -20,7 +21,7 @@ type SendToAnkiProps = {
 // only learning languages it has fields for, explained in English, qualify.
 // Flashcard results are JSON card lists, not an analysis.
 export function canSendToAnki(sourceLanguage: Language, userLanguage: Language, promptTemplateId: PromptTemplateId) {
-  return isAnkiLanguage(sourceLanguage) && sourceLanguage !== "English" && userLanguage === "English" && promptTemplateId !== "flashcards";
+  return isAnkiLanguage(sourceLanguage) && sourceLanguage !== "English" && userLanguage === "English" && !isFlashcardTemplate(promptTemplateId);
 }
 
 type Draft = {

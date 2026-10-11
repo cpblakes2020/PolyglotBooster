@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
 import { requireAccountApiKey } from "@/lib/storage/account";
-import { parseFlashcards } from "@/lib/flashcards";
+import { isFlashcardTemplate, parseFlashcards } from "@/lib/flashcards";
 import { isSupportedLanguage } from "@/lib/presets";
 import { getTemplate } from "@/lib/storage/templates";
 import type { LearnerLevel, OutputStyle, PromptTemplateId } from "@/lib/types";
@@ -52,9 +52,9 @@ export async function POST(request: Request) {
       learnerLevel: learnerLevel as LearnerLevel,
       outputStyle: outputStyle as OutputStyle,
       promptTemplateId: promptTemplateId as PromptTemplateId,
-      ...(promptTemplateId === "flashcards" ? { maxOutputTokens: flashcardOutputTokens } : {}),
+      ...(isFlashcardTemplate(promptTemplateId) ? { maxOutputTokens: flashcardOutputTokens } : {}),
     }, apiKey);
-    if (promptTemplateId !== "flashcards") return NextResponse.json({ result, promptTemplateId });
+    if (!isFlashcardTemplate(promptTemplateId)) return NextResponse.json({ result, promptTemplateId });
     const parsed = parseFlashcards(result);
     if (!parsed) {
       return NextResponse.json({ error: "The provider returned flashcards in an unexpected format. Please run the task again." }, { status: 502 });

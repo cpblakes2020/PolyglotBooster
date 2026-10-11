@@ -129,7 +129,7 @@ Pick a task from the drop-down at the top of the panel or from the cards under *
 - **Sentence Guide** — for a phrase, sentence or passage: pronunciation and meaning (literal and natural), with a word-by-word table, the reusable grammar pattern, register versions from formal to slang, alternative ways to say it, an opposite where there is one, and new example sentences.
 - **Convert Thai Script** (Thai only).
 
-**General tasks** (every language): Build vocabulary, Make flashcards, Convert register, Extract text exactly, Translate naturally, Explain grammar, Add reading support, Answer questions, and **Word-by-word** — a quick, abbreviated breakdown: each word with its reading and literal meaning, a short definition written in the learned language itself (translated in brackets), and one to three synonyms, ending with a word-for-word and a natural translation of the whole text.
+**General tasks** (every language): Build vocabulary, Make flashcards (everything in the material — best for textbook pages), **Make flashcards (selective)** (only the vocabulary a learner at your level probably doesn't know yet, plus up to five key sentences, about 10–25 cards — best for articles and other longer texts), Convert register, Extract text exactly, Translate naturally, Explain grammar, Add reading support, Answer questions, and **Word-by-word** — a quick, abbreviated breakdown: each word with its reading and literal meaning, a short definition written in the learned language itself (translated in brackets), and one to three synonyms, ending with a word-for-word and a natural translation of the whole text.
 
 > Thai romanization everywhere in the app uses one consistent style with tone marks, e.g. ยินดีที่ได้รู้จัก → *yin dee thêe dâi rúu jàk*.
 
@@ -366,14 +366,14 @@ Save phrases while you study and add them to Anki later — without interrupting
 
 ### Flashcards to Anki
 
-After **Make flashcards** (Indonesian, Thai, Japanese, Spanish, French or Mandarin, explained in English), click **Send cards to Anki**:
+After **Make flashcards** or **Make flashcards (selective)** (Indonesian, Thai, Japanese, Spanish, French or Mandarin, explained in English), click **Send cards to Anki**. A long text can take a few minutes; if it's too long to finish in one run, you get every card up to that point and a message naming the last one — run the task again on the rest of the text. Then:
 
 1. Optionally say where the cards are from, e.g. *Speak Thai Today, chapter 22* — it's added to each note as a *Seen in:* line.
 2. **Tag every card** fills in a short tag from that name (e.g. *STT22*); edit it if you like. Every note in the batch gets it, so you can study the set together later — see [Studying one chapter or set](#studying-one-chapter-or-set).
 3. **Choose cards** shows the list with each card's type (*Vocabulary* or *Sentence*), reading and meaning. Cards you already have in Anki are marked *In Anki* and unticked; **Also tag the unticked cards already in Anki** (on by default) gives them the batch tag too, so the set is complete. Use **Select all / none** and the checkboxes, then **Start branch**.
 4. Each card then opens in the same editor as branching: **Add note with brief explanations**, **Analyze fully** first, add its explanations to an existing card, or **Skip**. The card's topic tags are filled in for you and can be edited. New notes get audio straight away.
 
-Each card from **Make flashcards** comes with its reading (romanization for Thai, hiragana for Japanese, pinyin for Mandarin; none for Indonesian, Spanish and French) and a brief explanation written in the source language — both go in that language's Notes — plus the same explanation in English, which goes in the English note.
+You can check and edit every card on the study desk right after the run — front, back, reading, both explanations and tags — before saving the result for review or sending it to Anki. Each card from **Make flashcards** comes with its reading (romanization for Thai, hiragana for Japanese, pinyin for Mandarin; none for Indonesian, Spanish and French) and a brief explanation written in the source language — both go in that language's Notes — plus the same explanation in English, which goes in the English note.
 
 **Adding a long list quickly:** instead of **Start branch**, click **Add all N with brief explanations** to add every ticked card with the defaults — a new note with its reading, explanations, *Seen in* line, tags and audio, or, for a card already in Anki, its explanations added to that note. Midway through a one-at-a-time session, **Add the remaining N with brief explanations** does the same for the rest. A progress bar shows how far it's got, and **Stop** returns you to one-at-a-time. Fix any card later in Anki, or find it on the Anki page.
 

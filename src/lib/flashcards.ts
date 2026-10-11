@@ -12,6 +12,14 @@ export type Flashcard = {
   kind?: "vocabulary" | "sentence";
 };
 
+// Task templates whose result is a list of flashcards (JSON): everything in
+// the material, or a selection of what's most worth learning.
+const flashcardTemplateIds: ReadonlySet<string> = new Set(["flashcards", "flashcards-selective"]);
+
+export function isFlashcardTemplate(templateId: string) {
+  return flashcardTemplateIds.has(templateId);
+}
+
 type FlashcardPayload = {
   cards?: unknown;
 };
