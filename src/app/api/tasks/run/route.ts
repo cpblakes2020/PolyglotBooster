@@ -7,7 +7,14 @@ import { isSupportedLanguage } from "@/lib/presets";
 import { getTemplate } from "@/lib/storage/templates";
 import type { LearnerLevel, OutputStyle, PromptTemplateId } from "@/lib/types";
 
-const learnerLevels = new Set<LearnerLevel>(["Beginner", "Intermediate", "Advanced"]);
+// Flashcards for a whole textbook page can take a few minutes to write.
+export const maxDuration = 300;
+
+// Each card carries a reading and two explanations, so a page of cards
+// needs more room than the usual 8,192 tokens (about 3–4 minutes at most).
+const flashcardOutputTokens = 16000;
+
+const learnerLevels =new Set<LearnerLevel>(["Beginner", "Intermediate", "Advanced"]);
 const outputStyles = new Set<OutputStyle>(["Concise", "Detailed", "Literal", "Natural", "Formal", "Informal"]);
 
 export async function POST(request: Request) {
@@ -45,12 +52,18 @@ export async function POST(request: Request) {
       learnerLevel: learnerLevel as LearnerLevel,
       outputStyle: outputStyle as OutputStyle,
       promptTemplateId: promptTemplateId as PromptTemplateId,
+      ...(promptTemplateId === "flashcards" ? { maxOutputTokens: flashcardOutputTokens } : {}),
     }, apiKey);
-    const flashcards = promptTemplateId === "flashcards" ? parseFlashcards(result) : undefined;
-    if (promptTemplateId === "flashcards" && !flashcards) {
+    if (promptTemplateId !== "flashcards") return NextResponse.json({ result, promptTemplateId });
+    const parsed = parseFlashcards(result);
+    if (!parsed) {
       return NextResponse.json({ error: "The provider returned flashcards in an unexpected format. Please run the task again." }, { status: 502 });
     }
-    return NextResponse.json({ result, promptTemplateId, flashcards });
+    // Cut off before the end (too much material for one run): keep the
+    // complete cards, and say where to pick up.
+    const warning = parsed.complete ? undefined
+      : `The material was too long to finish in one run: these are the first ${parsed.cards.length} cards, ending with “${parsed.cards[parsed.cards.length - 1].front}”. Run Make flashcards again on the rest of the text for the remaining cards.`;
+    return NextResponse.json({ result, promptTemplateId, flashcards: parsed.cards, warning });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "The task could not be completed." }, { status: 502 });
   }

@@ -16,6 +16,8 @@ export type LlmTaskInput = {
   learnerLevel: LearnerLevel;
   outputStyle: OutputStyle;
   promptTemplateId: PromptTemplateId;
+  // Room for a longer answer than usual (e.g. flashcards for a whole page).
+  maxOutputTokens?: number;
 };
 
 export type LlmProvider = {

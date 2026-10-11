@@ -32,15 +32,52 @@ function normalizeCard(value: unknown): Flashcard | null {
   };
 }
 
-export function parseFlashcards(result: string): Flashcard[] | null {
+// The complete card objects in a reply that was cut off partway through
+// its "cards" array: each top-level {...} that closed before the cut.
+function completeCardObjects(json: string): unknown[] {
+  const start = json.indexOf("[", json.indexOf('"cards"'));
+  if (start < 0) return [];
+  const objects: unknown[] = [];
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let objectStart = -1;
+  for (let i = start + 1; i < json.length; i++) {
+    const char = json[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === "{") { if (depth === 0) objectStart = i; depth += 1; }
+    else if (char === "}") {
+      depth -= 1;
+      if (depth === 0 && objectStart >= 0) {
+        try { objects.push(JSON.parse(json.slice(objectStart, i + 1))); } catch { /* skip a malformed card */ }
+        objectStart = -1;
+      }
+    } else if (char === "]" && depth === 0) break;
+  }
+  return objects;
+}
+
+// complete: false when the reply was cut off (too much material for one
+// run) and only the cards finished before the cut were recovered.
+export function parseFlashcards(result: string): { cards: Flashcard[]; complete: boolean } | null {
   const json = result.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "");
+  let raw: unknown[];
+  let complete = true;
   try {
     const payload = JSON.parse(json) as FlashcardPayload;
     if (!Array.isArray(payload.cards)) return null;
-    // Keep the good cards if a few are malformed, rather than losing them all.
-    const cards = payload.cards.map(normalizeCard).filter((card): card is Flashcard => card !== null);
-    return cards.length ? cards : null;
+    raw = payload.cards;
   } catch {
-    return null;
+    raw = completeCardObjects(json);
+    complete = false;
   }
+  // Keep the good cards if a few are malformed, rather than losing them all.
+  const cards = raw.map(normalizeCard).filter((card): card is Flashcard => card !== null);
+  return cards.length ? { cards, complete } : null;
 }

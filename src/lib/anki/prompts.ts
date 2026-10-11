@@ -98,7 +98,7 @@ function itemFields(language: AnkiLanguage) {
     `"text": the ${language} exactly as written in native script, with no romanization, translation, or labels.`,
     readingInstruction(language),
     `"english": a short, natural English meaning, suitable for the English side of a flashcard.`,
-    `"comment": a brief explanation in English (one or two short sentences) of what it means and when or how it's used — its nuance or register — based on what the analysis says.`,
+    `"comment": a brief explanation in English (one short sentence) of what it means or when it's used — its nuance or register — based on what the analysis says.`,
     `"explanation": the same brief explanation written in ${language} itself, in simple ${language} a learner can read (no English, no romanization).`,
   ].join("\n");
 }

@@ -12,6 +12,7 @@ type ClaudeInput = {
   learnerLevel: LearnerLevel;
   outputStyle: OutputStyle;
   promptTemplateId: PromptTemplateId;
+  maxOutputTokens?: number;
 };
 
 type ClaudeResponse = {
@@ -48,7 +49,7 @@ async function sendClaudeMessage(content: unknown, apiKey: string | undefined, m
 
 export async function runClaudeTask(input: ClaudeInput, apiKey?: string) {
   const prompt = await buildStudyPrompt(input);
-  return sendClaudeMessage(prompt, apiKey, 8192, "Add your Anthropic API key before running a task.", "Claude could not complete the task.", "Claude returned an empty result.");
+  return sendClaudeMessage(prompt, apiKey, input.maxOutputTokens ?? 8192, "Add your Anthropic API key before running a task.", "Claude could not complete the task.", "Claude returned an empty result.");
 }
 
 // model: overrides the app's default model for this one prompt.

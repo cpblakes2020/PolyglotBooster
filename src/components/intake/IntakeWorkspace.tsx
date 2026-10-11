@@ -243,7 +243,7 @@ export function IntakeWorkspace() {
   }
 
   async function runTask() {
-    setTaskStatus(`Working with ${providerId === "anthropic" ? "Anthropic" : "OpenAI"}...`);
+    setTaskStatus(`Working with ${providerId === "anthropic" ? "Anthropic" : "OpenAI"}...${selectedTemplate === "flashcards" ? " Flashcards for a long text can take a few minutes." : ""}`);
     setTaskResult("");
     setFlashcards([]);
     setFollowUps([]);
@@ -257,11 +257,11 @@ export function IntakeWorkspace() {
         headers: { "Content-Type": "application/json", "x-polyglot-provider": providerId },
         body: JSON.stringify({ text, sourceLanguage, userLanguage: explanationLanguage, learnerLevel, outputStyle, promptTemplateId: selectedTemplate }),
       });
-      const result = await parseJsonResponse<{ error?: string; result?: string; flashcards?: Flashcard[] }>(response);
+      const result = await parseJsonResponse<{ error?: string; result?: string; flashcards?: Flashcard[]; warning?: string }>(response);
       if (!response.ok || !result.result) throw new Error(result.error || "The task could not be completed.");
       setTaskResult(result.result);
       setFlashcards(result.flashcards || []);
-      setTaskStatus("Task complete");
+      setTaskStatus(result.warning || "Task complete");
     } catch (error) {
       setTaskStatus(error instanceof Error ? error.message : "The task could not be completed.");
     }
