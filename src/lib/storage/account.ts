@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from "node:crypto";
-import { put } from "@vercel/blob";
+import { del, list, put } from "@vercel/blob";
 import { readJsonBlob, writeJsonBlob } from "@/lib/storage/blob-json";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { SavedTaskRun } from "@/lib/reviews";
@@ -22,6 +22,51 @@ function reviewsPathname(userId: string) {
 
 function settingsPathname(userId: string) {
   return `lingua/accounts/${userId}/settings.json`;
+}
+
+// One file per saved phrase, written once and never overwritten: a stale
+// cached copy can't drop an entry (as rewriting one shared list could, when
+// two phrases are saved within the cache's minute), and the directory
+// listing that finds them isn't cached.
+function laterPrefix(userId: string) {
+  return `lingua/accounts/${userId}/later/`;
+}
+
+// A phrase saved from the study desk or Anki page (on any device) to be
+// added to Anki later, on the computer running Anki.
+export type LaterItem = {
+  id: string;
+  text: string;
+  language: Language;
+  // What it was looked up in (the analysis and follow-ups), and where it
+  // was seen, for the note's "Seen in" line.
+  context: string;
+  source: string;
+  createdAt: string;
+};
+
+export async function getLaterItems(userId: string): Promise<LaterItem[]> {
+  const { blobs } = await list({ prefix: laterPrefix(userId) });
+  const items = await Promise.all(blobs.map(async (blob) => {
+    const response = await fetch(blob.url);
+    return response.ok ? await response.json() as LaterItem : null;
+  }));
+  return items.filter((item): item is LaterItem => item !== null).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+export async function addLaterItem(userId: string, item: Omit<LaterItem, "id" | "createdAt">): Promise<LaterItem[]> {
+  const items = await getLaterItems(userId);
+  // Saving the same phrase twice keeps one entry, with the newer context.
+  const repeats = items.filter((existing) => existing.text === item.text && existing.language === item.language);
+  const saved: LaterItem = { ...item, id: randomUUID(), createdAt: new Date().toISOString() };
+  await put(`${laterPrefix(userId)}${saved.id}.json`, JSON.stringify(saved), { access: "public", contentType: "application/json", addRandomSuffix: false });
+  if (repeats.length) await del(repeats.map((repeat) => `${laterPrefix(userId)}${repeat.id}.json`));
+  return [...items.filter((existing) => !repeats.includes(existing)), saved];
+}
+
+export async function removeLaterItems(userId: string, ids: string[]): Promise<LaterItem[]> {
+  await del(ids.map((id) => `${laterPrefix(userId)}${id}.json`));
+  return getLaterItems(userId);
 }
 
 function audioPathname(userId: string, id: string) {

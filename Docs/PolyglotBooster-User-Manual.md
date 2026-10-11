@@ -234,7 +234,8 @@ One note holds one item in several languages. Its fields are:
 |---|---|
 | English, Indonesian, Thai, Japanese, Spanish, French, Mandarin | The item in each language |
 | Audio_*Language* | That language's recording |
-| Notes_*Language* | The reading (Thai romanization, Japanese furigana or Mandarin pinyin), the analysis, and brief comments |
+| Notes_*Language* | The reading (Thai romanization, Japanese furigana or Mandarin pinyin), the analysis, and brief explanations written in that language |
+| Notes_English (*English note*) | Brief explanations in English, and anything you write yourself, e.g. a question when flagging a card |
 | Origin | The language the item was first learned in |
 
 Anki creates a **card for each language direction** that has both sides filled in — for example a note with English and Thai gives you *English → Thai* and *Thai → English* cards. Fill in Japanese later and the Japanese directions appear automatically.
@@ -309,20 +310,22 @@ A good analysis is full of useful material — example sentences, related words,
 
 **Branch from examples** (under the analysis preview)
 
-1. The page lists every example, related word and register version in the analysis, with its reading, English and a brief comment. Items you **already have in Anki** are marked *In Anki* and unticked.
+1. The page lists every example, related word and register version in the analysis, with its reading, English, and a brief explanation — in the item's own language, with the same in English below it. Items you **already have in Anki** are marked *In Anki* and unticked.
 2. Tick the ones you want (**Select all / none** helps), then **Start branch**.
 3. For each item you can:
-   - **Add note with brief comment** — creates a note whose Notes field has the reading, the comment, and a *Seen in:* line pointing back to where you found it;
+   - **Add note with brief explanations** — creates a note whose Notes field for that language has the reading, the explanation written in that language, and a *Seen in:* line pointing back to where you found it, and whose **English note** has the explanation in English (both are editable first, and previewed);
    - **Analyze fully** first, then **Add note with analysis**;
-   - for an item already in Anki, **Add comment to existing note** or **Add a new note anyway**;
+   - for an item already in Anki, **Add explanations to existing note** — the explanation block is added *after* everything already in its Notes field (any analysis stays untouched) and the English one on a new line in its English note — or **Add a new note anyway**;
    - **Skip**.
 4. New notes get audio straight away and the tag `pb::branch`. When the list is done, **Back to main session** returns you to the note you branched from — with your unsaved work intact.
 
-**Right-click to add one item:** select any text in the analysis preview, right-click it and choose **Add "…" to Anki…** to add just that phrase. If it's already in Anki you'll get the same choices as above.
+**Right-click to add one item:** select any text in the analysis preview, right-click it and choose **Add "…" to Anki…** to add just that phrase. If it's already in Anki you'll get the same choices as above. Or choose **Save "…" for Anki later** to keep it for later without stopping — see [Saved for Anki later](#saved-for-anki-later).
+
+> Analyzing a note later is unaffected by brief explanations: **Analyze** and re-analysis only replace PolyglotBooster's own reading and analysis sections, and everything else in the field — explanations, your own notes — stays.
 
 **Ask a follow-up question:** under the analysis preview, click **Ask a follow-up question** and type your question — for example, on *คุณควรบอกเขาก่อนเธอ* ("You should tell him before she does"), ask *How would you say "You should tell him before you tell her"?* — then **Ask** (or Ctrl+Enter). The answer appears below, with each Thai phrase in bold, its romanization and its English. Ask as many as you like; each answer takes the analysis and the earlier questions into account (uses the **Model**, **Level** and **Style** at the top of the page).
 
-- Answers are **not saved** to the note, and nothing from them goes to Anki on its own. To keep a phrase, select it in the answer, right-click and choose **Add "…" to Anki…** — it then works exactly like right-clicking in the analysis.
+- Answers are **not saved** to the note, and nothing from them goes to Anki on its own. To keep a phrase, select it in the answer, right-click and choose **Add "…" to Anki…** (or **Save "…" for Anki later**) — it then works exactly like right-clicking in the analysis.
 - The questions and answers stay while you branch and come back, and are cleared when you move to another note.
 
 **Branching from a branch:** an item you've analyzed fully can itself be branched from (button or right-click). The deeper list is labelled *Branch · level 2*, and **Back to previous branch** takes you back up.
@@ -351,7 +354,15 @@ Everything is shown for review before anything is written.
 
 ### Right-click to add a phrase from the study desk
 
-On a result or an expanded saved review (same languages, explained in English), select any phrase — in the result, a follow-up answer or the source text — then right-click and choose **Add "…" to Anki…**. The same item screen as on the Anki page opens right there, under the result: the phrase with its reading, English and a brief comment, a *Seen in:* line pointing back to the source text, the *In Anki* check with its choices, tags and audio. **Add** or **Skip**, and you're back where you were; right-click the next phrase to add another. Only text in the review's language can be added, and it needs Anki open on this computer.
+On a result or an expanded saved review (same languages, explained in English), select any phrase — in the result, a follow-up answer or the source text — then right-click and choose **Add "…" to Anki…** (or **Save "…" for Anki later** — see [Saved for Anki later](#saved-for-anki-later)). The same item screen as on the Anki page opens right there, under the result: the phrase with its reading, English and brief explanations (in its own language and in English), a *Seen in:* line pointing back to the source text, the *In Anki* check with its choices, tags and audio. **Add** or **Skip**, and you're back where you were; right-click the next phrase to add another. Only text in the review's language can be added, and it needs Anki open on this computer.
+
+### Saved for Anki later
+
+Save phrases while you study and add them to Anki later — without interrupting yourself, and from your phone or iPad too.
+
+- **Saving:** on the study desk (a result, a follow-up answer or an expanded saved review) or on the Anki page (the analysis preview or a follow-up answer), select a phrase, right-click and choose **Save "…" for Anki later**. On an iPhone or iPad, just select the text: a **Save "…" for Anki later** bar appears at the bottom of the screen; tap it. A message confirms how many are waiting. The list is kept in your PolyglotBooster account, so it's the same on every device and stays until you deal with it.
+- **Seeing the list:** **Saved for Anki later (N)** on the study desk lists every saved phrase with its language, where it came from and the date; **Delete** removes one. This works on any device.
+- **Adding to Anki** (on the computer running Anki): on the Anki page, pick the language and click **Saved for later (N)**. Each phrase is looked up in the context you saved it from — reading, English and brief explanations — and the usual list opens: **Start branch** to go one at a time, or **Add all N with brief explanations**. For each phrase: add it (it then leaves the list), **Skip, keep for later** (it stays), or **Delete from list**. In the list, **Delete the N unticked from the list** clears phrases you've decided against (e.g. ones already in Anki); unticked phrases otherwise stay saved.
 
 ### Flashcards to Anki
 
@@ -360,9 +371,11 @@ After **Make flashcards** (Indonesian, Thai, Japanese, Spanish, French or Mandar
 1. Optionally say where the cards are from, e.g. *Speak Thai Today, chapter 22* — it's added to each note as a *Seen in:* line.
 2. **Tag every card** fills in a short tag from that name (e.g. *STT22*); edit it if you like. Every note in the batch gets it, so you can study the set together later — see [Studying one chapter or set](#studying-one-chapter-or-set).
 3. **Choose cards** shows the list with each card's type (*Vocabulary* or *Sentence*), reading and meaning. Cards you already have in Anki are marked *In Anki* and unticked; **Also tag the unticked cards already in Anki** (on by default) gives them the batch tag too, so the set is complete. Use **Select all / none** and the checkboxes, then **Start branch**.
-4. Each card then opens in the same editor as branching: **Add note with brief comment**, **Analyze fully** first, add its note to an existing card, or **Skip**. The card's topic tags are filled in for you and can be edited. New notes get audio straight away.
+4. Each card then opens in the same editor as branching: **Add note with brief explanations**, **Analyze fully** first, add its explanations to an existing card, or **Skip**. The card's topic tags are filled in for you and can be edited. New notes get audio straight away.
 
-**Adding a long list quickly:** instead of **Start branch**, click **Add all N with brief comments** to add every ticked card with the defaults — a new note with its reading, comment, *Seen in* line, tags and audio, or, for a card already in Anki, its comment added to that note. Midway through a one-at-a-time session, **Add the remaining N with brief comments** does the same for the rest. A progress bar shows how far it's got, and **Stop** returns you to one-at-a-time. Fix any card later in Anki, or find it on the Anki page.
+Each card from **Make flashcards** comes with its reading (romanization for Thai, hiragana for Japanese, pinyin for Mandarin; none for Indonesian, Spanish and French) and a brief explanation written in the source language — both go in that language's Notes — plus the same explanation in English, which goes in the English note.
+
+**Adding a long list quickly:** instead of **Start branch**, click **Add all N with brief explanations** to add every ticked card with the defaults — a new note with its reading, explanations, *Seen in* line, tags and audio, or, for a card already in Anki, its explanations added to that note. Midway through a one-at-a-time session, **Add the remaining N with brief explanations** does the same for the rest. A progress bar shows how far it's got, and **Stop** returns you to one-at-a-time. Fix any card later in Anki, or find it on the Anki page.
 
 **Picking up where you left off:** if you close the list partway through, just open **Send cards to Anki** again on the same result or saved review. Cards you've already added show as *In Anki* and start unticked, so the ones still to do are ticked (anything you skipped is ticked again too).
 

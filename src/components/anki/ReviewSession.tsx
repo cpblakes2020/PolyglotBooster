@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { analyze, askFollowUp, assist, describeSelection, type AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { FieldEditor } from "@/components/anki/FieldEditor";
+import { LaterQueue, useLaterItems, useSaveForLater } from "@/components/anki/later";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/classify";
 import { anki, ankiSearchValue, reviewFlag } from "@/lib/anki/connect";
@@ -101,7 +102,11 @@ export function ReviewSession() {
   // Shown beside the Ask button: progress while waiting, or why it failed.
   const [followUpStatus, setFollowUpStatus] = useState("");
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
-  const selectionMenu = useSelectionMenu((text) => void addSelection(text));
+  const selectionMenu = useSelectionMenu((text) => void addSelection(text), (text) => void later.save(text));
+  // The saved-for-later list: this language's count, and whether it's open.
+  const laterItems = useLaterItems();
+  const laterCount = laterItems?.filter((item) => item.language === language).length || 0;
+  const [showLater, setShowLater] = useState(false);
 
   useEffect(() => {
     anki.getTags().then((tags) => setTagSuggestions(tags.filter((tag) => !tag.startsWith("pb::")).sort()), () => {});
@@ -165,6 +170,11 @@ export function ReviewSession() {
     draft?.analysis || "",
     ...followUps.flatMap((exchange) => [`Follow-up question: ${exchange.question}`, `Answer:\n${exchange.answer}`]),
   ].join("\n\n"), [draft?.analysis, followUps]);
+
+  // Right-click → "Save for Anki later": seen in this note.
+  const noteText = draft ? draft.fieldText.trim() || draft.cleanedText : "";
+  const noteEnglish = note ? cleanField(note.fields.English || "", "English").text : "";
+  const later = useSaveForLater(language, studyContext, noteEnglish ? `${noteText} (${noteEnglish})` : noteText);
 
   // Right-click on selected text in the analysis preview or a follow-up
   // answer adds just that item.
@@ -443,6 +453,7 @@ export function ReviewSession() {
         </div>
         <button className="save-input-button" type="button" disabled={busy} onClick={() => void loadQueue("session")}>Start session</button>
         <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void loadQueue("flagged")} title="Notes with a card you red-flagged in Anki (Ctrl+1)">Flagged in Anki</button>
+        {laterCount > 0 && <button className="preview-prompt-button" type="button" disabled={busy || showLater} onClick={() => { setShowLater(true); setBranch(null); }} title={`${language} phrases you saved for Anki later, on any device`}>Saved for later ({laterCount})</button>}
         {readingLanguages.has(language) && <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void loadQueue("reading")} title={`${language} notes with no ${readingLabel(language).split(" ")[0].toLowerCase()} yet, newest first`}>Missing {language === "Thai" ? "romanization" : "reading"}</button>}
       </div>
       <form className="anki-find" onSubmit={(event) => { event.preventDefault(); void loadQueue("search"); }}>
@@ -463,7 +474,9 @@ export function ReviewSession() {
         </p>
       )}
 
-      {note && draft && branch && (
+      {showLater && <LaterQueue key={language} language={language} options={options} tagSuggestions={tagSuggestions} onClose={() => setShowLater(false)} />}
+
+      {note && draft && branch && !showLater && (
         <BranchQueue
           language={language}
           parentText={draft.fieldText.trim() || draft.cleanedText}
@@ -478,8 +491,9 @@ export function ReviewSession() {
       )}
 
       {selectionMenu.element}
+      {later.element}
 
-      {note && draft && !branch && (
+      {note && draft && !branch && !showLater && (
         <article className="anki-note-card">
           <div className="anki-note-fields">
             <div>
@@ -558,20 +572,20 @@ export function ReviewSession() {
                 <textarea value={draft.analysis} onChange={(event) => update({ analysis: event.target.value })} />
               </label>
               <p className="result-label">{notesField(language)} as it will appear under &ldquo;more&rdquo;</p>
-              <div className="anki-card-preview" onContextMenu={selectionMenu.onContextMenu} dangerouslySetInnerHTML={{ __html: composedNotes }} />
+              <div className="anki-card-preview" ref={selectionMenu.areaRef} onContextMenu={selectionMenu.onContextMenu} dangerouslySetInnerHTML={{ __html: composedNotes }} />
               <div className="input-action-row">
                 <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => setBranch({})}>Branch from examples</button>
-                <span className="anki-note">Or select any {language} text in the preview and right-click it to add just that.</span>
+                <span className="anki-note">Or select any {language} text in the preview and right-click it to add just that, or to save it for Anki later.</span>
               </div>
 
               <div className="anki-follow-ups">
                 {followUps.map((exchange, position) => (
                   <div className="anki-follow-up" key={position}>
                     <p className="follow-up-question"><strong>Q:</strong> {exchange.question}</p>
-                    <div className="anki-card-preview" onContextMenu={selectionMenu.onContextMenu} dangerouslySetInnerHTML={{ __html: markdownToAnkiHtml(exchange.answer) }} />
+                    <div className="anki-card-preview" ref={selectionMenu.areaRef} onContextMenu={selectionMenu.onContextMenu} dangerouslySetInnerHTML={{ __html: markdownToAnkiHtml(exchange.answer) }} />
                   </div>
                 ))}
-                {followUps.length > 0 && <p className="anki-note">Answers aren&apos;t saved to the note. To keep a phrase, select it and right-click to add it to Anki.</p>}
+                {followUps.length > 0 && <p className="anki-note">Answers aren&apos;t saved to the note. To keep a phrase, select it and right-click to add it to Anki now or save it for later.</p>}
                 {askingFollowUp ? (
                   <form className="anki-follow-up-form" onSubmit={(event) => { event.preventDefault(); void askQuestion(); }}>
                     <label className="anki-field-edit">{followUps.length ? "Ask another follow-up question" : "Ask a follow-up question"}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 
 type Menu = { x: number; y: number; text: string };
 
@@ -18,10 +18,51 @@ function selectedText(event: MouseEvent<HTMLElement>) {
   return selection.toString().trim();
 }
 
-// Right-click on selected text inside an element offers "Add … to Anki".
-// Returns the onContextMenu handler for that element and the menu to render.
-export function useSelectionMenu(onPick: (text: string) => void) {
+// The text selected inside one of the given elements, wherever the
+// selection came from (for touch screens, which have no right-click).
+function selectionWithin(elements: Set<HTMLElement>) {
+  const active = document.activeElement;
+  if ((active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement) && [...elements].some((element) => element.contains(active))) {
+    const { selectionStart, selectionEnd, value } = active;
+    return selectionStart !== null && selectionEnd !== null ? value.slice(selectionStart, selectionEnd).trim() : "";
+  }
+  const selection = window.getSelection();
+  const anchor = selection?.anchorNode;
+  if (!anchor || ![...elements].some((element) => element.contains(anchor))) return "";
+  return selection.toString().trim();
+}
+
+const shorten = (text: string) => text.length > 30 ? `${text.slice(0, 30)}…` : text;
+
+// Right-click on selected text inside an element offers "Add … to Anki"
+// and, given onSaveLater, "Save … for Anki later". On touch screens, which
+// have no right-click, selecting text inside an element registered with
+// areaRef shows a bar at the bottom of the screen with "Save for Anki
+// later". Returns the onContextMenu handler, the ref, and what to render.
+export function useSelectionMenu(onPick: (text: string) => void, onSaveLater?: (text: string) => void) {
   const [menu, setMenu] = useState<Menu | null>(null);
+  const [touchText, setTouchText] = useState("");
+  const areas = useRef(new Set<HTMLElement>());
+
+  const areaRef = useCallback((element: HTMLElement | null) => {
+    for (const area of areas.current) if (!area.isConnected) areas.current.delete(area);
+    if (element) areas.current.add(element);
+  }, []);
+
+  const offersLater = Boolean(onSaveLater);
+  useEffect(() => {
+    if (!offersLater || !window.matchMedia("(pointer: coarse)").matches) return;
+    let timer: number | undefined;
+    const onChange = () => {
+      window.clearTimeout(timer);
+      // Wait until the selection handles stop moving.
+      timer = window.setTimeout(() => setTouchText(selectionWithin(areas.current).slice(0, 300)), 400);
+    };
+    // Capture, so selections inside text boxes (reported to the box, not
+    // the page) are caught too.
+    document.addEventListener("selectionchange", onChange, true);
+    return () => { document.removeEventListener("selectionchange", onChange, true); window.clearTimeout(timer); };
+  }, [offersLater]);
 
   useEffect(() => {
     if (!menu) return;
@@ -45,15 +86,32 @@ export function useSelectionMenu(onPick: (text: string) => void) {
     setMenu({ x: event.clientX, y: event.clientY, text: text.slice(0, 300) });
   }
 
-  const element = menu && (
-    <div className="anki-context-menu" style={{ left: menu.x, top: menu.y }} role="menu" onMouseDown={(event) => event.stopPropagation()}>
-      <button type="button" role="menuitem" onClick={() => { setMenu(null); onPick(menu.text); }}>
-        Add “{menu.text.length > 30 ? `${menu.text.slice(0, 30)}…` : menu.text}” to Anki…
-      </button>
-    </div>
+  const element = (
+    <>
+      {menu && (
+        <div className="anki-context-menu" style={{ left: menu.x, top: menu.y }} role="menu" onMouseDown={(event) => event.stopPropagation()}>
+          <button type="button" role="menuitem" onClick={() => { setMenu(null); onPick(menu.text); }}>
+            Add “{shorten(menu.text)}” to Anki…
+          </button>
+          {onSaveLater && (
+            <button type="button" role="menuitem" onClick={() => { setMenu(null); onSaveLater(menu.text); }}>
+              Save “{shorten(menu.text)}” for Anki later
+            </button>
+          )}
+        </div>
+      )}
+      {touchText && onSaveLater && (
+        <div className="anki-touch-bar" role="toolbar">
+          <button className="save-input-button" type="button" onClick={() => { const text = touchText; setTouchText(""); onSaveLater(text); }}>
+            Save “{shorten(touchText)}” for Anki later
+          </button>
+          <button className="text-button" type="button" aria-label="Close" onClick={() => setTouchText("")}>✕</button>
+        </div>
+      )}
+    </>
   );
 
-  return { onContextMenu, element };
+  return { onContextMenu, areaRef, element };
 }
 
 // Anki tags can't contain spaces, so spaces and commas both separate tags.

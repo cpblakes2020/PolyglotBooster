@@ -32,18 +32,24 @@ type BranchQueueProps = {
   depth: number;
   tagSuggestions: string[];
   onFinish: () => void;
+  // Heading for a pick list (default "Flashcards to Anki").
+  title?: string;
+  // Told what happened to each item, e.g. to update the saved-for-later list.
+  onItemDone?: (item: BranchItem, outcome: ItemOutcome["kind"] | "deleted") => void;
+  // Items can be deleted (from the saved-for-later list) as well as skipped.
+  deletable?: boolean;
 };
 
 type Row = { item: BranchItem; match: VocabNote | null; selected: boolean };
-type Tally = { added: number; commented: number; skipped: number };
+type Tally = { added: number; commented: number; skipped: number; deleted: number };
 
 const kindLabels = { example: "Example", related: "Related", register: "Register", vocabulary: "Vocabulary", sentence: "Sentence" } as const;
 
-export function BranchQueue({ language, parentText, parentEnglish, analysis, options, items, pick = false, doneLabel = "Back to main session", batchTags = [], depth, tagSuggestions, onFinish }: BranchQueueProps) {
+export function BranchQueue({ language, parentText, parentEnglish, analysis, options, items, pick = false, doneLabel = "Back to main session", batchTags = [], depth, tagSuggestions, onFinish, title = "Flashcards to Anki", onItemDone, deletable = false }: BranchQueueProps) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [queue, setQueue] = useState<Row[] | null>(null);
   const [position, setPosition] = useState(0);
-  const [tally, setTally] = useState<Tally>({ added: 0, commented: 0, skipped: 0 });
+  const [tally, setTally] = useState<Tally>({ added: 0, commented: 0, skipped: 0, deleted: 0 });
   const [status, setStatus] = useState("");
   const [tagExisting, setTagExisting] = useState(true);
   // Cleaned learning-language text -> note, for spotting items already in Anki.
@@ -101,7 +107,7 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
   }
 
   // Saves items with the editor's defaults, without opening each one: a new
-  // note with the brief comment (and audio), or — for an item already in
+  // note with the brief explanations (and audio), or — for an item already in
   // Anki — the comment added to that note. Tags are the item's own.
   async function addAll(toAdd: Row[], queueLength: number, firstPosition: number) {
     stopBulk.current = false;
@@ -115,11 +121,12 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
       const match = known.get(key) || null;
       try {
         const { outcome } = await saveItem({
-          language, text: item.text, english: item.english, reading: item.reading, comment: item.comment, seenIn,
+          language, text: item.text, english: item.english, reading: item.reading, comment: item.comment, explanation: item.explanation, seenIn: item.seenIn || seenIn,
           match, target: match ? "existing" : "new", analysis: "", kind: classifyItem(item.text, language).kind, tags: item.tags || [],
         });
         if (outcome.kind === "added") known.set(key, outcome.note);
         setTally((current) => ({ ...current, [outcome.kind]: current[outcome.kind] + 1 }));
+        onItemDone?.(item, outcome.kind);
       } catch (error) {
         failures.push(`${item.text}: ${error instanceof Error ? error.message : "failed"}`);
       }
@@ -149,7 +156,22 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
     setRows((current) => current && current.map((row, i) => i === rowIndex ? { ...row, selected: !row.selected } : row));
   }
 
+  // Deleting from the saved-for-later list: the unticked items in the pick
+  // list, or the item being shown.
+  function deleteUnticked() {
+    if (!rows) return;
+    for (const row of rows) if (!row.selected) onItemDone?.(row.item, "deleted");
+    setRows(rows.filter((row) => row.selected));
+  }
+
+  function handleDeleted() {
+    if (current) onItemDone?.(current.item, "deleted");
+    setTally((count) => ({ ...count, deleted: count.deleted + 1 }));
+    setPosition((value) => value + 1);
+  }
+
   function handleDone(outcome: ItemOutcome) {
+    if (current) onItemDone?.(current.item, outcome.kind);
     if (outcome.kind === "added") {
       // Later items with the same text should now show as already in Anki.
       const note = outcome.note;
@@ -167,7 +189,7 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
     <section className="anki-branch">
       <div className="panel-heading">
         <div>
-          <p className="section-kicker">{depth > 1 ? `Branch · level ${depth}` : pick ? "Flashcards to Anki" : "Branch"}</p>
+          <p className="section-kicker">{depth > 1 ? `Branch · level ${depth}` : pick ? title : "Branch"}</p>
           {seenIn && <p className="anki-branch-source">From {seenIn}</p>}
         </div>
         <button className="text-button" type="button" onClick={onFinish}>{finished ? backLabel : depth > 1 ? "Cancel this branch" : pick ? "Close" : "Cancel branch"}</button>
@@ -182,14 +204,14 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
             {" · "}<button className="text-button" type="button" onClick={() => setRows(rows.map((row) => ({ ...row, selected: false })))}>none</button>
           </p>
           <table className="anki-branch-table">
-            <thead><tr><th /><th>{language}</th><th>English</th><th>Comment</th><th /></tr></thead>
+            <thead><tr><th /><th>{language}</th><th>English</th><th>Explanation</th><th /></tr></thead>
             <tbody>
               {rows.map((row, rowIndex) => (
                 <tr key={row.item.text} className={row.match ? "in-anki" : undefined}>
                   <td><input type="checkbox" aria-label={`Include ${row.item.text}`} checked={row.selected} onChange={() => toggle(rowIndex)} /></td>
                   <td><span className="anki-branch-text">{row.item.text}</span>{row.item.reading && <small>{row.item.reading}</small>}</td>
                   <td>{row.item.english}</td>
-                  <td>{row.item.comment}</td>
+                  <td>{row.item.explanation}{row.item.comment && <small>{row.item.comment}</small>}</td>
                   <td><span className="anki-branch-kind">{kindLabels[row.item.kind]}</span>{row.match && <span className="anki-branch-badge">In Anki</span>}</td>
                 </tr>
               ))}
@@ -200,12 +222,15 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
               {rows.some((row) => row.selected) ? `Start branch (${rows.filter((row) => row.selected).length})` : `Tag ${untickedExisting.length} existing cards`}
             </button>
             {rows.some((row) => row.selected) && (
-              <button className="preview-prompt-button" type="button" disabled={bulk !== null} onClick={() => void addAllFromPicker()}>Add all {rows.filter((row) => row.selected).length} with brief comments</button>
+              <button className="preview-prompt-button" type="button" disabled={bulk !== null} onClick={() => void addAllFromPicker()}>Add all {rows.filter((row) => row.selected).length} with brief explanations</button>
             )}
             {batchTags.length > 0 && untickedExisting.length > 0 && (
               <label className="anki-checkbox"><input type="checkbox" checked={tagExisting} onChange={(event) => setTagExisting(event.target.checked)} /> Also tag the {untickedExisting.length} unticked card{untickedExisting.length === 1 ? "" : "s"} already in Anki with {batchTags.join(" ")}</label>
             )}
-            <span className="anki-note">Items already in Anki start unticked. Tick one to add its comment to that note, or add it as a new note anyway.</span>
+            {deletable && rows.some((row) => !row.selected) && (
+              <button className="text-button" type="button" disabled={bulk !== null} onClick={deleteUnticked}>Delete the {rows.filter((row) => !row.selected).length} unticked from the list</button>
+            )}
+            <span className="anki-note">Items already in Anki start unticked. Tick one to add its explanations to that note, or add it as a new note anyway.{deletable ? " Unticked items stay saved for later unless you delete them." : ""}</span>
           </div>
         </>
       )}
@@ -225,19 +250,20 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
           {queue.length > 1 && (
             <p className="anki-note">
               Item {position + 1} of {queue.length} · {kindLabels[current.item.kind]}
-              {queue.length - position > 1 && <> · <button className="text-button" type="button" onClick={() => void addAll(queue.slice(position), queue.length, position)}>Add the remaining {queue.length - position} with brief comments</button></>}
+              {queue.length - position > 1 && <> · <button className="text-button" type="button" onClick={() => void addAll(queue.slice(position), queue.length, position)}>Add the remaining {queue.length - position} with brief explanations</button></>}
             </p>
           )}
           <ItemEditor
             key={`${position}-${current.item.text}`}
             item={current.item}
             language={language}
-            seenIn={seenIn}
+            seenIn={current.item.seenIn || seenIn}
             match={index.get(cleanField(current.item.text, language).text) || null}
             options={options}
             depth={depth}
             tagSuggestions={tagSuggestions}
             onDone={handleDone}
+            onDelete={deletable ? handleDeleted : undefined}
           />
         </>
       )}
@@ -245,7 +271,7 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
       {finished && (
         <div className="result-actions">
           <p className="anki-note">
-            Branch finished: {tally.added} added, {tally.commented} comment{tally.commented === 1 ? "" : "s"} added to existing notes, {tally.skipped} skipped.
+            {pick ? "Done" : "Branch finished"}: {tally.added} added, {tally.commented} existing note{tally.commented === 1 ? "" : "s"} given the explanations, {tally.skipped} skipped{deletable ? ` (kept for later), ${tally.deleted} deleted from the list` : ""}.
           </p>
           <button className="save-input-button" type="button" onClick={onFinish}>{backLabel}</button>
         </div>

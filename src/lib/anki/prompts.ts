@@ -72,7 +72,15 @@ export type BranchItem = {
   text: string;
   reading: string;
   english: string;
+  // A brief explanation in English (saved to the English note) and the same
+  // in the item's own language (saved to that language's notes field).
   comment: string;
+  explanation: string;
+  // Where this item was seen, when items in one batch come from different
+  // places (the saved-for-later list); otherwise the batch's own source.
+  seenIn?: string;
+  // Its entry in the saved-for-later list, if it came from there.
+  laterId?: string;
   kind: BranchItemKind;
   // Tags suggested for the note (flashcard lists carry topic tags).
   tags?: string[];
@@ -90,7 +98,8 @@ function itemFields(language: AnkiLanguage) {
     `"text": the ${language} exactly as written in native script, with no romanization, translation, or labels.`,
     readingInstruction(language),
     `"english": a short, natural English meaning, suitable for the English side of a flashcard.`,
-    `"comment": one brief English sentence saying what makes this item worth knowing (its nuance, register, or use), based on what the analysis says.`,
+    `"comment": a brief explanation in English (one or two short sentences) of what it means and when or how it's used — its nuance or register — based on what the analysis says.`,
+    `"explanation": the same brief explanation written in ${language} itself, in simple ${language} a learner can read (no English, no romanization).`,
   ].join("\n");
 }
 

@@ -68,7 +68,31 @@ export async function askFollowUp(question: string, item: { text: string; englis
   return result;
 }
 
-const itemKinds =new Set<BranchItemKind>(["example", "related", "register", "vocabulary", "sentence"]);
+// The "Save for Anki later" list, kept in your account so phrases can be
+// saved on any device. Pages showing it listen for this event to refresh.
+export const laterChangedEvent = "pb-later-changed";
+
+export type LaterItem = { id: string; text: string; language: string; context: string; source: string; createdAt: string };
+
+async function laterRequest(method: "GET" | "POST" | "DELETE", body?: unknown) {
+  const response = await fetch("/api/anki/later", { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const data = await response.json().catch(() => ({})) as { items?: LaterItem[]; error?: string };
+  if (!response.ok || !data.items) throw new Error(data.error || `Request failed (${response.status}).`);
+  if (method !== "GET") window.dispatchEvent(new Event(laterChangedEvent));
+  return data.items;
+}
+
+export const laterList = () => laterRequest("GET");
+
+export function saveForLater(text: string, language: AnkiLanguage, context: string, source: string) {
+  const cleaned = selectedItemText(text, language);
+  if (!cleaned) throw new Error(`The selection doesn't contain any ${language} text.`);
+  return laterRequest("POST", { text: cleaned, language, context, source });
+}
+
+export const deleteLater = (ids: string[]) => laterRequest("DELETE", { ids });
+
+const itemKinds = new Set<BranchItemKind>(["example", "related", "register", "vocabulary", "sentence"]);
 
 function toBranchItem(value: unknown): BranchItem | null {
   if (!value || typeof value !== "object") return null;
@@ -80,6 +104,7 @@ function toBranchItem(value: unknown): BranchItem | null {
     reading: field("reading"),
     english: field("english"),
     comment: field("comment"),
+    explanation: field("explanation"),
     kind: itemKinds.has(item.kind as BranchItemKind) ? item.kind as BranchItemKind : "example",
   };
 }

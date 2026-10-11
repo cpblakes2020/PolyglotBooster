@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AudioPlayback } from "@/components/audio/AudioPlayback";
 import { AnkiSelectionArea, studyContext } from "@/components/anki/AnkiSelectionArea";
+import { LaterListPanel } from "@/components/anki/later";
 import { FlashcardsToAnki, canSendFlashcardsToAnki } from "@/components/anki/FlashcardsToAnki";
 import { SendToAnki, canSendToAnki } from "@/components/anki/SendToAnki";
 import { LanguageSettings } from "@/components/intake/LanguageSettings";
@@ -494,6 +495,7 @@ export function IntakeWorkspace() {
         </div>
       </section>
       <section className="template-section" aria-labelledby="template-title"><PromptTemplatePicker templates={templates} isAdmin={templatesAdmin} status={templatesStatus} selectedTemplate={selectedTemplate} sourceLanguage={sourceLanguage} onTemplateChange={setSelectedTemplate} onTemplatesChange={setTemplates} /></section>
+      <LaterListPanel />
       {(() => {
         const visibleReviews = reviewRuns.filter((run) => run.sourceLanguage === sourceLanguage);
         if (!visibleReviews.length && reviewRuns.length > 0) {

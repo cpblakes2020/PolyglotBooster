@@ -267,6 +267,18 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-context-menu { position: fixed; z-index: 50; border: 1px solid var(--line); background: #fff; box-shadow: 0 6px 18px rgba(28, 42, 40, .16); }
 .anki-context-menu button { display: block; border: 0; background: transparent; padding: 9px 14px; color: var(--ink); font-size: 13px; text-align: left; white-space: nowrap; }
 .anki-context-menu button:hover, .anki-context-menu button:focus-visible { background: #f3f1e7; }
+.anki-context-menu button + button { border-top: 1px solid var(--line); }
+/* Touch screens: "Save for Anki later" for the current selection, clear of the system's own selection menu. */
+.anki-touch-bar { position: fixed; z-index: 50; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: #fff; padding: 8px 10px; box-shadow: 0 6px 18px rgba(28, 42, 40, .2); }
+.anki-touch-bar .save-input-button { flex: 1; min-height: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.anki-touch-bar .text-button { min-width: 44px; min-height: 44px; font-size: 18px; }
+.anki-later-panel { margin-top: 18px; }
+.anki-later-panel summary { cursor: pointer; color: var(--ink); font-size: 14px; font-weight: 600; }
+.anki-later-list { margin: 8px 0 0; padding: 0; list-style: none; }
+.anki-later-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; border-top: 1px solid var(--line); padding: 8px 0; }
+.anki-later-text { color: var(--ink); font-size: 16px; }
+.anki-later-list small { flex: 1; color: var(--muted); font-size: 12px; }
+.anki-saved-toast { position: fixed; z-index: 51; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: #fff; padding: 8px 14px; font-size: 13px; }
 .anki-branch { margin-top: 20px; border: 1px solid var(--teal); background: #fff; padding: 16px; }
 .anki-branch .panel-heading { margin-bottom: 10px; }
 .anki-branch .section-kicker { margin-bottom: 4px; }

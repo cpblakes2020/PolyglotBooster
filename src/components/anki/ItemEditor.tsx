@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { analyze, describeSelection, type AnalysisOptions } from "@/components/anki/api";
-import { itemNotesHtml, saveItem, type ItemDraft, type ItemOutcome } from "@/components/anki/saveItem";
+import { itemEnglishNoteHtml, itemNotesHtml, saveItem, type ItemDraft, type ItemOutcome } from "@/components/anki/saveItem";
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type ItemKind } from "@/lib/anki/classify";
@@ -24,6 +24,9 @@ type ItemEditorProps = {
   depth: number;
   tagSuggestions: string[];
   onDone: (outcome: ItemOutcome) => void;
+  // Given for saved-for-later items: delete it from the list instead of
+  // skipping it (which keeps it for later).
+  onDelete?: () => void;
 };
 
 // Adds one item found in an analysis to Anki: as a new note with its brief
@@ -31,11 +34,12 @@ type ItemEditorProps = {
 // already in Anki — as a comment appended to that note. New notes get
 // learning-language audio straight away. An item with a full analysis can
 // itself be branched from, one level deeper.
-export function ItemEditor({ item, language, seenIn, match, options, depth, tagSuggestions, onDone }: ItemEditorProps) {
+export function ItemEditor({ item, language, seenIn, match, options, depth, tagSuggestions, onDone, onDelete }: ItemEditorProps) {
   const [text, setText] = useState(item.text);
   const [english, setEnglish] = useState(item.english);
   const [reading, setReading] = useState(item.reading);
   const [comment, setComment] = useState(item.comment);
+  const [explanation, setExplanation] = useState(item.explanation);
   const [target, setTarget] = useState<"new" | "existing">(match ? "existing" : "new");
   const [kind, setKind] = useState<ItemKind>(() => classifyItem(item.text, language).kind);
   const [analysis, setAnalysis] = useState("");
@@ -49,8 +53,9 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
   const matchEnglish = match ? cleanField(match.fields.English || "", "English").text : "";
   const canBranch = target === "new" && Boolean(analysis.trim());
 
-  const draft: ItemDraft = { language, text, english, reading, comment, seenIn, match, target, analysis, kind, tags: parseTags(newTags) };
+  const draft: ItemDraft = { language, text, english, reading, comment, explanation, seenIn, match, target, analysis, kind, tags: parseTags(newTags) };
   const preview = itemNotesHtml(draft);
+  const englishPreview = itemEnglishNoteHtml(draft);
 
   async function runAnalysis() {
     setBusy(true);
@@ -116,7 +121,7 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
       {match && (
         <div className="anki-warning" role="note">
           <p><b>Already in Anki:</b> a note has exactly this {language} text{matchEnglish ? <> (&ldquo;{matchEnglish}&rdquo;)</> : ""}.</p>
-          <label className="anki-checkbox"><input type="radio" checked={target === "existing"} onChange={() => setTarget("existing")} /> Add the comment to that note&apos;s {notesField(language)}</label>
+          <label className="anki-checkbox"><input type="radio" checked={target === "existing"} onChange={() => setTarget("existing")} /> Add the explanations to that note ({notesField(language)} and its English note)</label>
           <label className="anki-checkbox"><input type="radio" checked={target === "new"} onChange={() => setTarget("new")} /> Add a new note anyway</label>
         </div>
       )}
@@ -135,8 +140,11 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
             <input value={reading} onChange={(event) => setReading(event.target.value)} />
           </label>
         )}
-        <label className="anki-field-edit">Brief comment
-          <input value={comment} onChange={(event) => setComment(event.target.value)} />
+        <label className="anki-field-edit">Brief explanation in {language} (goes in {notesField(language)})
+          <textarea rows={2} value={explanation} onChange={(event) => setExplanation(event.target.value)} />
+        </label>
+        <label className="anki-field-edit">Brief explanation in English (goes in the English note)
+          <textarea rows={2} value={comment} onChange={(event) => setComment(event.target.value)} />
         </label>
       </div>
 
@@ -157,6 +165,12 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
       <p className="result-label">{notesField(language)} as it will appear under &ldquo;more&rdquo;</p>
       <div className="anki-card-preview" onContextMenu={canBranch ? selectionMenu.onContextMenu : undefined} dangerouslySetInnerHTML={{ __html: preview }} />
       {selectionMenu.element}
+      {englishPreview && (
+        <>
+          <p className="result-label">English note</p>
+          <div className="anki-card-preview" dangerouslySetInnerHTML={{ __html: englishPreview }} />
+        </>
+      )}
       {canBranch && (
         <div className="input-action-row">
           <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => setSubBranch({})}>Branch from examples</button>
@@ -170,9 +184,10 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
 
       <div className="result-actions">
         <button className="save-input-button" type="button" disabled={busy} onClick={() => void save()}>
-          {target === "existing" ? "Add comment to existing note" : analysis ? "Add note with analysis" : "Add note with brief comment"}
+          {target === "existing" ? "Add explanations to existing note" : analysis ? "Add note with analysis" : "Add note with brief explanations"}
         </button>
-        <button className="text-button" type="button" disabled={busy} onClick={() => onDone({ kind: "skipped" })}>Skip</button>
+        <button className="text-button" type="button" disabled={busy} onClick={() => onDone({ kind: "skipped" })}>{onDelete ? "Skip, keep for later" : "Skip"}</button>
+        {onDelete && <button className="text-button" type="button" disabled={busy} onClick={onDelete}>Delete from list</button>}
         {status && <span className="example-status" role="status">{status}</span>}
       </div>
     </div>

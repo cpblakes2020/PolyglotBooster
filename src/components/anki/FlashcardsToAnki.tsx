@@ -39,6 +39,7 @@ function toItem(card: Flashcard, language: AnkiLanguage): BranchItem {
     english: card.back,
     reading: card.reading || "",
     comment: card.note || "",
+    explanation: card.explanation || "",
     kind: card.kind || (classifyItem(card.front, language).kind === "sentence" ? "sentence" : "vocabulary"),
     tags: card.tags,
   };

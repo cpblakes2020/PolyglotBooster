@@ -14,7 +14,10 @@ export type ItemDraft = {
   text: string;
   english: string;
   reading: string;
+  // Brief explanations: in English (the English note) and in the item's own
+  // language (its notes field, with the "Seen in" line).
   comment: string;
+  explanation: string;
   // Where the item was seen, for the back-reference line.
   seenIn: string;
   // An existing note with exactly this text, if any.
@@ -26,26 +29,37 @@ export type ItemDraft = {
   tags: string[];
 };
 
-// The Notes field the item will be saved with.
+// The language's Notes field the item will be saved with: its reading, the
+// explanation in that language and the "Seen in" line (and any analysis).
 export function itemNotesHtml(draft: ItemDraft) {
-  const { language, text, reading, comment, seenIn, match, target, analysis } = draft;
-  const block = branchNoteBlock(comment, seenIn);
+  const { language, text, reading, explanation, seenIn, match, target, analysis } = draft;
+  const block = branchNoteBlock(explanation, seenIn);
   if (target === "existing" && match) return appendToField(match.fields[notesField(language)] || "", block);
   return composeNotesField(block, readingLanguages.has(language) ? readingHtml(reading, language, text) : "", markdownToAnkiHtml(analysis));
+}
+
+// The English note the item will be saved with: the English explanation,
+// added after anything an existing note already has there.
+export function itemEnglishNoteHtml(draft: ItemDraft) {
+  const comment = escapeHtml(draft.comment.trim());
+  const existing = draft.target === "existing" && draft.match ? (draft.match.fields[notesField("English")] || "").trim() : "";
+  if (!comment) return existing;
+  return existing ? `${existing}<br>${comment}` : comment;
 }
 
 export async function saveItem(draft: ItemDraft, onProgress: (message: string) => void = () => {}): Promise<{ outcome: ItemOutcome; audioFailed: boolean }> {
   const { language, text, english, match, target, analysis, kind, tags: extraTags } = draft;
   const notes = itemNotesHtml(draft);
+  const englishNote = itemEnglishNoteHtml(draft);
 
   if (target === "existing" && match) {
-    await anki.updateFields(match.noteId, { [notesField(language)]: notes });
+    await anki.updateFields(match.noteId, { [notesField(language)]: notes, ...(draft.comment.trim() ? { [notesField("English")]: englishNote } : {}) });
     if (extraTags.length) await anki.addTags([match.noteId], extraTags);
     return { outcome: { kind: "commented" }, audioFailed: false };
   }
 
   if (!text.trim() || !english.trim()) throw new Error(`Fill in the ${language} and the English — every card pairs the two.`);
-  const fields = { English: escapeHtml(english.trim()), [language]: escapeHtml(text.trim()), [notesField(language)]: notes, Origin: language };
+  const fields = { English: escapeHtml(english.trim()), [language]: escapeHtml(text.trim()), [notesField(language)]: notes, ...(englishNote ? { [notesField("English")]: englishNote } : {}), Origin: language };
   const tags = [pbTags.branch, ...(analysis.trim() ? [pbTags.analyzed(language, kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language))] : []), ...extraTags];
   const noteId = await anki.addNote(language, fields, tags);
 
