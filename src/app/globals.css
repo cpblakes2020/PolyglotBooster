@@ -239,6 +239,17 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-note-fields .result-label { padding-left: 0; }
 .anki-english-note { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; }
 .anki-english-note textarea { display: block; width: 100%; margin-top: 4px; resize: vertical; border: 1px solid var(--line); background: #f3f1e7; padding: 8px 10px; color: var(--ink); font-size: 14px; line-height: 1.5; }
+/* Review screen panels: reading, audio, notes. */
+.anki-tool { border-top: 1px solid var(--line); padding: 12px 0; }
+.anki-tool .result-label { display: flex; align-items: center; gap: 8px; padding-left: 0; }
+.anki-tool .input-action-row { margin-top: 6px; }
+.anki-changed { border: 1px solid var(--teal); padding: 0 6px; color: var(--teal); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.anki-blocks { display: grid; gap: 8px; margin: 10px 0; }
+.anki-block { display: grid; gap: 4px; border-left: 3px solid var(--line); padding-left: 10px; }
+.anki-block small { color: var(--muted); font-size: 12px; font-style: italic; }
+.anki-block .text-button { justify-self: start; }
+.anki-note-status { margin: 8px 0; }
+.anki-pending { margin: 10px 0 0; }
 .anki-english-note-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 12px; }
 .anki-front { margin: 10px 0 14px; color: var(--ink); font-size: 26px; line-height: 1.35; }
 .anki-back { margin: 10px 0 14px; color: var(--ink); font-size: 17px; }

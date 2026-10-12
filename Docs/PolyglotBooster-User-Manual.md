@@ -265,33 +265,45 @@ This is where you enrich notes one at a time — which doubles as a study sessio
 - **Language** — Indonesian, Thai, Japanese, Spanish, French or Mandarin. **Start session** only brings up notes whose *Origin* is this language (an Indonesian-origin note that also has Thai comes up in Indonesian sessions); **Flagged in Anki** and **Find** show every note with this language filled in, whatever its origin.
 - **Narrow with an Anki search** *(optional)* — any Anki search, e.g. `tag:food` or `deck:Polyglot::Thai`.
 - **Model, Level, Style** — the provider and settings for the analysis (defaults: Anthropic, Intermediate, Concise).
-- **Start session** — works through notes that haven't been analyzed yet, oldest first.
+- **Start session** — works through notes that haven't been analyzed yet, plus analyzed notes whose field still needs cleaning up (e.g. an old romanization in the Thai field), oldest first.
 - **Flagged in Anki** — works through notes you've red-flagged in Anki (see below), analyzed or not.
-- **Missing romanization** (Thai) / **Missing reading** (Japanese, Mandarin) — every note with that language filled in but no reading yet, **newest first**: notes you made in Anki itself, notes marked *Never analyze*, and languages added to a note later. Each note's reading is written as soon as it comes up; check or edit it, then **Save romanization & next** (or **Save reading & next**), which saves only the reading — the note isn't marked as analyzed, and anything else in its Notes field stays as it was. You can still **Analyze** a note here if you want the full analysis too.
+- **Missing romanization** (Thai) / **Missing reading** (Japanese, Mandarin) — every note with that language filled in but no reading yet, **newest first**: notes you made in Anki itself, notes marked *Never analyze*, and languages added to a note later. Each note's reading is written as soon as it comes up; check or edit it, then **Save changes & next**, which saves only the reading — the note isn't marked as analyzed, and anything else in its Notes field stays as it was. You can still **Analyze** a note here if you want the full analysis too.
 - **Or find a note to edit** — type Thai/Indonesian/Japanese or English text and click **Find**; this works for any note, analyzed or not, and opens its saved analysis for editing.
 
 **Working on a note**
 
-1. The learning-language text is shown with a ▶ button for its audio. **Show English** reveals the meaning when you're ready — try recalling it first.
+Every note opens with the same tools, however you got to it (a session, **Flagged in Anki**, **Missing romanization**, **Find**), each showing what the card has now — so a finished card can be fixed just as easily as a new one analyzed:
+
+1. **The card** — the learning-language text, and **Show English** to reveal the meaning when you're ready (try recalling it first). Under it, the **English note** (*Notes_English*), e.g. a question you typed in Anki when you flagged the card: edit it, or empty it to delete it.
 2. **Clean up the field** *(when needed)* — older notes sometimes contain formatting or an old romanization in the language field. The page shows the stored version and a cleaned version you can edit; tick **Replace the field on save** to fix it.
-3. **Word analysis / Sentence guide** — the page suggests one (and says when it isn't sure); switch if you disagree.
-4. **Analyze** — generates the analysis and, for Thai and Japanese, a reading line. Both are editable, and the preview shows exactly how the note will look under **more** on the card. **Regenerate** tries again; **Regenerate reading only** redoes just the reading.
-5. **English note** — under English, the note's *Notes_English* field, e.g. a question you typed in Anki when you flagged the card. Edit it, or empty the box to delete it; it's saved with any of the save buttons, or straight away with **Save English note** (or **Delete English note**). **Undo** puts back what's in Anki.
-6. **Add tags** *(optional)* — shows the note's current tags; type new ones separated by spaces (existing tags are suggested as you type). **Save tags** adds them straight away; otherwise they're added when you save.
+3. **Romanization** (Thai) / **Reading** (Japanese, Mandarin) — the card's current reading: edit it, or **Regenerate** it. (A Japanese note with a hand-written furigana reading keeps it.)
+4. **Audio** — **▶ Current recording**, and **Re-record** for a new take (Thai is respelled for the voice so silent letters stay silent). It plays straight away; **▶ New recording** plays it again, **Record again** tries once more, and **Keep the old one** drops it. A new recording replaces the old one only when you save.
+5. **Notes** — everything the card shows under **more**:
+   - the **analysis**: choose **Word analysis** or **Sentence guide** (the page suggests one), then **Analyze** or **Regenerate analysis**; edit the Markdown, or **Remove analysis**;
+   - each **brief explanation** (with its *Seen in* line): edit it, or **Delete** it;
+   - any **other notes** (e.g. written by hand in Anki) are shown and kept as they are — **Delete** removes them, and you can edit them under **Edit fields → Notes fields**;
+   - a **Preview** of exactly how it will look on the card.
+6. **Add tags** *(optional)* — shows the note's current tags; type new ones separated by spaces (existing tags are suggested as you type).
+
+Every part you change is marked *changed*, and **Undo** puts it back as Anki has it.
 
 **Saving**
 
+Above the buttons, **Will save:** lists exactly what you've changed (e.g. *romanization, audio, analysis*). Only those parts are written — everything else on the card stays exactly as it was.
+
 | Button | What it does |
 |---|---|
-| **Save to Anki & next** | Saves the analysis (plus cleanup and tags) and moves to the next note |
-| **Save** | Saves and stays on the note — handy before branching (below) |
-| **Save cleanup only & next** | Saves just the cleaned field; the note comes back for analysis another time |
-| **Skip for now** | Moves on without saving |
-| **Never analyze this note** | Leaves it out of future sessions (still saves a ticked cleanup) |
-| **Edit fields** | Edit the note's fields right here (below) |
+| **Save changes & next** | Saves what you changed and moves to the next note |
+| **Save changes** | Saves and stays on the note — handy before branching (below) |
+| **Next** (*Skip without saving* when there are changes) | Moves on |
+| **Clear flag & next** | In a flagged session: just takes the flag off |
+| **Never analyze this note** | Leaves it out of future sessions (still saves a ticked cleanup and the English note) |
+| **Edit fields** | Edit the note's other language fields, Origin or Notes HTML right here (below) |
 | **Open in Anki** | Opens the note in Anki's own editor (the window may open behind your browser) |
 
-**Sending a card back from Anki:** while studying in Anki, press **Ctrl+1** (on iPhone/iPad, use a flag button — see [On your phone](#on-your-phone)) on any card you want to edit or analyze in PolyglotBooster. Later, click **Flagged in Anki** on the Anki page to work through them. The red flag comes off automatically when you save anything for the note (analysis, cleanup, fields, *Never analyze*), or click **Clear flag & next** if you only wanted to look.
+Saving an analysis marks the note as analyzed. A note comes up in **Start session** until it's analyzed and its field is clean (or it's marked *Never analyze*); to work on any other note, use **Find**.
+
+**Sending a card back from Anki:** while studying in Anki, press **Ctrl+1** (on iPhone/iPad, use a flag button — see [On your phone](#on-your-phone)) on any card you want to edit or analyze in PolyglotBooster. Later, click **Flagged in Anki** on the Anki page to work through them. The red flag comes off automatically when you save anything for the note (**Save changes**, **Edit fields**, *Never analyze*), or click **Clear flag & next** if you only wanted to look. Typical fixes — a wrong romanization, a mispronounced recording, an analysis to correct — are all on the same screen.
 
 Analyzing a note again replaces its previous analysis instead of adding a second one; anything else in the Notes field (such as a hand-written furigana reading) is kept.
 

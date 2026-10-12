@@ -192,6 +192,48 @@ export function composeNotesField(existing: string, reading: string, analysisHtm
   ].filter(Boolean).join("");
 }
 
+// The parts of a Notes_<Language> field besides PolyglotBooster's reading
+// and analysis: brief explanations (with their "Seen in" lines) and anything
+// else, e.g. notes written by hand — for editing or deleting one at a time.
+export type NotesBlock =
+  | { kind: "explanation"; explanation: string; seenIn: string }
+  | { kind: "other"; html: string };
+
+// The whole block (its HTML) with this class, or "".
+export function blockHtml(html: string, className: string) {
+  const range = findBlock(html, className);
+  return range ? html.slice(range[0], range[1]) : "";
+}
+
+// Everything between the reading and the analysis.
+export function notesMiddle(html: string) {
+  return removeBlock(removeBlock(html, "pb-reading"), "pb-analysis").trim();
+}
+
+// branchNoteBlock's output: an optional explanation, then an optional
+// "Seen in" line (a block can hold just the "Seen in" line).
+const explanationBlock = /^<div class="pb-branch">(?:<div>(?!<i>Seen in: )([\s\S]*?)<\/div>)?(?:<div><i>Seen in: ([\s\S]*?)<\/i><\/div>)?<\/div>$/i;
+
+export function splitNotesBlocks(middle: string): NotesBlock[] {
+  const blocks: NotesBlock[] = [];
+  let rest = middle;
+  const addOther = (html: string) => { if (html.trim()) blocks.push({ kind: "other", html: html.trim() }); };
+  for (let range = findBlock(rest, "pb-branch"); range; range = findBlock(rest, "pb-branch")) {
+    addOther(rest.slice(0, range[0]));
+    const html = rest.slice(range[0], range[1]);
+    const match = explanationBlock.exec(html);
+    if (match) blocks.push({ kind: "explanation", explanation: htmlToText(match[1] || ""), seenIn: htmlToText(match[2] || "") });
+    else addOther(html);
+    rest = rest.slice(range[1]);
+  }
+  addOther(rest);
+  return blocks;
+}
+
+export function joinNotesBlocks(blocks: NotesBlock[]) {
+  return blocks.map((block) => block.kind === "explanation" ? branchNoteBlock(block.explanation, block.seenIn) : block.html).join("");
+}
+
 // A Notes_<Language> value with its reading block set to the given reading
 // HTML (from readingHtml), and everything else in the field left as it is.
 export function withReadingBlock(existing: string, reading: string) {
