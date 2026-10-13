@@ -9,7 +9,9 @@
     "lint": "eslint",
     "manual": "node scripts/build-manual.mjs",
     "backup": "node scripts/backup-data.mjs",
-    "restore": "node scripts/restore-data.mjs"
+    "restore": "node scripts/restore-data.mjs",
+    "dictionary": "node scripts/build-dictionary.mjs",
+    "prebuild": "node scripts/build-dictionary.mjs --if-missing"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",

@@ -276,6 +276,7 @@ Every note opens with the same tools, however you got to it (a session, **Flagge
 
 1. **The card** — the learning-language text, and **Show English** to reveal the meaning when you're ready (try recalling it first). Under it, the **English note** (*Notes_English*), e.g. a question you typed in Anki when you flagged the card: edit it, or empty it to delete it.
 2. **Clean up the field** *(when needed)* — older notes sometimes contain formatting or an old romanization in the language field. The page shows the stored version and a cleaned version you can edit; tick **Replace the field on save** to fix it.
+   **Dictionary (JMdict)** *(Japanese notes)* — the curated dictionary entry for the word, no AI: its readings, a **common** badge for everyday words, numbered senses with part-of-speech tags (hover a tag for its meaning), and each kanji's meanings, on/kun readings, school grade and stroke count. A word that isn't in the dictionary as a whole — e.g. 唱題行 — is shown as the dictionary words it's made of (唱題 + 行). The same panel appears when you add an item (branching, right-click, flashcards, Saved for later). The data is the same as the Imiwa app's — see [Dictionary data](#dictionary-data).
 3. **Romanization** (Thai) / **Reading** (Japanese, Mandarin) — the card's current reading: edit it, or **Regenerate** it. (A Japanese note with a hand-written furigana reading keeps it.)
 4. **Audio** — **▶ Current recording**, and **Re-record** for a new take (Thai is respelled for the voice so silent letters stay silent). It plays straight away; **▶ New recording** plays it again, **Record again** tries once more, and **Keep the old one** drops it. A new recording replaces the old one only when you save.
 5. **Notes** — everything the card shows under **more**:
@@ -473,6 +474,10 @@ After re-recording audio, old clips remain in Anki's media folder. **Tools → C
 | `pb::branch` | The note was created from another note's analysis (see its *Seen in:* line) |
 
 Search for them in Anki's Browse window, e.g. `tag:pb::branch`.
+
+### Dictionary data
+
+The Japanese dictionary uses **JMdict** (about 219,000 entries) and **KANJIDIC2** (about 10,400 kanji) from the [Electronic Dictionary Research and Development Group](https://www.edrdg.org/), used under their [licence](https://www.edrdg.org/edrdg/license.html) (Creative Commons Attribution-ShareAlike 4.0). The data comes from the [jmdict-simplified](https://github.com/scriptin/jmdict-simplified) project's weekly release and is refreshed every time the app is deployed; the panel shows which edition it's using. The dictionary files are part of the website itself, so looking words up costs nothing and uses none of the app's storage allowance.
 
 ### Privacy
 

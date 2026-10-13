@@ -4,6 +4,7 @@ import { useState } from "react";
 import { analyze, describeSelection, type AnalysisOptions } from "@/components/anki/api";
 import { itemEnglishNoteHtml, itemNotesHtml, saveItem, type ItemDraft, type ItemOutcome } from "@/components/anki/saveItem";
 import { BranchQueue } from "@/components/anki/BranchQueue";
+import { JapaneseDictionaryPanel } from "@/components/dictionary/JapaneseDictionaryPanel";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type ItemKind } from "@/lib/anki/classify";
 import { cleanField } from "@/lib/anki/fields";
@@ -147,6 +148,8 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
           <textarea rows={2} value={comment} onChange={(event) => setComment(event.target.value)} />
         </label>
       </div>
+
+      {language === "Japanese" && <JapaneseDictionaryPanel text={text} />}
 
       {target === "new" && (
         <div className="anki-template-choice" role="radiogroup" aria-label="Analysis template">

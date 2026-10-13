@@ -13,12 +13,12 @@ import type { AnkiLanguage } from "@/lib/anki/vocab";
 // The saved-for-later list, refreshed whenever any page changes it.
 export function useLaterItems() {
   const [items, setItems] = useState<LaterItem[] | null>(null);
-  const refresh = useCallback(() => { laterList().then(setItems, () => {}); }, []);
+  const changed = useCallback((event: Event) => setItems((event as CustomEvent<LaterItem[]>).detail), []);
   useEffect(() => {
-    refresh();
-    window.addEventListener(laterChangedEvent, refresh);
-    return () => window.removeEventListener(laterChangedEvent, refresh);
-  }, [refresh]);
+    laterList().then(setItems, () => {});
+    window.addEventListener(laterChangedEvent, changed);
+    return () => window.removeEventListener(laterChangedEvent, changed);
+  }, [changed]);
   return items;
 }
 

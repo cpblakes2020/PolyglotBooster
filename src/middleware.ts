@@ -14,5 +14,7 @@ export default auth((request) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // dict/: the public Japanese dictionary files (JMdict, KANJIDIC2), which
+  // the server reads too and which need no sign-in.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|dict/).*)"],
 };

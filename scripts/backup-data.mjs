@@ -53,11 +53,13 @@ function loadEnv() {
   if (!process.env.BLOB_READ_WRITE_TOKEN) throw new Error("BLOB_READ_WRITE_TOKEN is missing from .env.local.");
 }
 
+// Only the app's own data (lingua/...): the dictionary files (dict/...) are
+// rebuilt from their public source by scripts/build-dictionary.mjs.
 async function allBlobs() {
   const blobs = [];
   let cursor;
   do {
-    const page = await list({ cursor, limit: 1000 });
+    const page = await list({ cursor, limit: 1000, prefix: "lingua/" });
     blobs.push(...page.blobs);
     cursor = page.hasMore ? page.cursor : undefined;
   } while (cursor);

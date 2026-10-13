@@ -45,7 +45,16 @@ export type LaterItem = {
   createdAt: string;
 };
 
-export async function getLaterItems(userId: string): Promise<LaterItem[]> {
+// A summary of the list, rewritten after every change, so that showing the
+// list is a cheap read. Listing the folder counts toward Vercel Blob's small
+// monthly allowance of "advanced operations" (exceeding it locks the store
+// for 30 days), so it's done only when the list changes.
+function laterSummaryPathname(userId: string) {
+  return `lingua/accounts/${userId}/later.json`;
+}
+
+// The list as the per-phrase files hold it (the source of truth).
+async function listLaterItems(userId: string): Promise<LaterItem[]> {
   const { blobs } = await list({ prefix: laterPrefix(userId) });
   const items = await Promise.all(blobs.map(async (blob) => {
     const response = await fetch(blob.url);
@@ -54,19 +63,34 @@ export async function getLaterItems(userId: string): Promise<LaterItem[]> {
   return items.filter((item): item is LaterItem => item !== null).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
+async function refreshLaterSummary(userId: string) {
+  const items = await listLaterItems(userId);
+  await writeJsonBlob(laterSummaryPathname(userId), items);
+  return items;
+}
+
+// For showing the list: the summary (at most a minute behind, as a cached
+// copy). Saving or deleting returns the up-to-date list itself.
+export async function getLaterItems(userId: string): Promise<LaterItem[]> {
+  const summary = await readJsonBlob<LaterItem[] | null>(laterSummaryPathname(userId), null);
+  return summary ?? refreshLaterSummary(userId);
+}
+
 export async function addLaterItem(userId: string, item: Omit<LaterItem, "id" | "createdAt">): Promise<LaterItem[]> {
-  const items = await getLaterItems(userId);
+  const items = await listLaterItems(userId);
   // Saving the same phrase twice keeps one entry, with the newer context.
   const repeats = items.filter((existing) => existing.text === item.text && existing.language === item.language);
   const saved: LaterItem = { ...item, id: randomUUID(), createdAt: new Date().toISOString() };
   await put(`${laterPrefix(userId)}${saved.id}.json`, JSON.stringify(saved), { access: "public", contentType: "application/json", addRandomSuffix: false });
   if (repeats.length) await del(repeats.map((repeat) => `${laterPrefix(userId)}${repeat.id}.json`));
-  return [...items.filter((existing) => !repeats.includes(existing)), saved];
+  const next = [...items.filter((existing) => !repeats.includes(existing)), saved];
+  await writeJsonBlob(laterSummaryPathname(userId), next);
+  return next;
 }
 
 export async function removeLaterItems(userId: string, ids: string[]): Promise<LaterItem[]> {
   await del(ids.map((id) => `${laterPrefix(userId)}${id}.json`));
-  return getLaterItems(userId);
+  return refreshLaterSummary(userId);
 }
 
 function audioPathname(userId: string, id: string) {

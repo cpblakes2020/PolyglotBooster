@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { analyze, askFollowUp, assist, describeSelection, speak, type AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { FieldEditor } from "@/components/anki/FieldEditor";
+import { JapaneseDictionaryPanel } from "@/components/dictionary/JapaneseDictionaryPanel";
 import { LaterQueue, useLaterItems, useSaveForLater } from "@/components/anki/later";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/classify";
@@ -556,6 +557,8 @@ export function ReviewSession() {
           )}
 
           {status && <p className="example-status anki-note-status" role="status">{status}</p>}
+
+          {language === "Japanese" && <JapaneseDictionaryPanel text={draft.fieldText.trim() || draft.cleanedText} />}
 
           {readingLanguages.has(language) && (
             <section className="anki-tool">

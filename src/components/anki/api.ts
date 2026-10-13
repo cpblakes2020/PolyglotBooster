@@ -78,7 +78,9 @@ async function laterRequest(method: "GET" | "POST" | "DELETE", body?: unknown) {
   const response = await fetch("/api/anki/later", { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
   const data = await response.json().catch(() => ({})) as { items?: LaterItem[]; error?: string };
   if (!response.ok || !data.items) throw new Error(data.error || `Request failed (${response.status}).`);
-  if (method !== "GET") window.dispatchEvent(new Event(laterChangedEvent));
+  // A change hands its up-to-date list to every page showing the list, so
+  // they don't re-read it (a re-read could briefly return a cached copy).
+  if (method !== "GET") window.dispatchEvent(new CustomEvent<LaterItem[]>(laterChangedEvent, { detail: data.items }));
   return data.items;
 }
 
