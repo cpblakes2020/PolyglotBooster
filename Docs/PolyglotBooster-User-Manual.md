@@ -478,6 +478,12 @@ Search for them in Anki's Browse window, e.g. `tag:pb::branch`.
 
 ### Dictionary data
 
+Besides the dictionary panel, the curated dictionary steers the AI for Japanese:
+
+- **Word Analysis Japanese** (study desk or Anki page) gives the AI the word's dictionary entry — readings, senses and kanji — as the authority: the analysis uses those readings and builds its meanings on those senses, adding nuance, related words and examples, and says so when your text uses a sense the dictionary doesn't list.
+- **Readings for a single word** (e.g. when a Japanese field is filled in, or a reading is regenerated) come straight from the dictionary when it gives the word only one reading — exact, and no AI cost. When a word has several readings that depend on context (上手: じょうず, うわて, かみて), the AI chooses.
+- **Make flashcards** (both kinds): a word card whose reading isn't one the dictionary gives that word is corrected to the dictionary's (e.g. 塔頭 *とうとう* → *たっちゅう*, お会式 *おかいしき* → *おえしき*); readings the dictionary allows are kept.
+
 The Japanese dictionary uses **JMdict** (about 219,000 entries) and **KANJIDIC2** (about 10,400 kanji) from the [Electronic Dictionary Research and Development Group](https://www.edrdg.org/), used under their [licence](https://www.edrdg.org/edrdg/license.html) (Creative Commons Attribution-ShareAlike 4.0). The data comes from the [jmdict-simplified](https://github.com/scriptin/jmdict-simplified) project's weekly release and is refreshed every time the app is deployed; the panel shows which edition it's using. The dictionary files are part of the website itself, so looking words up costs nothing and uses none of the app's storage allowance.
 
 ### Privacy

@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { describeSelectionPrompt, extractItemsPrompt, followUpPrompt, glossPrompt, readingPrompt, translatePrompt, type FollowUpExchange } from "@/lib/anki/prompts";
 import { isAnkiLanguage, readingLanguages } from "@/lib/anki/vocab";
 import { japaneseChineseLine, mandarinVariantLines } from "@/lib/chineseScripts";
+import { unambiguousReading } from "@/lib/dictionary/japanese";
+import { isJapaneseTerm, japaneseDictionary } from "@/lib/dictionary/server";
 import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
 import { requireAccountApiKey } from "@/lib/storage/account";
 
@@ -62,6 +64,14 @@ export async function POST(request: Request) {
   }
   if (kind === "reading" && !readingLanguages.has(language)) {
     return NextResponse.json({ error: `${language} doesn't use a reading line.` }, { status: 400 });
+  }
+
+  // A Japanese word's reading comes from JMdict when the dictionary gives it
+  // only one: exact, and no AI call.
+  if (kind === "reading" && language === "Japanese" && isJapaneseTerm(text)) {
+    const found = await japaneseDictionary(request).lookup(text).catch(() => null);
+    const reading = found ? unambiguousReading(found.exact, text.trim()) : "";
+    if (reading) return NextResponse.json({ result: [reading, ...(context === "chinese" ? [japaneseChineseLine(text.trim())] : [])].filter(Boolean).join("\n") });
   }
 
   try {

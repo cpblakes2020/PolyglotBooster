@@ -18,6 +18,8 @@ export type LlmTaskInput = {
   promptTemplateId: PromptTemplateId;
   // Room for a longer answer than usual (e.g. flashcards for a whole page).
   maxOutputTokens?: number;
+  // Curated dictionary entries for the source text (see buildStudyPrompt).
+  reference?: string;
 };
 
 export type LlmProvider = {

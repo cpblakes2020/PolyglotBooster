@@ -93,3 +93,47 @@ export function createJapaneseDictionary(load: Loader) {
 
   return { lookup, meta, tags: () => file<Record<string, string>>("tags.json") };
 }
+
+const toHiragana = (text: string) => text.replace(/[ァ-ヶ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0x60));
+
+// The readings JMdict gives a written form (kanji or kana), in its order.
+export function readingsOf(entry: JmEntry, form: string) {
+  if (!entry.k.some((k) => k.t === form)) return entry.r.some((r) => r.t === form) ? [form] : [];
+  return entry.r.filter((r) => !r.a || r.a.includes(form)).map((r) => r.t);
+}
+
+// Whether a reading (hiragana or katakana) is one JMdict gives this word.
+export function isKnownReading(entries: JmEntry[], form: string, reading: string) {
+  const wanted = toHiragana(reading.replace(/[\s・]/g, ""));
+  return entries.some((entry) => readingsOf(entry, form).some((r) => toHiragana(r) === wanted));
+}
+
+// The reading to use without context: the most likely entry's first
+// reading — but only if every entry agrees (上手 can be じょうず or うわて, so
+// that's left to the AI, which sees the context).
+export function unambiguousReading(entries: JmEntry[], form: string) {
+  const firsts = [...new Set(entries.map((entry) => readingsOf(entry, form)[0]).filter(Boolean))];
+  return firsts.length === 1 ? firsts[0] : "";
+}
+
+function describeEntry(entry: JmEntry) {
+  const head = `${entry.k.map((k) => k.t).join("・")}【${entry.r.map((r) => r.t + (r.a ? ` (for ${r.a.join("・")})` : "")).join("・")}】${isCommon(entry) ? " (common word)" : ""}`;
+  const senses = entry.s.slice(0, 8).map((sense, index) => `  ${index + 1}. [${[...sense.p, ...(sense.m || []), ...(sense.f || [])].join(", ")}] ${sense.g.join("; ")}${sense.i?.length ? ` (${sense.i.join("; ")})` : ""}`);
+  return [head, ...senses].join("\n");
+}
+
+// A lookup as reference text for an AI prompt: the dictionary entries (or
+// the words a compound is made of) and the kanji.
+export function formatJapaneseReference(word: string, result: JapaneseLookup) {
+  const lines: string[] = [];
+  if (result.exact.length) lines.push(...result.exact.slice(0, 4).map(describeEntry));
+  else if (result.parts.length) {
+    lines.push(`"${word}" is not a JMdict entry as a whole; it is made of these dictionary words:`);
+    lines.push(...result.parts.map((part) => part.entries[0] ? describeEntry(part.entries[0]) : part.text));
+  }
+  if (result.kanji.length) {
+    lines.push("Kanji (KANJIDIC2):");
+    lines.push(...result.kanji.map(({ literal, info }) => `  ${literal}: ${info.m.slice(0, 5).join(", ")}${info.on.length ? `; on ${info.on.join("、")}` : ""}${info.kun.length ? `; kun ${info.kun.slice(0, 5).join("、")}` : ""}`));
+  }
+  return lines.join("\n");
+}

@@ -13,6 +13,8 @@ type ClaudeInput = {
   outputStyle: OutputStyle;
   promptTemplateId: PromptTemplateId;
   maxOutputTokens?: number;
+  // Curated dictionary entries for the source text (see buildStudyPrompt).
+  reference?: string;
 };
 
 type ClaudeResponse = {

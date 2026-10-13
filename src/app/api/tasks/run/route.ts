@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
 import { requireAccountApiKey } from "@/lib/storage/account";
-import { isFlashcardTemplate, parseFlashcards } from "@/lib/flashcards";
+import { formatJapaneseReference, isKnownReading, unambiguousReading } from "@/lib/dictionary/japanese";
+import { isJapaneseTerm, japaneseDictionary } from "@/lib/dictionary/server";
+import { isFlashcardTemplate, parseFlashcards, type Flashcard } from "@/lib/flashcards";
 import { isSupportedLanguage } from "@/lib/presets";
 import { getTemplate } from "@/lib/storage/templates";
 import type { LearnerLevel, OutputStyle, PromptTemplateId } from "@/lib/types";
@@ -14,7 +16,21 @@ export const maxDuration = 300;
 // needs more room than the usual 8,192 tokens (about 3–4 minutes at most).
 const flashcardOutputTokens = 16000;
 
-const learnerLevels =new Set<LearnerLevel>(["Beginner", "Intermediate", "Advanced"]);
+// Japanese flashcards: a word's reading that JMdict doesn't give it is
+// replaced by the dictionary's (when the dictionary is unambiguous) — e.g.
+// a guessed reading of an irregular word. Sentences are left as written.
+async function checkJapaneseReadings(cards: Flashcard[], request: Request) {
+  const dictionary = japaneseDictionary(request);
+  await Promise.all(cards.map(async (card) => {
+    if (!card.reading || !isJapaneseTerm(card.front)) return;
+    const found = await dictionary.lookup(card.front).catch(() => null);
+    if (!found?.exact.length || isKnownReading(found.exact, card.front, card.reading)) return;
+    const reading = unambiguousReading(found.exact, card.front);
+    if (reading) card.reading = reading;
+  }));
+}
+
+const learnerLevels = new Set<LearnerLevel>(["Beginner", "Intermediate", "Advanced"]);
 const outputStyles = new Set<OutputStyle>(["Concise", "Detailed", "Literal", "Natural", "Formal", "Informal"]);
 
 export async function POST(request: Request) {
@@ -45,6 +61,12 @@ export async function POST(request: Request) {
   try {
     const providerId = getRequestProvider(request);
     const apiKey = await requireAccountApiKey(session.user.id, providerId);
+    // A Japanese word analysis starts from the curated dictionary entry.
+    let reference: string | undefined;
+    if (sourceLanguage === "Japanese" && promptTemplateId.startsWith("word-analysis-japanese") && isJapaneseTerm(text)) {
+      const found = await japaneseDictionary(request).lookup(text).catch(() => null);
+      if (found && (found.exact.length || found.parts.length)) reference = formatJapaneseReference(text.trim(), found);
+    }
     const result = await getLlmProvider(providerId).runTask({
       text,
       sourceLanguage,
@@ -53,12 +75,14 @@ export async function POST(request: Request) {
       outputStyle: outputStyle as OutputStyle,
       promptTemplateId: promptTemplateId as PromptTemplateId,
       ...(isFlashcardTemplate(promptTemplateId) ? { maxOutputTokens: flashcardOutputTokens } : {}),
+      ...(reference ? { reference } : {}),
     }, apiKey);
     if (!isFlashcardTemplate(promptTemplateId)) return NextResponse.json({ result, promptTemplateId });
     const parsed = parseFlashcards(result);
     if (!parsed) {
       return NextResponse.json({ error: "The provider returned flashcards in an unexpected format. Please run the task again." }, { status: 502 });
     }
+    if (sourceLanguage === "Japanese") await checkJapaneseReadings(parsed.cards, request);
     // Cut off before the end (too much material for one run): keep the
     // complete cards, and say where to pick up.
     const warning = parsed.complete ? undefined

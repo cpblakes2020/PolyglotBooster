@@ -9,6 +9,9 @@ type BuildPromptInput = {
   learnerLevel: LearnerLevel;
   outputStyle: OutputStyle;
   promptTemplateId: PromptTemplateId;
+  // Curated dictionary entries for the source text (e.g. JMdict), given to
+  // the model as the authority for readings and core meanings.
+  reference?: string;
 };
 
 export async function buildStudyPrompt(input: BuildPromptInput) {
@@ -28,6 +31,10 @@ export async function buildStudyPrompt(input: BuildPromptInput) {
     // reading line on the user's Anki cards.
     ...(input.sourceLanguage === "Thai" ? [`For every Thai romanization you write: ${thaiRomanizationStyle}`] : []),
     `Task: ${template.instruction}`,
+    ...(input.reference ? [
+      "Dictionary reference — curated entries from JMdict and KANJIDIC2 (Electronic Dictionary Research and Development Group). Treat them as the authority: use these readings, and base the core meanings on these senses (you may summarize or reorder them for the learner). Add nuance, usage, register and examples from your own knowledge. If the source text uses the term in a sense the dictionary doesn't list, say so plainly rather than inventing an entry. Don't mention or cite the dictionary unless it helps the learner.",
+      input.reference,
+    ] : []),
     "Source text:",
     input.text.trim(),
   ].join("\n\n");
