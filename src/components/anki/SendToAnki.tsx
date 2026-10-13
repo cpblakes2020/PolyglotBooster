@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { assist, speak } from "@/components/anki/api";
 import { anki } from "@/lib/anki/connect";
-import { cleanField, composeNotesField, escapeHtml, existingReading, fieldNeedsCleanup, hasRubyReading, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
+import { cleanField, composeNotesField, escapeHtml, existingReading, fieldNeedsCleanup, hasHandwrittenReadingOnly, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
 import { audioField, audioFilename, isAnkiLanguage, notesField, pbTags, readingLabel, readingLanguages, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import { isFlashcardTemplate } from "@/lib/flashcards";
 import type { LlmProviderId } from "@/lib/llm/provider";
@@ -45,7 +45,7 @@ export function SendToAnki({ sourceText, sourceLanguage, result, promptTemplateI
 
   const language = sourceLanguage as AnkiLanguage;
   const existingNotes = draft?.match?.fields[notesField(language)] || "";
-  const usesReading = readingLanguages.has(language) && !(language === "Japanese" && hasRubyReading(existingNotes));
+  const usesReading = readingLanguages.has(language) && !(language === "Japanese" && hasHandwrittenReadingOnly(existingNotes));
   const existingEnglish = plain(draft?.match || null, "English");
 
   async function start() {
@@ -61,7 +61,7 @@ export function SendToAnki({ sourceText, sourceLanguage, result, promptTemplateI
       const notes = await anki.notesMatching(`${language}:_*`);
       const match = notes.find((note) => plain(note, language) === text) || null;
       const needsEnglish = !plain(match, "English");
-      const needsReading = readingLanguages.has(language) && !(language === "Japanese" && hasRubyReading(match?.fields[notesField(language)] || ""));
+      const needsReading = readingLanguages.has(language) && !(language === "Japanese" && hasHandwrittenReadingOnly(match?.fields[notesField(language)] || ""));
 
       setStatus(needsEnglish || needsReading ? "Preparing the note..." : "");
       const [english, reading] = await Promise.all([
@@ -110,7 +110,7 @@ export function SendToAnki({ sourceText, sourceLanguage, result, promptTemplateI
       // Audio for the learning language only, if the note has none yet.
       if (!match?.fields[audioField(language)]?.trim()) {
         setStatus(`Recording ${language} audio...`);
-        const filename = await anki.storeMedia(audioFilename(noteId, language), await speak(draft.fieldText.trim(), language));
+        const filename = await anki.storeMedia(audioFilename(noteId, language), await speak(draft.fieldText.trim(), language, draft.reading));
         await anki.updateFields(noteId, { [audioField(language)]: `[sound:${filename}]` });
         await anki.addTags([noteId], [pbTags.audio(language)]);
       }

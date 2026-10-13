@@ -33,10 +33,17 @@ export async function POST(request: Request) {
     // respell: Thai is respelled the way it sounds before recording, so
     // silent letters aren't pronounced. Uses the Anthropic key if there is
     // one, otherwise OpenAI.
+    // Japanese is read from its kana reading, when the note has one, so
+    // kanji with irregular readings come out right (塔頭 as たっちゅう, not
+    // the more usual とうとう).
     let spoken = text;
+    const reading = typeof body?.reading === "string" ? body.reading.slice(0, 500) : undefined;
     if (body?.respell === true && language === "Thai") {
-      const reading = typeof body.reading === "string" ? body.reading.slice(0, 500) : undefined;
       spoken = await thaiSpokenSpelling(text, { anthropic: await getAccountApiKey(session.user.id, "anthropic"), openai: apiKey }, reading);
+    }
+    if (body?.respell === true && language === "Japanese" && reading) {
+      const kana = reading.split("\n")[0].trim();
+      if (kana && /^[\p{Script=Hiragana}\p{Script=Katakana}ー・\s、。！？!?「」]+$/u.test(kana)) spoken = kana;
     }
     const audio = await synthesizeSpeech(spoken, apiKey, voice);
     const voiceName = voice?.voice || "alloy";

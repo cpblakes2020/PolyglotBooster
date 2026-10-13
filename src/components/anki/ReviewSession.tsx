@@ -9,7 +9,7 @@ import { LaterQueue, useLaterItems, useSaveForLater } from "@/components/anki/la
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/classify";
 import { anki, ankiSearchValue, reviewFlag } from "@/lib/anki/connect";
-import { blockHtml, cleanField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, hasReading, hasRubyReading, htmlToText, joinNotesBlocks, markdownToAnkiHtml, notesMiddle, readingHtml, splitNotesBlocks, type NotesBlock } from "@/lib/anki/fields";
+import { blockHtml, cleanField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, handwrittenRubyReading, hasReading, htmlToText, joinNotesBlocks, markdownToAnkiHtml, notesMiddle, readingHtml, splitNotesBlocks, type NotesBlock } from "@/lib/anki/fields";
 import type { BranchItem, FollowUpExchange } from "@/lib/anki/prompts";
 import { analysisLanguage, ankiLanguages, audioField, audioFilename, notesField, pbTags, readingLabel, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
@@ -132,7 +132,10 @@ export function ReviewSession() {
   }, []);
 
   const note = queue?.[index];
-  const usesReading = language === "Thai" || language === "Mandarin" || (language === "Japanese" && !hasRubyReading(note?.fields[notesField(language)] || ""));
+  // Japanese furigana written by hand in the notes (and no reading of
+  // PolyglotBooster's own) is kept as it is, so there's no reading to edit.
+  const handwrittenReading = language === "Japanese" && !existingReading(note?.fields[notesField(language)] || "") ? handwrittenRubyReading(note?.fields[notesField(language)] || "") : "";
+  const usesReading = readingLanguages.has(language) && !handwrittenReading;
 
   function goTo(nextIndex: number, notes = queue) {
     const next = notes?.[nextIndex];
@@ -382,7 +385,7 @@ export function ReviewSession() {
     setBusy(true);
     setStatus("Recording...");
     try {
-      const data = await speak(draft.fieldText.trim() || draft.cleanedText, language, draft.reading);
+      const data = await speak(draft.fieldText.trim() || draft.cleanedText, language, draft.reading || handwrittenReading);
       setNewAudio(data);
       setStatus("");
       await new Audio(`data:audio/mpeg;base64,${data}`).play();
@@ -572,7 +575,7 @@ export function ReviewSession() {
                   </div>
                 </>
               ) : (
-                <p className="anki-note">This note has a hand-written furigana reading (shown in the notes below), which is kept.</p>
+                <p className="anki-note"><b>{handwrittenReading}</b> — from the furigana written by hand in the notes below, which is kept as it is (the audio uses it too).</p>
               )}
             </section>
           )}

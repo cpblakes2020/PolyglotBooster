@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { speak } from "@/components/anki/api";
 import { anki } from "@/lib/anki/connect";
-import { cleanField, existingReading } from "@/lib/anki/fields";
+import { audioReading, cleanField } from "@/lib/anki/fields";
 import { audioField, audioFilename, audioLanguages, notesField, pbTags, type AnkiLanguage } from "@/lib/anki/vocab";
 import type { Language } from "@/lib/types";
 import { defaultVoiceSettings, type VoiceSetting } from "@/lib/voices";
@@ -71,7 +71,7 @@ export function AudioBatch() {
         const missingOnly = replace ? "" : `${audioField(language)}:`;
         for (const note of await anki.notesMatching(`${language}:_* ${missingOnly} -tag:${pbTags.skip(language)}`)) {
           const text = cleanField(note.fields[language] || "", language).text;
-          if (text) found.push({ noteId: note.noteId, language, text, reading: existingReading(note.fields[notesField(language)] || "") });
+          if (text) found.push({ noteId: note.noteId, language, text, reading: audioReading(note.fields[notesField(language)] || "") });
         }
       }
       setJobs(found);

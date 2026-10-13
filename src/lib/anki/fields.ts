@@ -247,10 +247,36 @@ export function hasReading(notesHtml: string, language: string) {
   return Boolean(findBlock(notesHtml, "pb-reading")) || (language === "Japanese" && hasRubyReading(notesHtml));
 }
 
-// The reading PolyglotBooster previously wrote, if any, as plain text.
+// Furigana as the reading: <ruby>塔頭<rt>たっちゅう</rt></ruby> → たっちゅう
+// (kana outside the ruby, e.g. okurigana, is kept).
+export function rubyToKana(html: string) {
+  return html.replace(/<ruby>(?:(?!<\/ruby>)[\s\S])*?<rt>([\s\S]*?)<\/rt>(?:(?!<\/ruby>)[\s\S])*?<\/ruby>/gi, "$1");
+}
+
+// The reading PolyglotBooster previously wrote, if any, as plain text — for
+// Japanese, the kana of its furigana.
 export function existingReading(notesHtml: string) {
   const range = findBlock(notesHtml, "pb-reading");
-  return range ? htmlToText(notesHtml.slice(range[0], range[1])) : "";
+  return range ? htmlToText(rubyToKana(notesHtml.slice(range[0], range[1]))) : "";
+}
+
+// The reading to record audio from: PolyglotBooster's own, else furigana
+// written by hand.
+export function audioReading(notesHtml: string) {
+  return existingReading(notesHtml) || handwrittenRubyReading(notesHtml);
+}
+
+// Whether a Japanese note's reading is furigana written by hand (kept as it
+// is), rather than PolyglotBooster's own reading block.
+export function hasHandwrittenReadingOnly(notesHtml: string) {
+  return !existingReading(notesHtml) && Boolean(handwrittenRubyReading(notesHtml));
+}
+
+// Furigana written by hand in the notes (outside PolyglotBooster's reading
+// block), as its kana — or "".
+export function handwrittenRubyReading(notesHtml: string) {
+  const outside = removeBlock(notesHtml, "pb-reading");
+  return hasRubyReading(outside) ? htmlToText(rubyToKana(outside.slice(outside.search(/<ruby>/i), outside.search(/<\/ruby>/i) + 7))) : "";
 }
 
 // Japanese readings are shown as ruby over the word, matching the notes
