@@ -126,6 +126,8 @@ export function ReviewSession() {
   const [showLater, setShowLater] = useState(false);
   // A new recording (base64 MP3) waiting to replace the note's audio on save.
   const [newAudio, setNewAudio] = useState<string | null>(null);
+  // Whether the note's cards carry Anki's red flag (null while checking).
+  const [flagged, setFlagged] = useState<boolean | null>(null);
 
   useEffect(() => {
     anki.getTags().then((tags) => setTagSuggestions(tags.filter((tag) => !tag.startsWith("pb::")).sort()), () => {});
@@ -264,6 +266,15 @@ export function ReviewSession() {
     }
   }
 
+  // Whether the note in view is red-flagged in Anki.
+  useEffect(() => {
+    setFlagged(null);
+    if (!note) return;
+    let cancelled = false;
+    anki.hasReviewFlag(note.noteId).then((value) => { if (!cancelled) setFlagged(value); }, () => {});
+    return () => { cancelled = true; };
+  }, [note?.noteId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Missing reading writes each note's reading as soon as it comes up.
   useEffect(() => {
     if (mode === "reading" && note && draft && usesReading && !draft.reading.trim()) void generate("reading");
@@ -391,6 +402,23 @@ export function ReviewSession() {
       await new Audio(`data:audio/mpeg;base64,${data}`).play();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "The audio could not be recorded.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Red-flags the note's cards in Anki (to come back to it under Flagged in
+  // Anki), or takes the flag off.
+  async function toggleFlag() {
+    if (!note) return;
+    setBusy(true);
+    try {
+      if (flagged) await anki.clearReviewFlag(note.noteId);
+      else await anki.setReviewFlag([note.noteId]);
+      setFlagged(!flagged);
+      setStatus(flagged ? "Red flag removed in Anki." : "Red-flagged in Anki — it will come up under Flagged in Anki.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The flag could not be changed.");
     } finally {
       setBusy(false);
     }
@@ -682,6 +710,7 @@ export function ReviewSession() {
             <button className="preview-prompt-button" type="button" disabled={busy || !pending?.labels.length} onClick={() => void saveChanges(false)}>Save changes</button>
             <button className="text-button" type="button" disabled={busy} onClick={() => goTo(index + 1)}>{pending?.labels.length ? "Skip without saving" : "Next"}</button>
             {mode === "flagged" && <button className="text-button" type="button" disabled={busy} onClick={() => void clearFlagAndNext()}>Clear flag &amp; next</button>}
+            {mode !== "flagged" && flagged !== null && <button className="text-button" type="button" disabled={busy} onClick={() => void toggleFlag()} title="Anki's red flag (Ctrl+1): the note comes up under Flagged in Anki">{flagged ? "Remove red flag" : "Red flag"}</button>}
             {!editingFields && <button className="text-button" type="button" disabled={busy} onClick={() => setEditingFields(true)}>Edit fields</button>}
             <button className="text-button" type="button" disabled={busy} onClick={() => void anki.openEditor(note.noteId)}>Open in Anki</button>
             <button className="danger-button" type="button" disabled={busy} onClick={() => void neverAnalyze()}>Never analyze this note</button>

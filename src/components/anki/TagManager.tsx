@@ -46,6 +46,9 @@ export function TagManager() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<string | null>(null);
   const [manual, setManual] = useState<Map<string, string[]>>(new Map());
+  // Tags whose notes get Anki's red flag before the tag is removed (for tags
+  // like "?" that were used as a flag).
+  const [flagTags, setFlagTags] = useState<Set<string>>(new Set());
   const [rulesText, setRulesText] = useState(startingRules);
   const [foldDates, setFoldDates] = useState(false);
   const [datePrefix, setDatePrefix] = useState("diary");
@@ -87,8 +90,9 @@ export function TagManager() {
   }
 
   // Selection actions go into the plan as choices made by hand.
-  function choose(make: (tag: string) => string[]) {
+  function choose(make: (tag: string) => string[], flag = false) {
     setManual((current) => { const next = new Map(current); for (const tag of selected) next.set(tag, make(tag)); return next; });
+    setFlagTags((current) => { const next = new Set(current); for (const tag of selected) { if (flag) next.add(tag); else next.delete(tag); } return next; });
     setSelected(new Set());
     setActionValue("");
   }
@@ -104,6 +108,7 @@ export function TagManager() {
         const tagged = notes.filter((note) => hasTag(note, change.tag));
         const ids = tagged.map((note) => note.noteId);
         const added = Object.fromEntries(change.targets.map((target) => [target, tagged.filter((note) => !hasTag(note, target)).map((note) => note.noteId)]));
+        if (flagTags.has(change.tag) && ids.length) await anki.setReviewFlag(ids);
         // Remove first, then add: a change only in capitals (stt22 → STT22)
         // would otherwise be removed again, as Anki ignores case.
         await anki.removeTags(ids, [change.tag]);
@@ -115,6 +120,7 @@ export function TagManager() {
       writeLog(next);
       setLog(next);
       setManual(new Map());
+      setFlagTags(new Set());
       setStatus(`Done: ${plan.length} tag${plan.length === 1 ? "" : "s"} changed.`);
     } catch (error) {
       if (entry.changes.length) { const next = [...readLog(), entry]; writeLog(next); setLog(next); }
@@ -127,7 +133,7 @@ export function TagManager() {
 
   async function undo() {
     const last = log[log.length - 1];
-    if (!last || !window.confirm(`Undo the tag changes made ${new Date(last.at).toLocaleString()} (${last.changes.length} tags)?`)) return;
+    if (!last || !window.confirm(`Undo the tag changes made ${new Date(last.at).toLocaleString()} (${last.changes.length} tags)?\n\nRed flags set by that change stay; clear them in Anki or with Flagged in Anki.`)) return;
     setBusy(true);
     try {
       for (const change of [...last.changes].reverse()) {
@@ -170,6 +176,7 @@ export function TagManager() {
             <button className="preview-prompt-button" type="button" disabled={!cleanTag(actionValue)} onClick={() => choose(() => [cleanTag(actionValue)])}>{selected.size > 1 ? "Merge into" : "Rename to"}</button>
             <button className="preview-prompt-button" type="button" disabled={!cleanTag(actionValue)} onClick={() => choose((tag) => [`${cleanTag(actionValue)}::${tag}`])}>Nest under</button>
             <button className="danger-button" type="button" onClick={() => choose(() => [])}>Delete</button>
+            <button className="preview-prompt-button" type="button" title="Red-flag (Ctrl+1) every note with this tag, so it comes up under Flagged in Anki, then remove the tag" onClick={() => choose(() => [], true)}>Flag red &amp; remove tag</button>
             <button className="text-button" type="button" onClick={() => setSelected(new Set())}>Clear selection</button>
           </span>
         )}
@@ -220,10 +227,10 @@ export function TagManager() {
               {plan.map((change) => (
                 <tr key={change.tag}>
                   <td>{change.tag}</td>
-                  <td>{change.targets.join(" ") || <i>deleted</i>}</td>
+                  <td>{change.targets.join(" ") || <i>{flagTags.has(change.tag) ? "notes red-flagged, tag removed" : "deleted"}</i>}</td>
                   <td>{noteCount(change.tag)}</td>
                   <td><small>{change.reason}</small></td>
-                  <td>{change.reason === "chosen" && <button className="text-button" type="button" onClick={() => setManual((current) => { const next = new Map(current); next.delete(change.tag); return next; })}>remove</button>}</td>
+                  <td>{change.reason === "chosen" && <button className="text-button" type="button" onClick={() => { setManual((current) => { const next = new Map(current); next.delete(change.tag); return next; }); setFlagTags((current) => { const next = new Set(current); next.delete(change.tag); return next; }); }}>remove</button>}</td>
                 </tr>
               ))}
             </tbody>

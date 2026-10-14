@@ -170,6 +170,20 @@ export const anki = {
     for (const card of cards) await invoke<unknown>("setSpecificValueOfCard", { card, keys: ["flags"], newValues: [0] });
   },
 
+  // Red-flags every card of these notes (as Ctrl+1 does in Anki), so they
+  // come up under "Flagged in Anki".
+  async setReviewFlag(noteIds: number[]) {
+    for (let start = 0; start < noteIds.length; start += 100) {
+      const cards = await invoke<number[]>("findCards", { query: `(${noteIds.slice(start, start + 100).map((id) => `nid:${id}`).join(" OR ")})` });
+      for (const card of cards) await invoke<unknown>("setSpecificValueOfCard", { card, keys: ["flags"], newValues: [reviewFlag] });
+    }
+  },
+
+  // Whether any card of the note has the red flag.
+  async hasReviewFlag(noteId: number) {
+    return (await invoke<number[]>("findCards", { query: `nid:${noteId} flag:${reviewFlag}` })).length > 0;
+  },
+
   // First-time setup for a profile without the note type: creates Polyglot
   // Vocab and one deck per learning language (where addNote puts new notes).
   async setUpNoteType() {

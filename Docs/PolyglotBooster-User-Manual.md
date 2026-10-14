@@ -299,6 +299,7 @@ Above the buttons, **Will save:** lists exactly what you've changed (e.g. *roman
 | **Save changes** | Saves and stays on the note — handy before branching (below) |
 | **Next** (*Skip without saving* when there are changes) | Moves on |
 | **Clear flag & next** | In a flagged session: just takes the flag off |
+| **Red flag** / **Remove red flag** | Outside a flagged session: sets or removes Anki's red flag on the note's cards (as Ctrl+1 does in Anki), so you can come back to it under **Flagged in Anki** |
 | **Never analyze this note** | Leaves it out of future sessions (still saves a ticked cleanup and the English note) |
 | **Edit fields** | Edit the note's other language fields, Origin or Notes HTML right here (below) |
 | **Open in Anki** | Opens the note in Anki's own editor (the window may open behind your browser) |
@@ -354,7 +355,8 @@ The **Tags** tab (next to *Review & analyze* and *Bulk audio*) tidies up your An
 - **Select tags** (tick boxes, or **select all** for a group), type a name, then:
   - **Rename to** — or **Merge into**, when several are selected (e.g. `STT22` and `STT-31` into `source::STT`);
   - **Nest under** — puts each under a parent (`temple` under `topic` → `topic::temple`);
-  - **Delete** — removes the tag from its notes.
+  - **Delete** — removes the tag from its notes;
+  - **Flag red & remove tag** — for tags used as a "look at this again" marker (e.g. `?`): every note with the tag gets Anki's red flag, so it comes up under **Flagged in Anki**, and then the tag is removed. (**Undo** brings the tag back; the flags stay until you clear them.)
 - **Rules** handle many tags at once, one per line: `old → new`, where `*` matches any text and is carried over — e.g. `TSP-* → source::TSP::*` turns `TSP-2` … `TSP-60` into `source::TSP::2` … `source::TSP::60`. Several new tags are separated by spaces; nothing after the arrow deletes the tag. The first matching rule wins, so put specific rules first (`STT-*` before `STT*`). Lines starting with `#` are notes.
 - **Fold date tags** turns `20180410` into `diary::2018-04-10`, and a name after the date into its own tag (`20200417Glossika` → `diary::2020-04-17` and `source::Glossika`); both parent names can be changed. Your notes' original creation dates are also back in Anki (the **Created** column in Browse), so the date tags are the lesson or course dates.
 - **Preview** lists every change with its note count and why (a rule, the date rule, or chosen by hand — which wins over rules; **remove** drops a hand choice). **Apply** makes the changes in Anki; **Undo last change** reverses the most recent one exactly (it removes only tags that change added).
