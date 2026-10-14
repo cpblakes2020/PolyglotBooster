@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent } from "react";
+import { cleanTag, matchingTags, suggestedTag } from "@/lib/anki/tags";
 
 type Menu = { x: number; y: number; text: string };
 
@@ -121,26 +122,122 @@ export function parseTags(value: string) {
 
 type TagInputProps = {
   id: string;
+  // The chosen tags, space-separated.
   value: string;
   onChange: (value: string) => void;
+  // The note's tags already in Anki (shown, not chosen again).
   current?: string[];
+  // Every tag in the collection.
   suggestions: string[];
+  label?: string;
 };
 
-// Shows a note's current tags and takes new ones, suggesting existing Anki tags.
-export function TagInput({ id, value, onChange, current = [], suggestions }: TagInputProps) {
+// Tags grouped by their top level (source::…, diary::…), for browsing.
+function groupedTags(tags: string[]) {
+  const groups = new Map<string, string[]>();
+  for (const tag of tags) {
+    const top = tag.includes("::") ? tag.split("::")[0] : "Other";
+    groups.set(top, [...(groups.get(top) || []), tag]);
+  }
+  return [...groups].sort(([a], [b]) => (a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b)));
+}
+
+// The tag picker: shows the note's current tags, and takes new ones as
+// chips — searching the collection's tags as you type (anywhere in the name),
+// browsing them by group, and pointing out when a new tag looks like an
+// existing one in another form (STT32 → source::STT::32).
+export function TagInput({ id, value, onChange, current = [], suggestions, label = "Add tags" }: TagInputProps) {
+  const [text, setText] = useState("");
+  const [active, setActive] = useState(-1);
+  const [focused, setFocused] = useState(false);
+  const [browsing, setBrowsing] = useState(false);
+  const chosen = parseTags(value);
   const shown = current.filter((tag) => !tag.startsWith("pb::"));
-  // Suggest completions for the tag being typed (the last word).
-  const typed = value.split(/[\s,]+/).pop() || "";
-  const prefix = value.slice(0, value.length - typed.length);
+  const taken = (tag: string) => chosen.some((t) => t.toLowerCase() === tag.toLowerCase()) || shown.some((t) => t.toLowerCase() === tag.toLowerCase());
+  const pool = suggestions.filter((tag) => !taken(tag));
+  const typed = cleanTag(text);
+  const hint = typed ? suggestedTag(typed, suggestions) : "";
+  const matches = matchingTags(typed, pool, 10);
+  const options = hint && !taken(hint) ? [hint, ...matches.filter((tag) => tag !== hint)] : matches;
+
+  function add(...tags: string[]) {
+    const next = [...chosen];
+    for (const tag of tags.map(cleanTag)) {
+      if (tag && !next.some((t) => t.toLowerCase() === tag.toLowerCase()) && !shown.some((t) => t.toLowerCase() === tag.toLowerCase())) next.push(tag);
+    }
+    if (next.length !== chosen.length) onChange(next.join(" "));
+    setText("");
+    setActive(-1);
+  }
+
+  // A space or comma ends a tag (Anki tags have no spaces) — typed, pasted
+  // or from an on-screen keyboard; what follows the last one stays typed.
+  function changeText(raw: string) {
+    const parts = raw.split(/[\s,]+/);
+    const rest = parts.pop() ?? "";
+    if (parts.some(Boolean)) {
+      add(...parts.filter(Boolean));
+      setText(rest);
+    } else {
+      setText(raw);
+      setActive(-1);
+    }
+  }
+  const remove = (tag: string) => onChange(chosen.filter((t) => t !== tag).join(" "));
+  const replace = (tag: string, next: string) => onChange(chosen.map((t) => (t === tag ? next : t)).join(" "));
+
+  function onKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown" && options.length) { event.preventDefault(); setActive((i) => Math.min(i + 1, options.length - 1)); }
+    else if (event.key === "ArrowUp" && options.length) { event.preventDefault(); setActive((i) => Math.max(i - 1, -1)); }
+    else if ((event.key === "Enter" || event.key === "Tab") && typed) { event.preventDefault(); add(active >= 0 ? options[active] : typed); }
+    else if (event.key === "Backspace" && !text && chosen.length) remove(chosen[chosen.length - 1]);
+    else if (event.key === "Escape") { setText(""); setActive(-1); }
+  }
+
   return (
-    <div className="anki-tags">
-      <label htmlFor={id}>Add tags</label>
+    <div className="anki-tags tag-picker">
+      <label htmlFor={id}>{label}</label>
       {shown.length > 0 && <p className="anki-tag-list">{shown.map((tag) => <span key={tag}>{tag}</span>)}</p>}
-      <input id={id} list={`${id}-suggestions`} value={value} placeholder="e.g. travel food" autoComplete="off" onChange={(event) => onChange(event.target.value)} />
-      <datalist id={`${id}-suggestions`}>
-        {typed && suggestions.filter((tag) => tag.toLowerCase().startsWith(typed.toLowerCase()) && tag !== typed).slice(0, 20).map((tag) => <option key={tag} value={`${prefix}${tag}`} />)}
-      </datalist>
+      <div className="tag-picker-box">
+        {chosen.map((tag) => {
+          const isNew = !suggestions.some((t) => t.toLowerCase() === tag.toLowerCase());
+          const better = isNew ? suggestedTag(tag, suggestions) : "";
+          return (
+            <span className={`tag-chip${isNew ? " tag-chip-new" : ""}`} key={tag}>
+              {tag}{isNew && <small> new</small>}
+              {better && <button type="button" className="tag-chip-fix" title={`Use ${better} instead`} onClick={() => replace(tag, better)}>→ {better}?</button>}
+              <button type="button" aria-label={`Remove ${tag}`} onClick={() => remove(tag)}>×</button>
+            </span>
+          );
+        })}
+        <input id={id} value={text} placeholder={chosen.length ? "" : "type to search your tags…"} autoComplete="off" role="combobox" aria-expanded={focused && options.length > 0} aria-controls={`${id}-options`}
+          onChange={(event) => changeText(event.target.value)}
+          onKeyDown={onKeyDown} onFocus={() => setFocused(true)}
+          // Keep what was typed when moving on (e.g. straight to Save).
+          onBlur={() => { setFocused(false); if (typed) add(typed); }} />
+      </div>
+      {focused && typed && options.length > 0 && (
+        <ul className="tag-options" id={`${id}-options`} role="listbox">
+          {options.map((tag, index) => (
+            <li key={tag} role="option" aria-selected={index === active} className={index === active ? "active" : undefined}
+              onMouseDown={(event) => { event.preventDefault(); add(tag); }}>
+              {tag === hint && <small>did you mean </small>}{tag}
+            </li>
+          ))}
+          <li className="tag-options-new" onMouseDown={(event) => { event.preventDefault(); add(typed); }}>add &ldquo;{typed}&rdquo; as {suggestions.some((t) => t.toLowerCase() === typed.toLowerCase()) ? "is" : "a new tag"}</li>
+        </ul>
+      )}
+      <button type="button" className="text-button tag-browse-toggle" onClick={() => setBrowsing((open) => !open)}>{browsing ? "Hide all tags" : "Browse all tags"}</button>
+      {browsing && (
+        <div className="tag-browse">
+          {groupedTags(pool).map(([group, tags]) => (
+            <details key={group}>
+              <summary>{group} ({tags.length})</summary>
+              <p>{tags.map((tag) => <button type="button" key={tag} onClick={() => add(tag)}>{group === "Other" ? tag : tag.slice(group.length + 2)}</button>)}</p>
+            </details>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

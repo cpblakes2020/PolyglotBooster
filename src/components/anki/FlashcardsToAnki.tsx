@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
+import { TagInput, parseTags } from "@/components/anki/selection";
 import { anki } from "@/lib/anki/connect";
 import { classifyItem } from "@/lib/anki/classify";
 import type { BranchItem } from "@/lib/anki/prompts";
@@ -24,13 +25,15 @@ export function canSendFlashcardsToAnki(sourceLanguage: Language, userLanguage: 
 
 const notInitials = new Set(["a", "an", "and", "the", "of", "to", "in", "for", "chapter", "ch", "unit", "lesson", "part", "page", "pages", "book", "vol", "volume"]);
 
-// A short batch tag from the source name: initials plus numbers, e.g.
-// "Speak Thai Today, chapter 22" -> "STT22".
+// A batch tag from the source name, nested like the other source tags:
+// initials, then the numbers — "Speak Thai Today, chapter 22" →
+// source::STT::22.
 export function sourceTag(source: string) {
   const words = source.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   const initials = words.filter((word) => !/^\d+$/.test(word) && !notInitials.has(word.toLowerCase())).map((word) => word[0].toUpperCase()).join("");
   const numbers = words.filter((word) => /^\d+$/.test(word)).join("-");
-  return `${initials}${numbers}`;
+  if (!initials) return "";
+  return numbers ? `source::${initials}::${numbers}` : `source::${initials}`;
 }
 
 function toItem(card: Flashcard, language: AnkiLanguage): BranchItem {
@@ -58,20 +61,25 @@ export function FlashcardsToAnki({ cards, sourceLanguage, options }: FlashcardsT
   const [items, setItems] = useState<BranchItem[]>([]);
   const language = sourceLanguage as AnkiLanguage;
 
+  const batchTags = parseTags(batchTag);
+
   function start() {
-    const tag = batchTag.trim().replace(/\s+/g, "-");
     setItems(cards.map((card) => {
       const item = toItem(card, language);
-      return tag ? { ...item, tags: [...new Set([tag, ...(item.tags || [])])] } : item;
+      return batchTags.length ? { ...item, tags: [...new Set([...batchTags, ...(item.tags || [])])] } : item;
     }));
-    anki.getTags().then((tags) => setTagSuggestions(tags.filter((tag) => !tag.startsWith("pb::")).sort()), () => {});
     setStage("queue");
+  }
+
+  function open() {
+    anki.getTags().then((tags) => setTagSuggestions(tags.filter((tag) => !tag.startsWith("pb::")).sort()), () => {});
+    setStage("source");
   }
 
   if (stage === "closed") {
     return (
       <span className="anki-send-cards">
-        <button className="preview-prompt-button" type="button" onClick={() => setStage("source")}>Send cards to Anki</button>
+        <button className="preview-prompt-button" type="button" onClick={open}>Send cards to Anki</button>
         <small>Next you can name the source (e.g. a book chapter) and a tag for the whole set.</small>
       </span>
     );
@@ -84,9 +92,8 @@ export function FlashcardsToAnki({ cards, sourceLanguage, options }: FlashcardsT
         <label className="anki-field-edit">Where are these from? (optional — shown on each note as &ldquo;Seen in&rdquo;)
           <input value={source} placeholder="e.g. Speak Thai Today, chapter 22" onChange={(event) => { setSource(event.target.value); if (!tagEdited) setBatchTag(sourceTag(event.target.value)); }} />
         </label>
-        <label className="anki-field-edit"><span>Tag every card (optional — for studying this set later with <code>tag:{batchTag.trim() || "…"}</code>)</span>
-          <input value={batchTag} placeholder="e.g. STT22" onChange={(event) => { setBatchTag(event.target.value); setTagEdited(true); }} />
-        </label>
+        <TagInput id="flashcards-batch-tags" value={batchTag} onChange={(value) => { setBatchTag(value); setTagEdited(true); }} suggestions={tagSuggestions}
+          label={`Tag every card (optional — for studying this set later with tag:${batchTags[0] || "…"})`} />
         <div className="result-actions">
           <button className="save-input-button" type="submit">Choose cards</button>
           <button className="text-button" type="button" onClick={() => setStage("closed")}>Cancel</button>
@@ -105,7 +112,7 @@ export function FlashcardsToAnki({ cards, sourceLanguage, options }: FlashcardsT
       items={items}
       pick
       doneLabel="Done"
-      batchTags={batchTag.trim() ? [batchTag.trim().replace(/\s+/g, "-")] : []}
+      batchTags={batchTags}
       depth={1}
       tagSuggestions={tagSuggestions}
       onFinish={() => setStage("closed")}

@@ -71,6 +71,46 @@ export function dateTagTargets(tag: string, datePrefix: string, sourcePrefix: st
   return [`${cleanTag(datePrefix)}::${year}-${month}-${day}`, ...(rest.trim() ? [`${cleanTag(sourcePrefix)}::${cleanTag(rest)}`] : [])];
 }
 
+// Existing tags matching what's being typed, best first: the whole tag
+// starting with it, then any level starting with it, then containing it.
+export function matchingTags(query: string, tags: string[], limit = 12) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const score = (tag: string) => {
+    const lower = tag.toLowerCase();
+    if (lower === q) return 0;
+    if (lower.startsWith(q)) return 1;
+    if (lower.split("::").some((level) => level.startsWith(q))) return 2;
+    return lower.includes(q) ? 3 : 9;
+  };
+  return tags.map((tag) => ({ tag, rank: score(tag) })).filter((item) => item.rank < 9)
+    .sort((a, b) => a.rank - b.rank || a.tag.localeCompare(b.tag, undefined, { numeric: true })).slice(0, limit).map((item) => item.tag);
+}
+
+const squash = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+// For a tag that isn't in the collection yet: the existing-style tag it
+// probably means, or "" — e.g. STT32 → source::STT::32 (when source::STT::…
+// exists), stt22 → STT22's spelling, temple → topic::temple.
+export function suggestedTag(tag: string, tags: string[]) {
+  const lower = tag.toLowerCase();
+  if (tags.some((existing) => existing === tag)) return "";
+  const sameCase = tags.find((existing) => existing.toLowerCase() === lower);
+  if (sameCase) return sameCase;
+  // Old style "NAME12" / "NAME-12" when NAME's chapters are nested somewhere.
+  const oldStyle = /^([\p{L}]+)[-_]?(\d+)$/u.exec(tag);
+  if (oldStyle) {
+    const parent = tags.map((existing) => new RegExp(`^(.*::)?(${oldStyle[1]})::\\d+$`, "iu").exec(existing)).find(Boolean);
+    if (parent) return `${parent[1] || ""}${parent[2]}::${oldStyle[2]}`;
+  }
+  const squashed = squash(tag);
+  const sameLetters = tags.find((existing) => squash(existing) === squashed);
+  if (sameLetters) return sameLetters;
+  // The same name one level down, e.g. temple → topic::temple.
+  const nested = tags.filter((existing) => existing.includes("::") && existing.split("::").pop()!.toLowerCase() === lower);
+  return nested.length === 1 ? nested[0] : "";
+}
+
 export type Change = { tag: string; targets: string[]; reason: string };
 
 // What would change: choices made by hand (manual) win, then the rules in

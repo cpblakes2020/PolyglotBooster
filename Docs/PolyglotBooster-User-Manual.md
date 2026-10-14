@@ -285,7 +285,7 @@ Every note opens with the same tools, however you got to it (a session, **Flagge
    - each **brief explanation** (with its *Seen in* line): edit it, or **Delete** it;
    - any **other notes** (e.g. written by hand in Anki) are shown and kept as they are — **Delete** removes them, and you can edit them under **Edit fields → Notes fields**;
    - a **Preview** of exactly how it will look on the card.
-6. **Add tags** *(optional)* — shows the note's current tags; type new ones separated by spaces (existing tags are suggested as you type).
+6. **Add tags** *(optional)* — shows the note's current tags, and a tag picker for new ones: type part of any tag (`stt`, `tsp::5`, `glos`) and pick from the list with the arrow keys and **Enter**, or click it; a space or comma finishes a tag you type yourself. Chosen tags show as chips (**×** removes one); a tag that's new to your collection is marked *new*, and if it looks like an existing tag in another form — `STT32` when `source::STT::…` exists, `Temple` for `temple` — the chip offers the existing form (**→ source::STT::32?**). **Browse all tags** lists them by group (*source*, *diary*, …). The same picker is used wherever you add an item to Anki.
 
 Every part you change is marked *changed*, and **Undo** puts it back as Anki has it.
 
@@ -398,7 +398,7 @@ Save phrases while you study and add them to Anki later — without interrupting
 After **Make flashcards** or **Make flashcards (selective)** (Indonesian, Thai, Japanese, Spanish, French or Mandarin, explained in English), click **Send cards to Anki**. A long text can take a few minutes; if it's too long to finish in one run, you get every card up to that point and a message naming the last one — run the task again on the rest of the text. Then:
 
 1. Optionally say where the cards are from, e.g. *Speak Thai Today, chapter 22* — it's added to each note as a *Seen in:* line.
-2. **Tag every card** fills in a short tag from that name (e.g. *STT22*); edit it if you like. Every note in the batch gets it, so you can study the set together later — see [Studying one chapter or set](#studying-one-chapter-or-set).
+2. **Tag every card** fills in a tag from that name, nested under *source* (e.g. *source::STT::22*); change or add tags with the tag picker. Every note in the batch gets it, so you can study the set together later — see [Studying one chapter or set](#studying-one-chapter-or-set).
 3. **Choose cards** shows the list with each card's type (*Vocabulary* or *Sentence*), reading and meaning. Cards you already have in Anki are marked *In Anki* and unticked; **Also tag the unticked cards already in Anki** (on by default) gives them the batch tag too, so the set is complete. Use **Select all / none** and the checkboxes, then **Start branch**.
 4. Each card then opens in the same editor as branching: **Add note with brief explanations**, **Analyze fully** first, add its explanations to an existing card, or **Skip**. The card's topic tags are filled in for you and can be edited. New notes get audio straight away.
 
@@ -413,7 +413,7 @@ A count above the cards shows how many there are — e.g. *23 cards — 18 vocab
 1. On the study desk, set **Source** to the language and **Explain through** to English.
 2. **Upload document**, choose **AI reader**, click **Choose documents** and select all the page photos at once (name them so they sort in page order). Each page is read and added to the text box.
 3. Choose **Make flashcards** and **Run task**. Check the cards, remove any you don't want.
-4. **Send cards to Anki**, enter the book and chapter (the tag, e.g. *STT22*, is filled in for you), pick the cards, and work through them.
+4. **Send cards to Anki**, enter the book and chapter (the tag, e.g. *source::STT::22*, is filled in for you), pick the cards, and work through them.
 
 ---
 
@@ -425,15 +425,15 @@ Click a deck in Anki (e.g. **Polyglot::Thai**) and **Study Now**. Show the answe
 
 ### Studying one chapter or set
 
-To study only the cards from one batch — say everything tagged *STT22*:
+To study only the cards from one batch — say everything tagged *source::STT::22*:
 
 1. In Anki, **Tools → Create Filtered Deck**.
-2. Search: `tag:STT22` — or `tag:STT22 tag:prepositions` for just part of it. Set the limit high (e.g. 1000) and leave *Reschedule cards based on my answers* on.
+2. Search: `tag:source::STT::22` — or `tag:source::STT::*` for the whole book, or `tag:source::STT::22 tag:prepositions` for just part of a chapter. Set the limit high (e.g. 1000) and leave *Reschedule cards based on my answers* on.
 3. **Build**, then study it like any deck. When you're done, **Empty** the filtered deck and the cards return to their usual decks.
 
 **On your phone (AnkiMobile):** open the parent **Polyglot** deck (so every sub-deck is included), then **Custom Study** and one of the tag options — *Learn new cards with certain tags* for a freshly added chapter, *Review due cards with certain tags* for daily study, or *Preview all cards with certain tags* to go through every card without affecting scheduling — and choose the tag. AnkiMobile builds a temporary filtered deck for you. Alternatively, build the filtered deck on your computer and sync; it appears on the phone.
 
-You can also search for the *Seen in* text, e.g. `"Speak Thai Today, chapter 22"`, but the tag is more reliable: it also covers cards that were already in Anki. In PolyglotBooster's review sessions, type `tag:STT22` into **Narrow with an Anki search** to work through just that set.
+You can also search for the *Seen in* text, e.g. `"Speak Thai Today, chapter 22"`, but the tag is more reliable: it also covers cards that were already in Anki. In PolyglotBooster's review sessions, type `tag:source::STT::22` into **Narrow with an Anki search** to work through just that set.
 
 ### On your phone
 

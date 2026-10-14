@@ -358,6 +358,25 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-tags input { width: 100%; border: 1px solid var(--line); background: #f3f1e7; padding: 7px 8px; color: var(--ink); font-size: 13px; }
 .anki-tag-list { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; }
 .anki-tag-list span { background: #e8efe9; padding: 2px 6px; color: var(--teal); font-size: 11px; }
+/* Tag picker. */
+.tag-picker { position: relative; }
+.tag-picker-box { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; border: 1px solid var(--line); background: #f3f1e7; padding: 4px 6px; }
+.tag-picker-box input { flex: 1 1 140px; min-width: 120px; border: 0 !important; background: transparent !important; padding: 3px 2px !important; }
+.tag-chip { display: inline-flex; align-items: center; gap: 4px; background: #e8efe9; padding: 2px 4px 2px 7px; color: var(--teal); font-size: 12px; }
+.tag-chip button { border: 0; background: transparent; padding: 0 3px; color: var(--muted); font-size: 13px; line-height: 1; cursor: pointer; }
+.tag-chip small { color: var(--muted); font-size: 10px; }
+.tag-chip-new { background: #fbf3e2; color: #8a5a12; }
+.tag-chip .tag-chip-fix { color: var(--teal); font-size: 11px; text-decoration: underline; }
+.tag-options { position: absolute; z-index: 30; left: 0; right: 0; max-height: 260px; overflow-y: auto; margin: 2px 0 0; padding: 0; list-style: none; border: 1px solid var(--line); background: #fff; box-shadow: 0 6px 18px rgba(28, 42, 40, .14); }
+.tag-options li { padding: 6px 10px; color: var(--ink); font-size: 13px; cursor: pointer; }
+.tag-options li small { color: var(--teal); }
+.tag-options li.active, .tag-options li:hover { background: #f3f1e7; }
+.tag-options .tag-options-new { border-top: 1px solid var(--line); color: var(--muted); }
+.tag-browse-toggle { justify-self: start; font-size: 12px; }
+.tag-browse details { margin: 2px 0; }
+.tag-browse summary { cursor: pointer; color: var(--ink); font-size: 12px; }
+.tag-browse p { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px 14px; }
+.tag-browse p button { border: 1px solid var(--line); background: var(--paper); padding: 1px 6px; color: var(--ink); font-size: 12px; cursor: pointer; }
 .anki-branch-select { margin: 0 0 6px; color: var(--muted); font-size: 12px; }
 .anki-branch-select .text-button { padding: 0; }
 .anki-branch-table { width: 100%; border-collapse: collapse; font-size: 13px; }
