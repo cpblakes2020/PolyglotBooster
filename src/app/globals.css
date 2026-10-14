@@ -251,6 +251,13 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .dict-senses small { color: var(--muted); }
 .dict-tags abbr { margin-right: 4px; border: 1px solid var(--line); padding: 0 4px; color: var(--muted); font-size: 10px; text-decoration: none; }
 .dict-part { border-left: 3px solid var(--line); padding-left: 10px; }
+.dict-words { margin: 8px 0 0; padding: 0; list-style: none; }
+.dict-words li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; border-top: 1px solid var(--line); padding: 5px 0; font-size: 14px; color: var(--ink); }
+.dict-words li small { color: var(--muted); }
+.dict-word-small { font-size: 17px; }
+.dict-gloss { flex-basis: 100%; color: var(--ink); font-size: 13px; }
+.dict-example { display: block; margin: 2px 0 4px; color: var(--ink); font-size: 13px; }
+.dict-example small { display: block; color: var(--muted); font-size: 12px; font-style: italic; }
 .dict-kanji { display: grid; gap: 6px; margin-top: 10px; }
 .dict-kanji-item { display: flex; align-items: baseline; gap: 10px; font-size: 13px; color: var(--ink); }
 .dict-kanji-item small { display: block; color: var(--muted); font-size: 11px; }

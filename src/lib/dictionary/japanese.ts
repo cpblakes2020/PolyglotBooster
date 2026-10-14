@@ -5,7 +5,8 @@
 // the browser and on the server.
 
 export type JmForm = { t: string; c?: 1; a?: string[]; x?: string[] };
-export type JmSense = { p: string[]; g: string[]; m?: string[]; f?: string[]; i?: string[]; d?: string[]; ak?: string[]; ar?: string[] };
+// e: example sentences from Tatoeba (j Japanese, n English).
+export type JmSense = { p: string[]; g: string[]; m?: string[]; f?: string[]; i?: string[]; d?: string[]; ak?: string[]; ar?: string[]; e?: { j: string; n: string }[] };
 export type JmEntry = { id: number; k: JmForm[]; r: JmForm[]; s: JmSense[] };
 export type KanjiInfo = { m: string[]; on: string[]; kun: string[]; g?: number; s?: number; j?: number; f?: number };
 
@@ -94,6 +95,13 @@ export function createJapaneseDictionary(load: Loader) {
   return { lookup, meta, tags: () => file<Record<string, string>>("tags.json") };
 }
 
+// A single word or short term (not a sentence or passage), worth a
+// dictionary lookup on its own.
+export function isJapaneseTerm(text: string) {
+  const term = text.trim();
+  return term.length > 0 && term.length <= 16 && !/[\s、。！？!?「」]/.test(term) && /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(term);
+}
+
 const toHiragana = (text: string) => text.replace(/[ァ-ヶ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0x60));
 
 // The readings JMdict gives a written form (kanji or kana), in its order.
@@ -120,6 +128,18 @@ function describeEntry(entry: JmEntry) {
   const head = `${entry.k.map((k) => k.t).join("・")}【${entry.r.map((r) => r.t + (r.a ? ` (for ${r.a.join("・")})` : "")).join("・")}】${isCommon(entry) ? " (common word)" : ""}`;
   const senses = entry.s.slice(0, 8).map((sense, index) => `  ${index + 1}. [${[...sense.p, ...(sense.m || []), ...(sense.f || [])].join(", ")}] ${sense.g.join("; ")}${sense.i?.length ? ` (${sense.i.join("; ")})` : ""}`);
   return [head, ...senses].join("\n");
+}
+
+// The dictionary words of a sentence or passage (see japaneseTextWords) as
+// reference text for an AI prompt: one line per word, with JMdict's
+// "common word" marker.
+export function formatJapaneseWordList(words: { surface: string; base: string; entries: JmEntry[] }[]) {
+  return words.map(({ surface, base, entries }) => {
+    const entry = entries[0];
+    const reading = readingsOf(entry, base)[0] || entry.r[0]?.t || "";
+    const glosses = entry.s.slice(0, 3).map((sense) => sense.g.slice(0, 3).join("; ")).join(" / ");
+    return `- ${base}【${reading}】${surface !== base ? ` (as ${surface})` : ""}${isCommon(entry) ? " [common]" : ""} — ${glosses}`;
+  }).join("\n");
 }
 
 // A lookup as reference text for an AI prompt: the dictionary entries (or

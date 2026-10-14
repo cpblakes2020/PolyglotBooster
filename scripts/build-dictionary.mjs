@@ -1,5 +1,6 @@
 // Builds PolyglotBooster's Japanese dictionary from the latest
-// jmdict-simplified release (JMdict + KANJIDIC2, English, from the
+// jmdict-simplified release (JMdict with Tatoeba example sentences, and
+// KANJIDIC2, English, from the
 // Electronic Dictionary Research and Development Group, CC BY-SA 4.0) as
 // small static lookup files the site serves itself:
 //
@@ -63,7 +64,7 @@ const notStar = (list) => list && !(list.length === 1 && list[0] === "*") ? list
 
 // A compact entry: k kanji forms, r readings (c = common, a = only with
 // these kanji, x = tags), s senses (p part of speech, g glosses, m misc,
-// f field, i info, d dialect, ak/ar = only for these forms).
+// f field, i info, d dialect, ak/ar = only for these forms, e examples).
 function compactEntry(word) {
   return {
     id: Number(word.id),
@@ -78,6 +79,8 @@ function compactEntry(word) {
       ...(s.dialect.length ? { d: s.dialect } : {}),
       ...(notStar(s.appliesToKanji) ? { ak: s.appliesToKanji } : {}),
       ...(notStar(s.appliesToKana) ? { ar: s.appliesToKana } : {}),
+      // Up to two example sentences (Tatoeba): j Japanese, n English.
+      ...(s.examples?.length ? { e: s.examples.slice(0, 2).map((x) => ({ j: x.sentences.find((t) => t.lang === "jpn")?.text || "", n: x.sentences.find((t) => t.lang === "eng")?.text || "" })) } : {}),
     })),
   };
 }
@@ -105,7 +108,7 @@ async function main() {
   }
   console.log("Building the Japanese dictionary from the latest jmdict-simplified release...");
   const release = await latestRelease();
-  const jmdict = await download(release, /^jmdict-eng-\d.*\.json\.tgz$/);
+  const jmdict = await download(release, /^jmdict-examples-eng-.*\.json\.tgz$/);
   const kanjidic = await download(release, /^kanjidic2-en-.*\.json\.tgz$/);
 
   const index = new Map();

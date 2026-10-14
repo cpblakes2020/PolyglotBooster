@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
 import { requireAccountApiKey } from "@/lib/storage/account";
-import { formatJapaneseReference, isKnownReading, unambiguousReading } from "@/lib/dictionary/japanese";
+import { formatJapaneseReference, formatJapaneseWordList, isKnownReading, unambiguousReading } from "@/lib/dictionary/japanese";
 import { isJapaneseTerm, japaneseDictionary } from "@/lib/dictionary/server";
+import { japaneseTextWords } from "@/lib/dictionary/tokenizer";
 import { isFlashcardTemplate, parseFlashcards, type Flashcard } from "@/lib/flashcards";
 import { isSupportedLanguage } from "@/lib/presets";
 import { getTemplate } from "@/lib/storage/templates";
@@ -15,6 +16,36 @@ export const maxDuration = 300;
 // Each card carries a reading and two explanations, so a page of cards
 // needs more room than the usual 8,192 tokens (about 3–4 minutes at most).
 const flashcardOutputTokens = 16000;
+
+// Curated dictionary reference for Japanese tasks (given to the model as the
+// authority for readings and meanings):
+// - Word Analysis: the word's entry (or the words a compound is made of);
+// - Sentence Guide: every dictionary word of the sentence;
+// - selective flashcards: the text's words, marking JMdict's common ones,
+//   so everyday vocabulary can be left out objectively.
+async function japaneseReference(templateId: string, text: string, request: Request) {
+  try {
+    const dictionary = japaneseDictionary(request);
+    if (templateId.startsWith("word-analysis-japanese") && isJapaneseTerm(text)) {
+      const found = await dictionary.lookup(text);
+      return found && (found.exact.length || found.parts.length) ? formatJapaneseReference(text.trim(), found) : undefined;
+    }
+    if (templateId.startsWith("sentence-guide-japanese")) {
+      const words = await japaneseTextWords(text, dictionary, 40);
+      return words.length ? `Dictionary words in the source text (dictionary form【reading】, main senses):\n${formatJapaneseWordList(words)}` : undefined;
+    }
+    if (templateId === "flashcards-selective") {
+      const words = await japaneseTextWords(text, dictionary, 150);
+      return words.length ? [
+        "Dictionary words in the source text, in order. Words marked [common] are everyday vocabulary (JMdict's common-word marker): leave them out unless the text is about them or uses them in an unusual sense; choose vocabulary cards mainly from the unmarked words. Use the readings given here.",
+        formatJapaneseWordList(words),
+      ].join("\n") : undefined;
+    }
+  } catch {
+    // Without the dictionary the task still runs, just ungrounded.
+  }
+  return undefined;
+}
 
 // Japanese flashcards: a word's reading that JMdict doesn't give it is
 // replaced by the dictionary's (when the dictionary is unambiguous) — e.g.
@@ -61,12 +92,7 @@ export async function POST(request: Request) {
   try {
     const providerId = getRequestProvider(request);
     const apiKey = await requireAccountApiKey(session.user.id, providerId);
-    // A Japanese word analysis starts from the curated dictionary entry.
-    let reference: string | undefined;
-    if (sourceLanguage === "Japanese" && promptTemplateId.startsWith("word-analysis-japanese") && isJapaneseTerm(text)) {
-      const found = await japaneseDictionary(request).lookup(text).catch(() => null);
-      if (found && (found.exact.length || found.parts.length)) reference = formatJapaneseReference(text.trim(), found);
-    }
+    const reference = sourceLanguage === "Japanese" ? await japaneseReference(promptTemplateId, text, request) : undefined;
     const result = await getLlmProvider(providerId).runTask({
       text,
       sourceLanguage,

@@ -16,9 +16,4 @@ export function japaneseDictionary(request: Request) {
   return dictionaries.get(origin)!;
 }
 
-// A single word or short term (not a sentence or passage), worth a
-// dictionary lookup.
-export function isJapaneseTerm(text: string) {
-  const term = text.trim();
-  return term.length > 0 && term.length <= 16 && !/[\s、。！？!?「」]/.test(term) && /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(term);
-}
+export { isJapaneseTerm } from "@/lib/dictionary/japanese";

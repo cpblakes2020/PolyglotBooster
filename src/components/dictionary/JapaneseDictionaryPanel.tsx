@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createJapaneseDictionary, type JapaneseLookup, type JmEntry } from "@/lib/dictionary/japanese";
+import { createJapaneseDictionary, isJapaneseTerm, readingsOf, type JapaneseLookup, type JmEntry } from "@/lib/dictionary/japanese";
 
 // One dictionary for the whole page, loading files from the site itself
 // (public/dict/jmdict) and keeping them for later lookups.
@@ -27,6 +27,7 @@ function Entry({ entry, tags }: { entry: JmEntry; tags: Record<string, string> }
             {sense.g.join("; ")}
             {sense.i?.length ? <small> ({sense.i.join("; ")})</small> : null}
             {sense.ak || sense.ar ? <small> — only for {[...(sense.ak || []), ...(sense.ar || [])].join("・")}</small> : null}
+            {sense.e?.map((example) => <span className="dict-example" key={example.j}>{example.j}<small>{example.n}</small></span>)}
           </li>
         ))}
       </ol>
@@ -37,28 +38,75 @@ function Entry({ entry, tags }: { entry: JmEntry; tags: Record<string, string> }
 // The JMdict entry for a Japanese word or short phrase (or, when it isn't an
 // entry, the dictionary words it's made of) and its kanji from KANJIDIC2.
 // Curated data, no AI.
+type SentenceWord = { surface: string; base: string; entries: JmEntry[] };
+
+// A sentence's words: dictionary form, reading, the first senses.
+function SentenceWords({ words }: { words: SentenceWord[] }) {
+  return (
+    <ul className="dict-words">
+      {words.map((word) => {
+        const entry = word.entries[0];
+        const common = entry.k.some((form) => form.c) || entry.r.some((form) => form.c);
+        return (
+          <li key={word.base}>
+            <span className="dict-word-small">{word.base}</span>
+            {word.surface !== word.base && <small> ({word.surface})</small>}
+            <span className="dict-reading">【{readingsOf(entry, word.base)[0] || entry.r[0]?.t}】</span>
+            {common && <span className="dict-common">common</span>}
+            <span className="dict-gloss">{entry.s.slice(0, 2).map((sense) => sense.g.slice(0, 3).join("; ")).join(" / ")}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function JapaneseDictionaryPanel({ text, open = true }: { text: string; open?: boolean }) {
   const [result, setResult] = useState<JapaneseLookup | null | undefined>(undefined);
+  const [words, setWords] = useState<SentenceWord[] | null | undefined>(undefined);
   const [tags, setTags] = useState<Record<string, string>>({});
   const [dictDate, setDictDate] = useState("");
   const query = text.trim();
+  // A sentence is split into its words on the server; a word is looked up
+  // here directly.
+  const sentence = Boolean(query) && !isJapaneseTerm(query);
 
   useEffect(() => {
     let cancelled = false;
     setResult(undefined);
+    setWords(undefined);
     // Wait for typing to pause before looking up.
     const timer = window.setTimeout(() => {
-      void Promise.all([dictionary.lookup(query), dictionary.tags(), dictionary.meta()]).then(([found, tagList, meta]) => {
+      void Promise.all([dictionary.tags(), dictionary.meta()]).then(([tagList, meta]) => {
         if (cancelled) return;
-        setResult(found);
         setTags(tagList || {});
         setDictDate(meta?.dictDate || "");
       });
+      if (sentence) {
+        void fetch("/api/dictionary/japanese/words", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: query }) })
+          .then(async (response) => response.ok ? ((await response.json()) as { words: SentenceWord[] }).words : null)
+          .catch(() => null)
+          .then((found) => { if (!cancelled) setWords(found); });
+      } else {
+        void dictionary.lookup(query).then((found) => { if (!cancelled) setResult(found); });
+      }
     }, 300);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [query]);
+  }, [query, sentence]);
 
   if (!query) return null;
+  if (sentence) {
+    return (
+      <details className="dict-panel" open={open}>
+        <summary>Dictionary (JMdict) — words in this {query.length > 60 ? "text" : "sentence"}</summary>
+        {words === undefined && <p className="anki-note">Looking up the words…</p>}
+        {words === null && <p className="anki-note">The dictionary isn&apos;t available right now.</p>}
+        {words && !words.length && <p className="anki-note">No dictionary words found.</p>}
+        {words && words.length > 0 && <SentenceWords words={words} />}
+        <p className="dict-credit">JMdict by the <a href="https://www.edrdg.org/" target="_blank" rel="noreferrer">Electronic Dictionary Research and Development Group</a>, <a href="https://www.edrdg.org/edrdg/license.html" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>{dictDate ? ` · edition of ${dictDate}` : ""}. Words found with kuromoji.</p>
+      </details>
+    );
+  }
   return (
     <details className="dict-panel" open={open}>
       <summary>Dictionary (JMdict){result?.exact.length ? "" : result?.parts.length ? " — made of" : ""}</summary>
@@ -91,7 +139,7 @@ export function JapaneseDictionaryPanel({ text, open = true }: { text: string; o
           ))}
         </div>
       )}
-      <p className="dict-credit">JMdict and KANJIDIC2 by the <a href="https://www.edrdg.org/" target="_blank" rel="noreferrer">Electronic Dictionary Research and Development Group</a>, <a href="https://www.edrdg.org/edrdg/license.html" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>{dictDate ? ` · edition of ${dictDate}` : ""}.</p>
+      <p className="dict-credit">JMdict and KANJIDIC2 by the <a href="https://www.edrdg.org/" target="_blank" rel="noreferrer">Electronic Dictionary Research and Development Group</a>, <a href="https://www.edrdg.org/edrdg/license.html" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>{dictDate ? ` · edition of ${dictDate}` : ""}. Example sentences from <a href="https://tatoeba.org/" target="_blank" rel="noreferrer">Tatoeba</a>, CC BY 2.0 FR.</p>
     </details>
   );
 }
