@@ -596,7 +596,7 @@ export function ReviewSession() {
               <p className="result-label">{readingLabel(language)}{readingDirty && <span className="anki-changed">changed</span>}</p>
               {usesReading ? (
                 <>
-                  <textarea className="anki-reading-input" rows={Math.max(1, draft.reading.split("\n").length)} value={draft.reading} placeholder={mode === "reading" ? "Writing the reading..." : "No reading yet — Regenerate writes one"} onChange={(event) => update({ reading: event.target.value })} />
+                  <textarea className="anki-reading-input" rows={Math.min(10, Math.max(3, draft.reading.split("\n").reduce((rows, line) => rows + Math.max(1, Math.ceil(line.length / 40)), 0)))} value={draft.reading} placeholder={mode === "reading" ? "Writing the reading..." : "No reading yet — Regenerate writes one"} onChange={(event) => update({ reading: event.target.value })} />
                   <div className="input-action-row">
                     <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void generate("reading")}>Regenerate</button>
                     {readingDirty && <button className="text-button" type="button" disabled={busy} onClick={() => update({ reading: draft.origReading })}>Undo</button>}
