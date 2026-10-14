@@ -346,6 +346,21 @@ A good analysis is full of useful material — example sentences, related words,
 
 > Tip: click **Save** (not *Save & next*) on the main note first, then branch — your analysis is safely in Anki and stays on screen to branch from.
 
+### 6.2a Tags
+
+The **Tags** tab (next to *Review & analyze* and *Bulk audio*) tidies up your Anki tags in bulk, with a preview before anything changes.
+
+- **Every tag** is listed with how many notes have it and their languages, grouped as *Dates*, *Already nested*, *Sources and other names*, *Topics and other words* and *Unclear*. Click a note count to see a few of its notes; **Filter tags** narrows the list. PolyglotBooster's own tags (`pb::…`) and Anki's `leech` are hidden and never changed (**show them** to see them).
+- **Select tags** (tick boxes, or **select all** for a group), type a name, then:
+  - **Rename to** — or **Merge into**, when several are selected (e.g. `STT22` and `STT-31` into `source::STT`);
+  - **Nest under** — puts each under a parent (`temple` under `topic` → `topic::temple`);
+  - **Delete** — removes the tag from its notes.
+- **Rules** handle many tags at once, one per line: `old → new`, where `*` matches any text and is carried over — e.g. `TSP-* → source::TSP::*` turns `TSP-2` … `TSP-60` into `source::TSP::2` … `source::TSP::60`. Several new tags are separated by spaces; nothing after the arrow deletes the tag. The first matching rule wins, so put specific rules first (`STT-*` before `STT*`). Lines starting with `#` are notes.
+- **Fold date tags** turns `20180410` into `diary::2018-04-10`, and a name after the date into its own tag (`20200417Glossika` → `diary::2020-04-17` and `source::Glossika`); both parent names can be changed. Your notes' original creation dates are also back in Anki (the **Created** column in Browse), so the date tags are the lesson or course dates.
+- **Preview** lists every change with its note count and why (a rule, the date rule, or chosen by hand — which wins over rules; **remove** drops a hand choice). **Apply** makes the changes in Anki; **Undo last change** reverses the most recent one exactly (it removes only tags that change added).
+
+Make an Anki backup before a big change (*File → Create Backup*), and sync afterwards so your phone gets the new tags. Nested tags show as a tree in Anki's Browse sidebar, and a search like `tag:source::STT::*` finds a whole book — handy for custom study on your phone too.
+
 ### 6.3 Bulk audio
 
 Records audio for every note that doesn't have it yet.

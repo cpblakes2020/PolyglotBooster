@@ -186,6 +186,25 @@ export const anki = {
   // Every tag in the collection, for suggestions.
   getTags: () => invoke<string[]>("getTags"),
 
+  // Every note in the collection (any note type) with its tags and fields,
+  // in batches — for the Tags page.
+  async allNotes(): Promise<(VocabNote & { modelName: string })[]> {
+    const ids = await invoke<number[]>("findNotes", { query: "deck:*" });
+    const notes: (VocabNote & { modelName: string })[] = [];
+    for (let start = 0; start < ids.length; start += 250) {
+      const infos = await invoke<NoteInfo[]>("notesInfo", { notes: ids.slice(start, start + 250) });
+      notes.push(...infos.map((info) => ({ ...toVocabNote(info), modelName: info.modelName })));
+    }
+    return notes;
+  },
+
+  // Removes these exact tags (not tags nested under them) from the notes.
+  removeTags: (noteIds: number[], tags: string[]) =>
+    invoke<null>("removeTags", { notes: noteIds, tags: tags.join(" ") }),
+
+  // Drops tags no note uses any more from Anki's tag list.
+  clearUnusedTags: () => invoke<null>("clearUnusedTags"),
+
   // Base64 contents of a file in collection.media, or false if missing.
   retrieveMedia: (filename: string) => invoke<string | false>("retrieveMediaFile", { filename }),
 

@@ -239,6 +239,27 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-note-fields .result-label { padding-left: 0; }
 .anki-english-note { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; }
 .anki-english-note textarea { display: block; width: 100%; margin-top: 4px; resize: vertical; border: 1px solid var(--line); background: #f3f1e7; padding: 8px 10px; color: var(--ink); font-size: 14px; line-height: 1.5; }
+/* Tags page. */
+.tag-manager .anki-note { margin: 0 0 10px; }
+.tag-inline { display: inline-flex; margin-left: 6px; }
+.tag-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.tag-toolbar > input { min-width: 220px; border: 1px solid var(--line); background: var(--paper); padding: 7px 10px; }
+.tag-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tag-actions input { border: 1px solid var(--line); background: var(--paper); padding: 6px 8px; min-width: 200px; }
+.tag-group { border-top: 1px solid var(--line); padding: 8px 0; }
+.tag-group .result-label { display: flex; gap: 10px; align-items: baseline; padding-left: 0; }
+.tag-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 18px; margin: 4px 0 0; padding: 0; list-style: none; }
+.tag-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 3px 0; font-size: 13px; color: var(--ink); }
+.tag-list li small { color: var(--muted); font-size: 11px; }
+.tag-list li.tag-planned .tag-name span { text-decoration: line-through; color: var(--muted); }
+.tag-name { display: inline-flex; align-items: center; gap: 6px; }
+.tag-count { font-size: 12px; }
+.tag-arrow { flex-basis: 100%; color: var(--teal) !important; }
+.tag-samples { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+.tag-rules, .tag-plan { border-top: 1px solid var(--line); padding: 10px 0; }
+.tag-rules textarea { display: block; width: 100%; border: 1px solid var(--line); background: #f3f1e7; padding: 8px 10px; font-family: ui-monospace, monospace; font-size: 13px; }
+.tag-prefix { width: 90px; border: 1px solid var(--line); background: var(--paper); padding: 2px 6px; }
+
 /* Japanese dictionary panel (JMdict / KANJIDIC2). */
 .dict-panel { border-top: 1px solid var(--line); padding: 10px 0; }
 .dict-panel summary { cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
