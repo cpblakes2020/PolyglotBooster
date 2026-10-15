@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
 import { requireAccountApiKey } from "@/lib/storage/account";
-import { formatJapaneseReference, formatJapaneseWordList, isKnownReading, unambiguousReading } from "@/lib/dictionary/japanese";
+import { difficultKanji, formatJapaneseReference, formatJapaneseWordList, formatKanjiReference, isKnownReading, maxDifficultKanji, unambiguousReading } from "@/lib/dictionary/japanese";
 import { isJapaneseTerm, japaneseDictionary } from "@/lib/dictionary/server";
 import { japaneseTextWords } from "@/lib/dictionary/tokenizer";
 import { isFlashcardTemplate, parseFlashcards, type Flashcard } from "@/lib/flashcards";
@@ -19,8 +19,10 @@ const flashcardOutputTokens = 16000;
 
 // Curated dictionary reference for Japanese tasks (given to the model as the
 // authority for readings and meanings):
-// - Word Analysis: the word's entry (or the words a compound is made of);
-// - Sentence Guide: every dictionary word of the sentence;
+// - Word Analysis: the word's entry (or the words a compound is made of),
+//   and its kanji with other compounds that use them;
+// - Sentence Guide: every dictionary word of the sentence, and only its
+//   hardest kanji (see difficultKanji) with their compounds;
 // - selective flashcards: the text's words, marking JMdict's common ones,
 //   so everyday vocabulary can be left out objectively.
 async function japaneseReference(templateId: string, text: string, request: Request) {
@@ -31,8 +33,13 @@ async function japaneseReference(templateId: string, text: string, request: Requ
       return found && (found.exact.length || found.parts.length) ? formatJapaneseReference(text.trim(), found) : undefined;
     }
     if (templateId.startsWith("sentence-guide-japanese")) {
-      const words = await japaneseTextWords(text, dictionary, 40);
-      return words.length ? `Dictionary words in the source text (dictionary form【reading】, main senses):\n${formatJapaneseWordList(words)}` : undefined;
+      const [words, kanji] = await Promise.all([japaneseTextWords(text, dictionary, 40), dictionary.kanji(text)]);
+      const hard = difficultKanji(kanji);
+      const parts = [
+        words.length ? `Dictionary words in the source text (dictionary form【reading】, main senses):\n${formatJapaneseWordList(words)}` : "",
+        hard.length ? `Hardest kanji in the source text (beyond the 1,026 taught in elementary school, hardest first, at most ${maxDifficultKanji}; the only kanji to explain), with other compounds that use each (JMdict, everyday words first):\n${formatKanjiReference(hard)}` : "",
+      ].filter(Boolean);
+      return parts.length ? parts.join("\n\n") : undefined;
     }
     if (templateId === "flashcards-selective") {
       const words = await japaneseTextWords(text, dictionary, 150);

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { analyze, askFollowUp, assist, describeSelection, speak, type AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { FieldEditor } from "@/components/anki/FieldEditor";
+import { DictEntriesEditor } from "@/components/dictionary/DictEntriesEditor";
 import { JapaneseDictionaryPanel } from "@/components/dictionary/JapaneseDictionaryPanel";
 import { LaterQueue, useLaterItems, useSaveForLater } from "@/components/anki/later";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
@@ -12,6 +13,8 @@ import { anki, ankiSearchValue, reviewFlag } from "@/lib/anki/connect";
 import { blockHtml, cleanField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, handwrittenRubyReading, hasReading, htmlToText, joinNotesBlocks, markdownToAnkiHtml, notesMiddle, readingHtml, splitNotesBlocks, type NotesBlock } from "@/lib/anki/fields";
 import type { BranchItem, FollowUpExchange } from "@/lib/anki/prompts";
 import { analysisLanguage, ankiLanguages, audioField, audioFilename, notesField, pbTags, readingLabel, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { browserJapaneseDictionary, fetchJapaneseTextWords } from "@/lib/dictionary/client";
+import { dictItemsHtml, sentenceDictItems, wordDictItems, type DictNoteItem } from "@/lib/dictionary/notesBlock";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
 
@@ -32,6 +35,9 @@ type Draft = {
   // The analysis, as Markdown.
   analysis: string;
   origAnalysis: string;
+  // Japanese dictionary entries looked up here to replace the note's (null:
+  // keep what Anki has; empty: remove them).
+  dict: DictNoteItem[] | null;
   // The rest of the Notes field: brief explanations and anything else.
   blocks: NotesBlock[];
   origBlocks: string;
@@ -65,6 +71,7 @@ function newDraft(note: VocabNote, language: AnkiLanguage): Draft {
     origReading: reading,
     analysis,
     origAnalysis: analysis,
+    dict: null,
     blocks,
     origBlocks: JSON.stringify(blocks),
     englishNote: englishNoteText(note),
@@ -266,6 +273,38 @@ export function ReviewSession() {
     }
   }
 
+  // Japanese dictionary entries for the note, no AI: for a word, its JMdict
+  // entries and every kanji in it; for a sentence, only the hard parts (see
+  // sentenceDictItems). They're shown for trimming before they're saved.
+  async function lookUpDictionary() {
+    if (!draft) return;
+    setBusy(true);
+    setStatus("Looking up the dictionary...");
+    try {
+      const text = draft.fieldText.trim() || draft.cleanedText;
+      let items: DictNoteItem[];
+      if (draft.kind === "word") {
+        const found = await browserJapaneseDictionary.lookup(text);
+        if (!found) throw new Error("The dictionary isn't available right now.");
+        items = wordDictItems(text, found);
+      } else {
+        const [words, kanji] = await Promise.all([fetchJapaneseTextWords(text), browserJapaneseDictionary.kanji(text)]);
+        if (!words) throw new Error("The sentence couldn't be split into words right now.");
+        items = sentenceDictItems(words, kanji);
+      }
+      if (!items.length) {
+        setStatus(draft.kind === "word" ? "Not found in the dictionary." : "Nothing hard enough here: no kanji beyond elementary school and no uncommon words.");
+        return;
+      }
+      update({ dict: items });
+      setStatus("");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The dictionary couldn't be looked up.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Whether the note in view is red-flagged in Anki.
   useEffect(() => {
     setFlagged(null);
@@ -288,6 +327,8 @@ export function ReviewSession() {
   const readingDirty = Boolean(draft && usesReading && draft.reading.trim() !== draft.origReading.trim());
   const analysisDirty = Boolean(draft && draft.analysis.trim() !== draft.origAnalysis.trim());
   const blocksDirty = Boolean(draft && JSON.stringify(draft.blocks) !== draft.origBlocks);
+  const dictDirty = Boolean(draft?.dict);
+  const savedDictHtml = blockHtml(note?.fields[notesField(language)] || "", "pb-dict");
 
   const assembledNotes = useMemo(() => {
     if (!note || !draft) return "";
@@ -296,11 +337,12 @@ export function ReviewSession() {
     const reading = readingDirty
       ? (draft.reading.trim() ? `<div class="pb-reading">${readingHtml(draft.reading, language, text)}</div>` : "")
       : blockHtml(original, "pb-reading");
+    const dict = draft.dict ? dictItemsHtml(draft.dict) : blockHtml(original, "pb-dict");
     const middle = blocksDirty ? joinNotesBlocks(draft.blocks) : notesMiddle(original);
     const analysis = analysisDirty
       ? (draft.analysis.trim() ? `<div class="pb-analysis">${markdownToAnkiHtml(draft.analysis)}</div>` : "")
       : blockHtml(original, "pb-analysis");
-    return `${reading}${middle}${analysis}`;
+    return `${reading}${dict}${middle}${analysis}`;
   }, [note, draft, language, readingDirty, analysisDirty, blocksDirty]);
 
   // In a flagged session, a note you've saved something for is done: its
@@ -336,9 +378,10 @@ export function ReviewSession() {
       Object.assign(fields, englishNote);
       labels.push(draft.englishNote.trim() ? "English note" : "English note (deleted)");
     }
-    if (readingDirty || analysisDirty || blocksDirty) {
+    if (readingDirty || analysisDirty || blocksDirty || dictDirty) {
       fields[notesField(language)] = assembledNotes;
       if (readingDirty) labels.push(language === "Thai" ? "romanization" : "reading");
+      if (dictDirty) labels.push(draft.dict?.length ? "dictionary entries" : "dictionary entries (removed)");
       if (analysisDirty) labels.push(draft.analysis.trim() ? "analysis" : "analysis (removed)");
       if (blocksDirty) labels.push("notes");
     }
@@ -347,10 +390,12 @@ export function ReviewSession() {
     if (tags.length) labels.push("tags");
     // A saved analysis marks the note as analyzed, with its template.
     if (analysisDirty && draft.analysis.trim()) tags.push(pbTags.analyzed(language, draft.kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language)));
+    // So do dictionary entries saved without one (it's done with for now).
+    else if (draft.dict?.length && !draft.analysis.trim()) tags.push(pbTags.analyzed(language, "dictionary"));
     return { fields, labels, tags };
     // englishNoteChange reads note and draft, which are dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note, draft, language, readingDirty, analysisDirty, blocksDirty, assembledNotes, newAudio, newTags]);
+  }, [note, draft, language, readingDirty, analysisDirty, blocksDirty, dictDirty, assembledNotes, newAudio, newTags]);
 
   // Writes only what changed. With advance false it stays on the note (e.g.
   // to keep branching from the analysis), now matching what Anki holds.
@@ -458,7 +503,7 @@ export function ReviewSession() {
     setQueue((current) => current && current.map((item) => item.noteId === note.noteId ? updated : item));
     const fresh = newDraft(updated, language);
     if (fields[language] !== undefined) update({ cleanedText: fresh.cleanedText, fieldText: fresh.fieldText, replaceField: fresh.replaceField, classification: fresh.classification });
-    if (fields[notesField(language)] !== undefined) update({ reading: fresh.reading, origReading: fresh.origReading, analysis: fresh.analysis, origAnalysis: fresh.origAnalysis, blocks: fresh.blocks, origBlocks: fresh.origBlocks });
+    if (fields[notesField(language)] !== undefined) update({ reading: fresh.reading, origReading: fresh.origReading, analysis: fresh.analysis, origAnalysis: fresh.origAnalysis, dict: null, blocks: fresh.blocks, origBlocks: fresh.origBlocks });
     if (fields[notesField("English")] !== undefined) update({ englishNote: fresh.englishNote });
     if (fields[audioField(language)] !== undefined) setNewAudio(null);
     setEditingFields(false);
@@ -621,7 +666,7 @@ export function ReviewSession() {
           </section>
 
           <section className="anki-tool">
-            <p className="result-label">{notesField(language)} — what the card shows under &ldquo;more&rdquo;{(analysisDirty || blocksDirty) && <span className="anki-changed">changed</span>}</p>
+            <p className="result-label">{notesField(language)} — what the card shows under &ldquo;more&rdquo;{(analysisDirty || blocksDirty || dictDirty) && <span className="anki-changed">changed</span>}</p>
 
             <div className="anki-template-choice" role="radiogroup" aria-label="Analysis template">
               <label><input type="radio" checked={draft.kind === "word"} onChange={() => update({ kind: "word" })} /> Word analysis</label>
@@ -633,6 +678,27 @@ export function ReviewSession() {
               {draft.analysis && <button className="text-button" type="button" disabled={busy} onClick={() => update({ analysis: "" })}>Remove analysis</button>}
               {analysisDirty && <button className="text-button" type="button" disabled={busy} onClick={() => update({ analysis: draft.origAnalysis })}>Undo</button>}
             </div>
+            {language === "Japanese" && (
+              <div className="anki-dict-tool">
+                <div className="input-action-row">
+                  <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void lookUpDictionary()}>{draft.dict?.length || (!draft.dict && savedDictHtml) ? "Look up dictionary entries again" : "Add dictionary entries"}</button>
+                  {(draft.dict ? draft.dict.length > 0 : Boolean(savedDictHtml)) && <button className="text-button" type="button" disabled={busy} onClick={() => update({ dict: [] })}>Remove dictionary entries</button>}
+                  {dictDirty && <button className="text-button" type="button" disabled={busy} onClick={() => update({ dict: null })}>Undo</button>}
+                </div>
+                <p className="anki-note">
+                  Instead of an analysis, or as well: dictionary entries (no AI), saved under the reading.{" "}
+                  {draft.kind === "word"
+                    ? "With Word analysis selected: the word's JMdict entries, and each of its kanji with other words that use it."
+                    : "With Sentence guide selected: only the hard parts — the hardest kanji (beyond the 1,026 taught in elementary school, at most 5) and the words that use them or aren't everyday words."}
+                </p>
+                {draft.dict && draft.dict.length > 0 && (
+                  <>
+                    <p className="anki-note">Click × to leave out a word, sense, kanji or compound; Save changes saves what&apos;s left.</p>
+                    <DictEntriesEditor items={draft.dict} disabled={busy} onChange={(items) => update({ dict: items })} />
+                  </>
+                )}
+              </div>
+            )}
             {draft.analysis && (
               <label className="anki-field-edit">Analysis (Markdown, editable)
                 <textarea value={draft.analysis} onChange={(event) => update({ analysis: event.target.value })} />

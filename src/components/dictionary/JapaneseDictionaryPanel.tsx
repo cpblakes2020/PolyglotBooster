@@ -1,14 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createJapaneseDictionary, isJapaneseTerm, readingsOf, type JapaneseLookup, type JmEntry } from "@/lib/dictionary/japanese";
-
-// One dictionary for the whole page, loading files from the site itself
-// (public/dict/jmdict) and keeping them for later lookups.
-const dictionary = createJapaneseDictionary(async (path) => {
-  const response = await fetch(`/dict/jmdict/${path}`);
-  return response.ok ? response.json() : null;
-});
+import { browserJapaneseDictionary as dictionary, fetchJapaneseTextWords, type SentenceWord } from "@/lib/dictionary/client";
+import { difficultKanji, isJapaneseTerm, kanjiCompounds, maxDifficultKanji, readingsOf, type JapaneseLookup, type JmEntry, type KanjiItem } from "@/lib/dictionary/japanese";
 
 function Entry({ entry, tags }: { entry: JmEntry; tags: Record<string, string> }) {
   const common = entry.k.some((form) => form.c) || entry.r.some((form) => form.c);
@@ -35,10 +29,38 @@ function Entry({ entry, tags }: { entry: JmEntry; tags: Record<string, string> }
   );
 }
 
+// Kanji from KANJIDIC2 with, as in Imiwa, other words (熟語) that use each.
+function KanjiList({ kanji, word = "" }: { kanji: KanjiItem[]; word?: string }) {
+  return (
+    <div className="dict-kanji">
+      {kanji.map(({ literal, info }) => {
+        const compounds = kanjiCompounds(info, word);
+        return (
+          <div className="dict-kanji-item" key={literal}>
+            <span className="dict-kanji-char">{literal}</span>
+            <span>
+              <b>{info.m.slice(0, 4).join(", ")}</b>
+              {info.on.length > 0 && <> · on {info.on.join("、")}</>}
+              {info.kun.length > 0 && <> · kun {info.kun.slice(0, 4).join("、")}</>}
+              <small>{[info.g && (info.g <= 6 ? `grade ${info.g}` : info.g === 8 ? "secondary-school jōyō" : "name kanji"), !info.g && "not jōyō", info.j && `old JLPT level ${info.j}`, info.s && `${info.s} strokes`].filter(Boolean).join(" · ")}</small>
+              {compounds.length > 0 && (
+                <span className="dict-compound-list">
+                  {compounds.map(([form, reading, gloss, common]) => (
+                    <span className="dict-compound" key={form}><span className="dict-word-small">{form}</span>【{reading}】{common ? <span className="dict-common">common</span> : null} {gloss}</span>
+                  ))}
+                </span>
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // The JMdict entry for a Japanese word or short phrase (or, when it isn't an
 // entry, the dictionary words it's made of) and its kanji from KANJIDIC2.
 // Curated data, no AI.
-type SentenceWord = { surface: string; base: string; entries: JmEntry[] };
 
 // A sentence's words: dictionary form, reading, the first senses.
 function SentenceWords({ words }: { words: SentenceWord[] }) {
@@ -64,6 +86,8 @@ function SentenceWords({ words }: { words: SentenceWord[] }) {
 export function JapaneseDictionaryPanel({ text, open = true }: { text: string; open?: boolean }) {
   const [result, setResult] = useState<JapaneseLookup | null | undefined>(undefined);
   const [words, setWords] = useState<SentenceWord[] | null | undefined>(undefined);
+  // A sentence's hardest kanji (see difficultKanji).
+  const [hardKanji, setHardKanji] = useState<KanjiItem[]>([]);
   const [tags, setTags] = useState<Record<string, string>>({});
   const [dictDate, setDictDate] = useState("");
   const query = text.trim();
@@ -75,6 +99,7 @@ export function JapaneseDictionaryPanel({ text, open = true }: { text: string; o
     let cancelled = false;
     setResult(undefined);
     setWords(undefined);
+    setHardKanji([]);
     // Wait for typing to pause before looking up.
     const timer = window.setTimeout(() => {
       void Promise.all([dictionary.tags(), dictionary.meta()]).then(([tagList, meta]) => {
@@ -83,10 +108,8 @@ export function JapaneseDictionaryPanel({ text, open = true }: { text: string; o
         setDictDate(meta?.dictDate || "");
       });
       if (sentence) {
-        void fetch("/api/dictionary/japanese/words", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: query }) })
-          .then(async (response) => response.ok ? ((await response.json()) as { words: SentenceWord[] }).words : null)
-          .catch(() => null)
-          .then((found) => { if (!cancelled) setWords(found); });
+        void fetchJapaneseTextWords(query).then((found) => { if (!cancelled) setWords(found); });
+        void dictionary.kanji(query).then((found) => { if (!cancelled) setHardKanji(difficultKanji(found)); }, () => {});
       } else {
         void dictionary.lookup(query).then((found) => { if (!cancelled) setResult(found); });
       }
@@ -103,7 +126,13 @@ export function JapaneseDictionaryPanel({ text, open = true }: { text: string; o
         {words === null && <p className="anki-note">The dictionary isn&apos;t available right now.</p>}
         {words && !words.length && <p className="anki-note">No dictionary words found.</p>}
         {words && words.length > 0 && <SentenceWords words={words} />}
-        <p className="dict-credit">JMdict by the <a href="https://www.edrdg.org/" target="_blank" rel="noreferrer">Electronic Dictionary Research and Development Group</a>, <a href="https://www.edrdg.org/edrdg/license.html" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>{dictDate ? ` · edition of ${dictDate}` : ""}. Words found with kuromoji.</p>
+        {hardKanji.length > 0 && (
+          <>
+            <p className="anki-note">Hardest kanji here (beyond the 1,026 taught in elementary school; at most {maxDifficultKanji}), with other words that use them:</p>
+            <KanjiList kanji={hardKanji} />
+          </>
+        )}
+        <p className="dict-credit">JMdict and KANJIDIC2 by the <a href="https://www.edrdg.org/" target="_blank" rel="noreferrer">Electronic Dictionary Research and Development Group</a>, <a href="https://www.edrdg.org/edrdg/license.html" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>{dictDate ? ` · edition of ${dictDate}` : ""}. Words found with kuromoji.</p>
       </details>
     );
   }
@@ -124,21 +153,7 @@ export function JapaneseDictionaryPanel({ text, open = true }: { text: string; o
           ))}
         </>
       )}
-      {result && result.kanji.length > 0 && (
-        <div className="dict-kanji">
-          {result.kanji.map(({ literal, info }) => (
-            <div className="dict-kanji-item" key={literal}>
-              <span className="dict-kanji-char">{literal}</span>
-              <span>
-                <b>{info.m.slice(0, 4).join(", ")}</b>
-                {info.on.length > 0 && <> · on {info.on.join("、")}</>}
-                {info.kun.length > 0 && <> · kun {info.kun.slice(0, 4).join("、")}</>}
-                <small>{[info.g && `grade ${info.g}`, info.j && `old JLPT level ${info.j}`, info.s && `${info.s} strokes`].filter(Boolean).join(" · ")}</small>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      {result && result.kanji.length > 0 && <KanjiList kanji={result.kanji} word={query} />}
       <p className="dict-credit">JMdict and KANJIDIC2 by the <a href="https://www.edrdg.org/" target="_blank" rel="noreferrer">Electronic Dictionary Research and Development Group</a>, <a href="https://www.edrdg.org/edrdg/license.html" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>{dictDate ? ` · edition of ${dictDate}` : ""}. Example sentences from <a href="https://tatoeba.org/" target="_blank" rel="noreferrer">Tatoeba</a>, CC BY 2.0 FR.</p>
     </details>
   );

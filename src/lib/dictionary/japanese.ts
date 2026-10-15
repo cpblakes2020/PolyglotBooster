@@ -8,7 +8,10 @@ export type JmForm = { t: string; c?: 1; a?: string[]; x?: string[] };
 // e: example sentences from Tatoeba (j Japanese, n English).
 export type JmSense = { p: string[]; g: string[]; m?: string[]; f?: string[]; i?: string[]; d?: string[]; ak?: string[]; ar?: string[]; e?: { j: string; n: string }[] };
 export type JmEntry = { id: number; k: JmForm[]; r: JmForm[]; s: JmSense[] };
-export type KanjiInfo = { m: string[]; on: string[]; kun: string[]; g?: number; s?: number; j?: number; f?: number };
+// w: example compounds (熟語) — written form, reading, short gloss, 1 if common.
+export type KanjiCompound = [string, string, string, 1?];
+export type KanjiInfo = { m: string[]; on: string[]; kun: string[]; g?: number; s?: number; j?: number; f?: number; w?: KanjiCompound[] };
+export type KanjiItem = { literal: string; info: KanjiInfo };
 
 export type JapaneseLookup = {
   // Entries for the whole text, most common first.
@@ -16,7 +19,7 @@ export type JapaneseLookup = {
   // When the whole text isn't an entry: the longest dictionary words it can
   // be split into, left to right (e.g. 唱題行 → 唱題 + 行).
   parts: { text: string; entries: JmEntry[] }[];
-  kanji: { literal: string; info: KanjiInfo }[];
+  kanji: KanjiItem[];
 };
 
 type Meta = { entryShards: number; kanjiShards: number; dictDate: string; version: string };
@@ -62,7 +65,7 @@ export function createJapaneseDictionary(load: Loader) {
       const shard = await file<Record<string, KanjiInfo>>(`kanji/${literal.codePointAt(0)! % info.kanjiShards}.json`);
       return shard?.[literal] ? { literal, info: shard[literal] } : null;
     }));
-    return found.filter((item): item is { literal: string; info: KanjiInfo } => item !== null);
+    return found.filter((item): item is KanjiItem => item !== null);
   }
 
   async function lookup(text: string): Promise<JapaneseLookup | null> {
@@ -92,7 +95,42 @@ export function createJapaneseDictionary(load: Loader) {
     return { exact, parts, kanji: await kanjiFor(query) };
   }
 
-  return { lookup, meta, tags: () => file<Record<string, string>>("tags.json") };
+  return { lookup, kanji: kanjiFor, meta, tags: () => file<Record<string, string>>("tags.json") };
+}
+
+// How hard a kanji is, from KANJIDIC2's school grade and newspaper
+// frequency: 0 for kanji taught in elementary school (grades 1–6), then
+// secondary-school jōyō (8), name kanji (9–10), and kanji outside both
+// lists; rarer kanji are harder within each.
+export function kanjiDifficulty(info: KanjiInfo) {
+  const tier = !info.g ? 3 : info.g >= 9 ? 2 : info.g === 8 ? 1 : 0;
+  return tier === 0 ? 0 : tier * 10000 + Math.min(info.f || 9999, 9999);
+}
+
+// The rule for a sentence or passage: only its hardest kanji — those beyond
+// the 1,026 taught in elementary school — hardest first, at most `max`.
+export const maxDifficultKanji = 5;
+export function difficultKanji(kanji: KanjiItem[], max = maxDifficultKanji) {
+  return kanji.filter(({ info }) => kanjiDifficulty(info) > 0)
+    .sort((a, b) => kanjiDifficulty(b.info) - kanjiDifficulty(a.info))
+    .slice(0, max);
+}
+
+// A kanji's example compounds, leaving out the word being studied.
+export function kanjiCompounds(info: KanjiInfo, exclude = "", max = 6) {
+  return (info.w || []).filter(([form]) => form !== exclude).slice(0, max);
+}
+
+function describeKanji({ literal, info }: KanjiItem, word = "") {
+  const compounds = kanjiCompounds(info, word, 5);
+  return `  ${literal}: ${info.m.slice(0, 5).join(", ")}${info.on.length ? `; on ${info.on.join("、")}` : ""}${info.kun.length ? `; kun ${info.kun.slice(0, 5).join("、")}` : ""}`
+    + (compounds.length ? `\n    other compounds: ${compounds.map(([form, reading, gloss]) => `${form}【${reading}】 ${gloss}`).join(" / ")}` : "");
+}
+
+// Kanji as reference text for an AI prompt: meanings, readings and example
+// compounds (other words using the kanji, from JMdict).
+export function formatKanjiReference(kanji: KanjiItem[], word = "") {
+  return kanji.map((item) => describeKanji(item, word)).join("\n");
 }
 
 // A single word or short term (not a sentence or passage), worth a
@@ -152,8 +190,8 @@ export function formatJapaneseReference(word: string, result: JapaneseLookup) {
     lines.push(...result.parts.map((part) => part.entries[0] ? describeEntry(part.entries[0]) : part.text));
   }
   if (result.kanji.length) {
-    lines.push("Kanji (KANJIDIC2):");
-    lines.push(...result.kanji.map(({ literal, info }) => `  ${literal}: ${info.m.slice(0, 5).join(", ")}${info.on.length ? `; on ${info.on.join("、")}` : ""}${info.kun.length ? `; kun ${info.kun.slice(0, 5).join("、")}` : ""}`));
+    lines.push("Kanji (KANJIDIC2), with other compounds that use each (JMdict, everyday words first):");
+    lines.push(formatKanjiReference(result.kanji, word));
   }
   return lines.join("\n");
 }

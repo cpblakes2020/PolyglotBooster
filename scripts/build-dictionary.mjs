@@ -7,7 +7,8 @@
 //   public/dict/jmdict/idx/<bucket>.json   word → entry ids, by the word's
 //                                          first character (see bucketOf)
 //   public/dict/jmdict/ent/<n>.json        entries, by id % entryShards
-//   public/dict/jmdict/kanji/<n>.json      kanji, by code point % kanjiShards
+//   public/dict/jmdict/kanji/<n>.json      kanji (with example compounds),
+//                                          by code point % kanjiShards
 //   public/dict/jmdict/tags.json           abbreviation → description
 //   public/dict/jmdict/meta.json           version and layout
 //
@@ -86,8 +87,8 @@ function compactEntry(word) {
 }
 
 // A compact kanji: m meanings, on/kun readings, g grade, s strokes,
-// j old JLPT level, f newspaper frequency rank.
-function compactKanji(character) {
+// j old JLPT level, f newspaper frequency rank, w example compounds.
+function compactKanji(character, compounds) {
   const groups = character.readingMeaning?.groups || [];
   const readings = groups.flatMap((group) => group.readings || []);
   return {
@@ -98,7 +99,47 @@ function compactKanji(character) {
     ...(character.misc.strokeCounts?.[0] ? { s: character.misc.strokeCounts[0] } : {}),
     ...(character.misc.jlptLevel ? { j: character.misc.jlptLevel } : {}),
     ...(character.misc.frequency ? { f: character.misc.frequency } : {}),
+    ...(compounds?.length ? { w: compounds } : {}),
   };
+}
+
+const compoundsPerKanji = 10;
+const allKanji = /^[\p{Script=Han}々]{2,4}$/u;
+const irregularForm = new Set(["iK", "oK", "rK", "sK", "ateji"]);
+
+// Example compounds (熟語) for each kanji, as Imiwa lists them: words written
+// only in kanji that contain it — everyday words first (JMdict's common
+// marker, then signs of use: Tatoeba example sentences, several senses),
+// two-kanji words before longer ones, and words whose other kanji are
+// frequent (easier to recognize). Archaic, rare and katakana-read words are
+// left out. Each is [written form, reading, short gloss, 1 if common].
+const unusual = new Set(["arch", "obs", "obsc", "rare", "dated", "rK", "sK"]);
+function kanjiCompounds(words, kanjiFrequency) {
+  const candidates = new Map();
+  for (const word of words) {
+    const form = word.kanji.find((k) => !k.tags.some((tag) => irregularForm.has(tag)));
+    if (!form || !allKanji.test(form.text)) continue;
+    const reading = word.kana.find((r) => !notStar(r.appliesToKanji) || r.appliesToKanji.includes(form.text));
+    const sense = word.sense[0];
+    if (!reading || /[ァ-ヺ]/.test(reading.text) || !sense || sense.misc.some((tag) => unusual.has(tag))) continue;
+    const gloss = sense.gloss.slice(0, 2).map((g) => g.text).join("; ");
+    const used = word.sense.some((s) => s.examples?.length) ? 1 : 0;
+    const chars = [...form.text];
+    for (const literal of new Set(chars)) {
+      if (literal === "々") continue;
+      const others = chars.filter((char) => char !== literal && char !== "々");
+      const rarity = others.reduce((sum, char) => sum + (kanjiFrequency.get(char) || 3000), 0) / Math.max(1, others.length);
+      const score = (form.common ? 0 : 1000000) + (used ? 0 : 100000) + 10000 * (chars.length - 2) - 500 * Math.min(word.sense.length, 6) + rarity;
+      if (!candidates.has(literal)) candidates.set(literal, []);
+      candidates.get(literal).push({ score, item: [form.text, reading.text, gloss, ...(form.common ? [1] : [])] });
+    }
+  }
+  const result = new Map();
+  for (const [literal, list] of candidates) {
+    const seen = new Set();
+    result.set(literal, list.sort((a, b) => a.score - b.score).filter(({ item }) => !seen.has(item[0]) && seen.add(item[0])).slice(0, compoundsPerKanji).map(({ item }) => item));
+  }
+  return result;
 }
 
 async function main() {
@@ -122,8 +163,10 @@ async function main() {
       (index.get(bucket)[form] ??= []).push(entry.id);
     }
   }
+  const kanjiFrequency = new Map(kanjidic.characters.filter((c) => c.misc.frequency).map((c) => [c.literal, c.misc.frequency]));
+  const compounds = kanjiCompounds(jmdict.words, kanjiFrequency);
   const kanjiFiles = Array.from({ length: kanjiShards }, () => ({}));
-  for (const character of kanjidic.characters) kanjiFiles[character.literal.codePointAt(0) % kanjiShards][character.literal] = compactKanji(character);
+  for (const character of kanjidic.characters) kanjiFiles[character.literal.codePointAt(0) % kanjiShards][character.literal] = compactKanji(character, compounds.get(character.literal));
 
   rmSync(outDir, { recursive: true, force: true });
   for (const sub of ["idx", "ent", "kanji"]) mkdirSync(path.join(outDir, sub), { recursive: true });

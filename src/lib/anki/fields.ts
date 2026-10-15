@@ -205,9 +205,10 @@ export function blockHtml(html: string, className: string) {
   return range ? html.slice(range[0], range[1]) : "";
 }
 
-// Everything between the reading and the analysis.
+// Everything between the reading (and the dictionary entries under it) and
+// the analysis.
 export function notesMiddle(html: string) {
-  return removeBlock(removeBlock(html, "pb-reading"), "pb-analysis").trim();
+  return removeBlock(removeBlock(removeBlock(html, "pb-reading"), "pb-dict"), "pb-analysis").trim();
 }
 
 // branchNoteBlock's output: an optional explanation, then an optional
