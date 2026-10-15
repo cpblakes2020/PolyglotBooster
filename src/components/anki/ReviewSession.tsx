@@ -5,6 +5,7 @@ import { analyze, askFollowUp, assist, describeSelection, speak, type AnalysisOp
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { FieldEditor } from "@/components/anki/FieldEditor";
 import { DictEntriesEditor } from "@/components/dictionary/DictEntriesEditor";
+import { useJapaneseLookup } from "@/components/dictionary/LookupPopups";
 import { JapaneseDictionaryPanel } from "@/components/dictionary/JapaneseDictionaryPanel";
 import { LaterQueue, useLaterItems, useSaveForLater } from "@/components/anki/later";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
@@ -126,7 +127,9 @@ export function ReviewSession() {
   // Shown beside the Ask button: progress while waiting, or why it failed.
   const [followUpStatus, setFollowUpStatus] = useState("");
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
-  const selectionMenu = useSelectionMenu((text) => void addSelection(text), (text) => void later.save(text));
+  // Right-click → Look up on Japanese text: dictionary popups.
+  const lookup = useJapaneseLookup();
+  const selectionMenu = useSelectionMenu((text) => void addSelection(text), (text) => void later.save(text), language === "Japanese" ? lookup.open : undefined);
   // The saved-for-later list: this language's count, and whether it's open.
   const laterItems = useLaterItems();
   const laterCount = laterItems?.filter((item) => item.language === language).length || 0;
@@ -589,13 +592,14 @@ export function ReviewSession() {
 
       {selectionMenu.element}
       {later.element}
+      {lookup.element}
 
       {note && draft && !branch && !showLater && (
         <article className="anki-note-card">
           <div className="anki-note-fields">
             <div>
               <p className="result-label">{language}</p>
-              <p className="anki-front">{draft.cleanedText}
+              <p className="anki-front" ref={selectionMenu.areaRef} onContextMenu={selectionMenu.onContextMenu}>{draft.cleanedText}
                 {soundFilename(note.fields[audioField(language)] || "") && <button className="text-button" type="button" aria-label={`Play ${language} audio`} onClick={() => void playAnkiSound(note.fields[audioField(language)])}>▶</button>}
               </p>
             </div>

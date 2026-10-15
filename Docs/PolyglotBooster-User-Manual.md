@@ -388,6 +388,12 @@ Everything is shown for review before anything is written.
 
 On a result or an expanded saved review (same languages, explained in English), select any phrase — in the result, a follow-up answer or the source text — then right-click and choose **Add "…" to Anki…** (or **Save "…" for Anki later** — see [Saved for Anki later](#saved-for-anki-later)). The same item screen as on the Anki page opens right there, under the result: the phrase with its reading, English and brief explanations (in its own language and in English), a *Seen in:* line pointing back to the source text, the *In Anki* check with its choices, tags and audio. **Add** or **Skip**, and you're back where you were; right-click the next phrase to add another. Only text in the review's language can be added, and it needs Anki open on this computer.
 
+### Right-click to look up Japanese
+
+Select Japanese text and right-click → **Look up "…"** to see its dictionary entries in a box next to the click — the same entries as **Add dictionary entries** on the Anki page, no AI: for a word, its JMdict entries (reading and senses) and each kanji with other words that use it; for a sentence, only its [hardest kanji](#hardest-kanji) and harder words. It works on the study desk (a Japanese result, follow-up answer or expanded saved review, whatever the explanation language) and on the Anki page (the card's Japanese text, the analysis preview, follow-up answers and the item screen). It doesn't need Anki.
+
+Inside a box, select any text — a compound in a kanji's list, a word in a sense — and right-click → **Look up** again: a new box opens on top, as deep as you like. **×** or **Esc** closes the top box; clicking anywhere else on the page closes them all.
+
 ### Saved for Anki later
 
 Save phrases while you study and add them to Anki later — without interrupting yourself, and from your phone or iPad too.

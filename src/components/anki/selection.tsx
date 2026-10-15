@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent } from "react";
+import { hasJapanese } from "@/components/dictionary/LookupPopups";
 import { cleanTag, matchingTags, suggestedTag } from "@/lib/anki/tags";
 
 type Menu = { x: number; y: number; text: string };
@@ -39,8 +40,10 @@ const shorten = (text: string) => text.length > 30 ? `${text.slice(0, 30)}…` :
 // and, given onSaveLater, "Save … for Anki later". On touch screens, which
 // have no right-click, selecting text inside an element registered with
 // areaRef shows a bar at the bottom of the screen with "Save for Anki
-// later". Returns the onContextMenu handler, the ref, and what to render.
-export function useSelectionMenu(onPick: (text: string) => void, onSaveLater?: (text: string) => void) {
+// later". Given onLookUp, Japanese text also gets "Look up …" (a dictionary
+// popup at the click). Returns the onContextMenu handler, the ref, and what
+// to render.
+export function useSelectionMenu(onPick?: (text: string) => void, onSaveLater?: (text: string) => void, onLookUp?: (text: string, x: number, y: number) => void) {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [touchText, setTouchText] = useState("");
   const areas = useRef(new Set<HTMLElement>());
@@ -82,7 +85,7 @@ export function useSelectionMenu(onPick: (text: string) => void, onSaveLater?: (
   function onContextMenu(event: MouseEvent<HTMLElement>) {
     const text = selectedText(event);
     // Without a selection inside this element, keep the browser's own menu.
-    if (!text) return;
+    if (!text || (!onPick && !onSaveLater && !(onLookUp && hasJapanese(text)))) return;
     event.preventDefault();
     setMenu({ x: event.clientX, y: event.clientY, text: text.slice(0, 300) });
   }
@@ -91,9 +94,16 @@ export function useSelectionMenu(onPick: (text: string) => void, onSaveLater?: (
     <>
       {menu && (
         <div className="anki-context-menu" style={{ left: menu.x, top: menu.y }} role="menu" onMouseDown={(event) => event.stopPropagation()}>
-          <button type="button" role="menuitem" onClick={() => { setMenu(null); onPick(menu.text); }}>
-            Add “{shorten(menu.text)}” to Anki…
-          </button>
+          {onLookUp && hasJapanese(menu.text) && (
+            <button type="button" role="menuitem" onClick={() => { setMenu(null); onLookUp(menu.text, menu.x, menu.y); }}>
+              Look up “{shorten(menu.text)}”
+            </button>
+          )}
+          {onPick && (
+            <button type="button" role="menuitem" onClick={() => { setMenu(null); onPick(menu.text); }}>
+              Add “{shorten(menu.text)}” to Anki…
+            </button>
+          )}
           {onSaveLater && (
             <button type="button" role="menuitem" onClick={() => { setMenu(null); onSaveLater(menu.text); }}>
               Save “{shorten(menu.text)}” for Anki later

@@ -6,6 +6,7 @@ import { BranchQueue } from "@/components/anki/BranchQueue";
 import { canSendFlashcardsToAnki } from "@/components/anki/FlashcardsToAnki";
 import { useSaveForLater } from "@/components/anki/later";
 import { useSelectionMenu } from "@/components/anki/selection";
+import { useJapaneseLookup } from "@/components/dictionary/LookupPopups";
 import { anki } from "@/lib/anki/connect";
 import type { BranchItem } from "@/lib/anki/prompts";
 import type { AnkiLanguage } from "@/lib/anki/vocab";
@@ -37,7 +38,8 @@ function seenInText(sourceText: string) {
 // right-click, and add it to Anki in place, with the same item screen as on
 // the Anki page — or save it for Anki later (on touch screens, a bar offers
 // that when text is selected). Only for languages Polyglot Vocab has fields
-// for, explained in English.
+// for, explained in English. Japanese text also gets right-click → Look up
+// (dictionary popups), whatever the explanation language.
 export function AnkiSelectionArea({ sourceLanguage, userLanguage, sourceText, context, options, children }: AnkiSelectionAreaProps) {
   const [item, setItem] = useState<BranchItem | null>(null);
   const [status, setStatus] = useState("");
@@ -45,7 +47,9 @@ export function AnkiSelectionArea({ sourceLanguage, userLanguage, sourceText, co
   const dialogRef = useRef<HTMLDivElement>(null);
   const language = sourceLanguage as AnkiLanguage;
   const later = useSaveForLater(language, context, seenInText(sourceText));
-  const selectionMenu = useSelectionMenu((text) => void lookUp(text), (text) => void later.save(text));
+  const canAdd = canSendFlashcardsToAnki(sourceLanguage, userLanguage);
+  const japaneseLookup = useJapaneseLookup();
+  const selectionMenu = useSelectionMenu(canAdd ? (text) => void lookUp(text) : undefined, canAdd ? (text) => void later.save(text) : undefined, sourceLanguage === "Japanese" ? japaneseLookup.open : undefined);
 
   useEffect(() => {
     if (item || status) dialogRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -64,13 +68,14 @@ export function AnkiSelectionArea({ sourceLanguage, userLanguage, sourceText, co
     }
   }
 
-  if (!canSendFlashcardsToAnki(sourceLanguage, userLanguage)) return <>{children}</>;
+  if (!canAdd && sourceLanguage !== "Japanese") return <>{children}</>;
 
   return (
     <div className="anki-selection-area" ref={selectionMenu.areaRef} onContextMenu={selectionMenu.onContextMenu}>
       {children}
       {selectionMenu.element}
       {later.element}
+      {japaneseLookup.element}
       <div className="anki-selection-dialog" ref={dialogRef}>
         {status && <p className="example-status" role="status">{status}{!item && <button className="text-button" type="button" onClick={() => setStatus("")}>Dismiss</button>}</p>}
         {item && (

@@ -6,6 +6,7 @@ import { itemEnglishNoteHtml, itemNotesHtml, saveItem, type ItemDraft, type Item
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { JapaneseDictionaryPanel } from "@/components/dictionary/JapaneseDictionaryPanel";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
+import { useJapaneseLookup } from "@/components/dictionary/LookupPopups";
 import { classifyItem, type ItemKind } from "@/lib/anki/classify";
 import { cleanField } from "@/lib/anki/fields";
 import type { BranchItem } from "@/lib/anki/prompts";
@@ -48,7 +49,8 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
   const [subBranch, setSubBranch] = useState<{ items?: BranchItem[] } | null>(null);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
-  const selectionMenu = useSelectionMenu((selected) => void branchSelection(selected));
+  const lookup = useJapaneseLookup();
+  const selectionMenu = useSelectionMenu((selected) => void branchSelection(selected), undefined, language === "Japanese" ? lookup.open : undefined);
 
   const usesReading = readingLanguages.has(language);
   const matchEnglish = match ? cleanField(match.fields.English || "", "English").text : "";
@@ -166,8 +168,9 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
       )}
 
       <p className="result-label">{notesField(language)} as it will appear under &ldquo;more&rdquo;</p>
-      <div className="anki-card-preview" onContextMenu={canBranch ? selectionMenu.onContextMenu : undefined} dangerouslySetInnerHTML={{ __html: preview }} />
+      <div className="anki-card-preview" onContextMenu={canBranch || language === "Japanese" ? selectionMenu.onContextMenu : undefined} dangerouslySetInnerHTML={{ __html: preview }} />
       {selectionMenu.element}
+      {lookup.element}
       {englishPreview && (
         <>
           <p className="result-label">English note</p>
