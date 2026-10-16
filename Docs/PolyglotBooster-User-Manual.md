@@ -390,7 +390,7 @@ On a result or an expanded saved review (same languages, explained in English), 
 
 ### Right-click to look up Japanese
 
-Select Japanese text and right-click → **Look up "…"** to see its dictionary entries in a box next to the click — the same entries as **Add dictionary entries** on the Anki page, no AI: for a word, its JMdict entries (reading and senses) and each kanji with other words that use it; for a sentence, only its [hardest kanji](#hardest-kanji) and harder words. It works on the study desk (a Japanese result, follow-up answer or expanded saved review, whatever the explanation language) and on the Anki page (the card's Japanese text, the analysis preview, follow-up answers and the item screen). It doesn't need Anki.
+Select Japanese text and right-click → **Look up "…"** to see its dictionary entries in a box next to the click — the same entries as **Add dictionary entries** on the Anki page, no AI: for a word, its JMdict entries (reading and senses) and each kanji with other words that use it; for a sentence, only its [hardest kanji](#hardest-kanji) and harder words. It works on the study desk (the text box you type or paste into, when the source language is Japanese, and a Japanese result, follow-up answer or expanded saved review, whatever the explanation language) and on the Anki page (the card's Japanese text, the analysis preview, follow-up answers and the item screen). It doesn't need Anki.
 
 Inside a box, select any text — a compound in a kanji's list, a word in a sense — and right-click → **Look up** again: a new box opens on top, as deep as you like. **×** or **Esc** closes the top box; clicking anywhere else on the page closes them all.
 

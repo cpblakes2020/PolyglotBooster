@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { AudioPlayback } from "@/components/audio/AudioPlayback";
 import { AnkiSelectionArea, studyContext } from "@/components/anki/AnkiSelectionArea";
 import { LaterListPanel } from "@/components/anki/later";
+import { useSelectionMenu } from "@/components/anki/selection";
+import { useJapaneseLookup } from "@/components/dictionary/LookupPopups";
 import { FlashcardEditor } from "@/components/intake/FlashcardEditor";
 import { FlashcardsToAnki, canSendFlashcardsToAnki } from "@/components/anki/FlashcardsToAnki";
 import { SendToAnki, canSendToAnki } from "@/components/anki/SendToAnki";
@@ -68,6 +70,9 @@ export function IntakeWorkspace() {
   const [mode, setMode] = useState<"text" | "document">("text");
   const [text, setText] = useState("");
   const [sourceLanguage, setSourceLanguage] = useState<Language>(defaultSourceLanguage);
+  // Right-click → Look up on Japanese text selected in the text box.
+  const sourceLookup = useJapaneseLookup();
+  const sourceMenu = useSelectionMenu(undefined, undefined, sourceLanguage === "Japanese" ? sourceLookup.open : undefined);
   const [explanationLanguage, setExplanationLanguage] = useState<Language>(defaultExplanationLanguage);
   const [learnerLevel, setLearnerLevel] = useState<LearnerLevel>("Intermediate");
   const [outputStyle, setOutputStyle] = useState<OutputStyle>("Detailed");
@@ -448,7 +453,9 @@ export function IntakeWorkspace() {
           {mode === "text" ? (
             <>
               <label className="text-label" htmlFor="study-text">Paste a word, sentence, or passage</label>
-              <textarea id="study-text" className="study-text" value={text} maxLength={12000} onChange={(event) => setText(event.target.value)} placeholder="Try something in a language you are learning..." />
+              <textarea id="study-text" className="study-text" value={text} maxLength={12000} onChange={(event) => setText(event.target.value)} onContextMenu={sourceMenu.onContextMenu} placeholder="Try something in a language you are learning..." />
+              {sourceMenu.element}
+              {sourceLookup.element}
               <div className="field-footer"><span>{text.length} / 12,000 characters</span><button className="clear-input-button" type="button" disabled={!text} onClick={clearInput}>Clear</button><span>Text stays in this workspace</span></div>
               <div className="provider-row">
                 <label htmlFor="llm-provider">Provider</label>
