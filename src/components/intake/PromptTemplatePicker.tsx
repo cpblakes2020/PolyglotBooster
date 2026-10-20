@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TemplateEditDialog } from "@/components/intake/TemplateEditDialog";
+import { customTaskId, customTaskName } from "@/lib/customTask";
 import { visibleTemplatesFor } from "@/lib/templateOrder";
 import type { Language, PromptTemplate, PromptTemplateId } from "@/lib/types";
 
@@ -40,6 +41,13 @@ export function PromptTemplatePicker({ templates, isAdmin, status, selectedTempl
             )}
           </article>
         ))}
+        <article className={`template-card custom-task-card${selectedTemplate === customTaskId ? " selected" : ""}`}>
+          <button type="button" className="template-card-select" aria-pressed={selectedTemplate === customTaskId} onClick={() => onTemplateChange(customTaskId)}>
+            <span className="template-icon">✎</span>
+            <span><strong>{customTaskName}</strong><small>Type your own instructions, for a one-off question</small></span>
+          </button>
+          <span className="card-arrow" aria-hidden="true">↗</span>
+        </article>
       </div>
       {editing && (
         <TemplateEditDialog

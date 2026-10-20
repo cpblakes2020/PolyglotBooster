@@ -20,6 +20,10 @@ export type LlmTaskInput = {
   maxOutputTokens?: number;
   // Curated dictionary entries for the source text (see buildStudyPrompt).
   reference?: string;
+  // The Custom task's instructions, and edited general instructions for
+  // this run (see buildPromptParts).
+  customInstruction?: string;
+  generalInstructions?: string;
 };
 
 export type LlmProvider = {

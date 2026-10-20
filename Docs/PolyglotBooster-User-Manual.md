@@ -132,12 +132,20 @@ Pick a task from the drop-down at the top of the panel or from the cards under *
 
 **General tasks** (every language): Build vocabulary, Make flashcards (everything in the material — best for textbook pages), **Make flashcards (selective)** (only the vocabulary a learner at your level probably doesn't know yet, plus up to five key sentences, about 10–25 cards — best for articles and other longer texts), Convert register, Extract text exactly, Translate naturally, Explain grammar, Add reading support, Answer questions, and **Word-by-word** — a quick, abbreviated breakdown: each word with its reading and literal meaning, a short definition written in the learned language itself (translated in brackets), and one to three synonyms, ending with a word-for-word and a natural translation of the whole text.
 
+**Custom task** (the last card, and the last choice in the drop-down) — for a one-off question no task covers: a box opens where you type what the AI should do with the text (e.g. *List every honorific in this text and explain who is being honored*). It's sent as the task, after the general instructions, and for Japanese with the dictionary reference too. A saved result keeps the instructions, shown when you expand it. **Save as a task…** turns them into a permanent task card.
+
 > Thai romanization everywhere in the app uses one consistent style with tone marks, e.g. ยินดีที่ได้รู้จัก → *yin dee thêe dâi rúu jàk*.
 
 ### Step 4 — Run it
 
 - **Run task** sends it to the AI; the result appears below the text box.
-- **Preview prompt** shows exactly what will be sent, without running it.
+- **Preview prompt** shows exactly what will be sent, without running it, in its parts:
+  - **General instructions** — the opening every task shares, which works like a system prompt (PolyglotBooster sends one message, not a separate system prompt): the AI's role, your languages, level and style, the general rules, and for Thai the romanization style;
+  - **Task** — the task's own instructions (or your custom task);
+  - **Dictionary reference** — for Japanese tasks, the JMdict and KANJIDIC2 entries added for the text;
+  - **Source text**.
+
+  **Edit general instructions** (in the preview) opens them in a box to change, e.g. to drop a rule that gets in the way of a custom task. While edited, they're used for every run — any task — until **Reset to default**; they're used as written, so if you change the languages, level or style, edit those lines too or reset. A saved result keeps the edited version. The Anki page's analyses always use the standard ones.
 - **🔊** reads the source text aloud with your voice for that language, with play/pause, skip and loop controls.
 
 **Make flashcards** turns the material into a complete set of cards — every vocabulary item (including glossary asides like "(kitchen = khruua)") and every example sentence — each with its meaning, a reading, and a short note from the material. You can change the front, back or tags, **Remove** cards, or **Add card**, then send them to Anki (below).

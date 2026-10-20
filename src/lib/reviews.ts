@@ -38,5 +38,9 @@ export type SavedTaskRun = {
   // A name you gave the session in the organizer, shown instead of its
   // first line.
   title?: string;
+  // A Custom task's instructions, and general instructions edited for the
+  // run — kept so the review shows what was asked.
+  customInstruction?: string;
+  generalInstructions?: string;
   createdAt: string;
 };

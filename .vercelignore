@@ -1,14 +1,16 @@
 # Files `vercel deploy` doesn't upload from this machine. Mirrors .gitignore
 # (secrets, dependencies, build output) plus the Japanese dictionary files,
 # which Vercel's build generates itself (npm "prebuild").
-node_modules
+# Folder names are anchored to the project root ("/build"), so a route
+# folder with the same name (src/app/api/prompts/build) is still uploaded.
+/node_modules
 .pnp
 .pnp.*
 .yarn/*
-coverage
-.next
-out
-build
+/coverage
+/.next
+/out
+/build
 .DS_Store
 *.pem
 npm-debug.log*
@@ -20,4 +22,4 @@ yarn-error.log*
 .lingua-storage
 *.tsbuildinfo
 next-env.d.ts
-public/dict
+/public/dict

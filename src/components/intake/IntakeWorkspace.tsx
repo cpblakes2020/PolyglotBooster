@@ -12,6 +12,8 @@ import { FlashcardsToAnki, canSendFlashcardsToAnki } from "@/components/anki/Fla
 import { SendToAnki, canSendToAnki } from "@/components/anki/SendToAnki";
 import { LanguageSettings } from "@/components/intake/LanguageSettings";
 import { PromptTemplatePicker } from "@/components/intake/PromptTemplatePicker";
+import { TemplateEditDialog } from "@/components/intake/TemplateEditDialog";
+import { customTaskId, customTaskName, maxCustomInstructionLength, maxGeneralInstructionsLength, type PromptParts } from "@/lib/customTask";
 import { UploadPanel } from "@/components/intake/UploadPanel";
 import { SavedReview } from "@/components/review/SavedReview";
 import { isFlashcardTemplate, type Flashcard } from "@/lib/flashcards";
@@ -48,6 +50,10 @@ type Draft = {
   taskResult: string;
   flashcards: Flashcard[];
   followUps: FollowUpExchange[];
+  // The Custom task's instructions, and general instructions edited for
+  // runs (null: the standard ones).
+  customInstruction?: string;
+  generalInstructions?: string | null;
 };
 // Saved reviews shown on the study desk; all of them are on Utilities.
 const recentReviews = 5;
@@ -81,6 +87,14 @@ export function IntakeWorkspace() {
   const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplateId>("");
   const [loadedExample, setLoadedExample] = useState("");
   const [promptPreview, setPromptPreview] = useState("");
+  // The previewed prompt in its parts (general instructions, task,
+  // dictionary reference, source text).
+  const [promptParts, setPromptParts] = useState<PromptParts | null>(null);
+  const [customInstruction, setCustomInstruction] = useState("");
+  // Edited general instructions, used instead of the standard ones while
+  // set (for every run until Reset to default).
+  const [generalOverride, setGeneralOverride] = useState<string | null>(null);
+  const [savingCustomAsTask, setSavingCustomAsTask] = useState(false);
   const [taskStatus, setTaskStatus] = useState("");
   const [taskResult, setTaskResult] = useState("");
   const [reviewRuns, setReviewRuns] = useState<SavedTaskRun[]>([]);
@@ -172,6 +186,8 @@ export function IntakeWorkspace() {
         setTaskResult(draft.taskResult || "");
         setFlashcards(draft.flashcards || []);
         setFollowUps(draft.followUps || []);
+        setCustomInstruction(draft.customInstruction || "");
+        setGeneralOverride(draft.generalInstructions ?? null);
       }
     } catch {
       // No usable draft; start empty.
@@ -186,11 +202,11 @@ export function IntakeWorkspace() {
       return;
     }
     try {
-      window.localStorage.setItem(draftKey, JSON.stringify({ text, selectedTemplate, taskResult, flashcards, followUps } satisfies Draft));
+      window.localStorage.setItem(draftKey, JSON.stringify({ text, selectedTemplate, taskResult, flashcards, followUps, customInstruction, generalInstructions: generalOverride } satisfies Draft));
     } catch {
       // Storage full or unavailable; the draft just isn't kept.
     }
-  }, [text, selectedTemplate, taskResult, flashcards, followUps]);
+  }, [text, selectedTemplate, taskResult, flashcards, followUps, customInstruction, generalOverride]);
 
   useEffect(() => {
     void (async () => {
@@ -210,7 +226,7 @@ export function IntakeWorkspace() {
   const visibleTemplates = visibleTemplatesFor(templates, sourceLanguage);
 
   useEffect(() => {
-    if (!visibleTemplates.length) return;
+    if (!visibleTemplates.length || selectedTemplate === customTaskId) return;
     if (!visibleTemplates.some((template) => template.id === selectedTemplate)) {
       setSelectedTemplate(visibleTemplates[0].id);
     }
@@ -239,17 +255,26 @@ export function IntakeWorkspace() {
     window.localStorage.setItem(selectedProviderPreferenceKey, nextProvider);
   }
 
+  // What the task request carries besides the text and settings.
+  const taskExtras = {
+    ...(selectedTemplate === customTaskId ? { customInstruction } : {}),
+    ...(generalOverride !== null ? { generalInstructions: generalOverride } : {}),
+  };
+  const customReady = selectedTemplate !== customTaskId || Boolean(customInstruction.trim());
+
   async function previewPrompt() {
+    setPromptParts(null);
     setPromptPreview("Building task prompt...");
     try {
       const response = await fetch("/api/prompts/build", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, sourceLanguage, userLanguage: explanationLanguage, learnerLevel, outputStyle, promptTemplateId: selectedTemplate }),
+        body: JSON.stringify({ text, sourceLanguage, userLanguage: explanationLanguage, learnerLevel, outputStyle, promptTemplateId: selectedTemplate, ...taskExtras }),
       });
-      const result = await parseJsonResponse<{ error?: string; prompt?: string }>(response);
-      if (!response.ok || !result.prompt) throw new Error(result.error || "The prompt could not be built.");
-      setPromptPreview(result.prompt);
+      const result = await parseJsonResponse<{ error?: string; parts?: PromptParts }>(response);
+      if (!response.ok || !result.parts) throw new Error(result.error || "The prompt could not be built.");
+      setPromptParts(result.parts);
+      setPromptPreview("");
     } catch (error) {
       setPromptPreview(error instanceof Error ? error.message : "The prompt could not be built.");
     }
@@ -268,7 +293,7 @@ export function IntakeWorkspace() {
       const response = await fetch("/api/tasks/run", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-polyglot-provider": providerId },
-        body: JSON.stringify({ text, sourceLanguage, userLanguage: explanationLanguage, learnerLevel, outputStyle, promptTemplateId: selectedTemplate }),
+        body: JSON.stringify({ text, sourceLanguage, userLanguage: explanationLanguage, learnerLevel, outputStyle, promptTemplateId: selectedTemplate, ...taskExtras }),
       });
       const result = await parseJsonResponse<{ error?: string; result?: string; flashcards?: Flashcard[]; warning?: string }>(response);
       if (!response.ok || !result.result) throw new Error(result.error || "The task could not be completed.");
@@ -305,7 +330,7 @@ export function IntakeWorkspace() {
     setReviewStatus("Saving...");
     try {
       const audio = audioUrl && audioSourceText === text.trim() ? { url: audioUrl, voice: audioVoice, createdAt: new Date().toISOString() } : undefined;
-      const taskRun: SavedTaskRun = { taskRunId: crypto.randomUUID(), sourceText: text.trim(), result: taskResult.trim(), flashcards, followUps, sourceLanguage, userLanguage: explanationLanguage, learnerLevel, outputStyle, promptTemplateId: selectedTemplate, notes: "", createdAt: new Date().toISOString(), audio };
+      const taskRun: SavedTaskRun = { taskRunId: crypto.randomUUID(), sourceText: text.trim(), result: taskResult.trim(), flashcards, followUps, sourceLanguage, userLanguage: explanationLanguage, learnerLevel, outputStyle, promptTemplateId: selectedTemplate, notes: "", createdAt: new Date().toISOString(), audio, ...(selectedTemplate === customTaskId && customInstruction.trim() ? { customInstruction: customInstruction.trim() } : {}), ...(generalOverride?.trim() ? { generalInstructions: generalOverride.trim() } : {}) };
       const response = await fetch("/api/account/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(taskRun) });
       const data = await parseJsonResponse<{ error?: string; reviews?: SavedTaskRun[] }>(response);
       if (!response.ok || !data.reviews) throw new Error(data.error || "The result could not be saved.");
@@ -323,6 +348,10 @@ export function IntakeWorkspace() {
     setLearnerLevel(run.learnerLevel);
     setOutputStyle(run.outputStyle);
     setSelectedTemplate(run.promptTemplateId);
+    if (run.customInstruction) setCustomInstruction(run.customInstruction);
+    setGeneralOverride(run.generalInstructions ?? null);
+    setPromptParts(null);
+    setPromptPreview("");
     setTaskResult(run.result);
     setFlashcards(run.flashcards || []);
     setFollowUps(run.followUps || []);
@@ -371,6 +400,7 @@ export function IntakeWorkspace() {
     setText("");
     setLoadedExample("");
     setPromptPreview("");
+    setPromptParts(null);
     setTaskStatus("");
     setTaskResult("");
     setFlashcards([]);
@@ -449,9 +479,10 @@ export function IntakeWorkspace() {
             <div className="intake-actions">
               <select className="task-select" aria-label="Select task" value={selectedTemplate} disabled={!visibleTemplates.length} onChange={(event) => setSelectedTemplate(event.target.value)}>
                 {visibleTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+                <option value={customTaskId}>{customTaskName}</option>
               </select>
-              <button className="preview-prompt-button" type="button" disabled={!text.trim() || !selectedTemplate} onClick={() => void previewPrompt()}>Preview prompt</button>
-              <button className="run-task-button" type="button" disabled={!text.trim() || !selectedTemplate || taskStatus === "Working with Claude..."} onClick={() => void runTask()}>Run task</button>
+              <button className="preview-prompt-button" type="button" disabled={!text.trim() || !selectedTemplate || !customReady} onClick={() => void previewPrompt()}>Preview prompt</button>
+              <button className="run-task-button" type="button" disabled={!text.trim() || !selectedTemplate || !customReady || taskStatus === "Working with Claude..."} onClick={() => void runTask()}>Run task</button>
               <button className="voice-button" type="button" disabled={!text.trim() || audioStatus === "Generating audio..."} onClick={() => void generateAudio()} aria-label="Read text aloud" title="Read text aloud">🔊</button>
             </div>
           </div>
@@ -473,7 +504,62 @@ export function IntakeWorkspace() {
                 </span>
               </div>
               <div className="example-row" aria-label="Quick examples"><span className="example-label">Try an example</span>{examples.map((example) => <button type="button" key={example.label} onClick={() => loadExample(example)}>{example.label}</button>)}{loadedExample && <span className="example-status" role="status">{loadedExample}</span>}</div>
+              {selectedTemplate === customTaskId && (
+                <div className="custom-task">
+                  <label className="text-label" htmlFor="custom-task">Custom task — what should the AI do with this text?</label>
+                  <textarea id="custom-task" className="custom-task-text" value={customInstruction} maxLength={maxCustomInstructionLength} rows={4} placeholder="e.g. List every honorific in this text and explain who is being honored and why." onChange={(event) => setCustomInstruction(event.target.value)} />
+                  <div className="field-footer">
+                    <span>Sent as the task, after the general instructions (see Preview prompt).</span>
+                    {templatesAdmin && <button className="text-button" type="button" disabled={!customInstruction.trim()} onClick={() => setSavingCustomAsTask(true)}>Save as a task…</button>}
+                  </div>
+                </div>
+              )}
+              {generalOverride !== null && (
+                <div className="general-edit">
+                  <label className="text-label" htmlFor="general-instructions">General instructions — edited, used instead of the standard ones for every run until you reset them</label>
+                  <textarea id="general-instructions" className="custom-task-text" value={generalOverride} maxLength={maxGeneralInstructionsLength} rows={8} onChange={(event) => setGeneralOverride(event.target.value)} />
+                  <div className="field-footer">
+                    <span>They&apos;re used as written: if you change the languages, level or style above, edit those lines too, or reset.</span>
+                    <button className="text-button" type="button" onClick={() => { setGeneralOverride(null); setPromptParts(null); }}>Reset to default</button>
+                  </div>
+                </div>
+              )}
               {promptPreview && <pre className="prompt-preview" aria-label="Task prompt preview">{promptPreview}</pre>}
+              {promptParts && (
+                <div className="prompt-parts" aria-label="Task prompt preview">
+                  <div className="prompt-part">
+                    <p className="prompt-part-label">General instructions{promptParts.generalEdited ? " (edited)" : " (standard — work like a system prompt)"}
+                      {generalOverride === null && <button className="text-button" type="button" onClick={() => setGeneralOverride(promptParts.general)}>Edit general instructions</button>}
+                    </p>
+                    <pre className="prompt-preview">{promptParts.general}</pre>
+                  </div>
+                  <div className="prompt-part">
+                    <p className="prompt-part-label">Task{selectedTemplate === customTaskId ? " (custom)" : ""}</p>
+                    <pre className="prompt-preview">{promptParts.task}</pre>
+                  </div>
+                  {promptParts.reference && (
+                    <div className="prompt-part">
+                      <p className="prompt-part-label">Dictionary reference (JMdict / KANJIDIC2, added for Japanese)</p>
+                      <pre className="prompt-preview">{promptParts.reference}</pre>
+                    </div>
+                  )}
+                  <div className="prompt-part">
+                    <p className="prompt-part-label">Source text</p>
+                    <pre className="prompt-preview">{promptParts.source}</pre>
+                  </div>
+                  <button className="text-button" type="button" onClick={() => setPromptParts(null)}>Close preview</button>
+                </div>
+              )}
+              {savingCustomAsTask && (
+                <TemplateEditDialog
+                  template={null}
+                  defaultScope={sourceLanguage}
+                  initialInstruction={customInstruction.trim()}
+                  onClose={() => setSavingCustomAsTask(false)}
+                  onSaved={(saved) => { setSavingCustomAsTask(false); setTemplates((current) => [...current.filter((item) => item.id !== saved.id), saved]); setSelectedTemplate(saved.id); }}
+                  onDeleted={() => setSavingCustomAsTask(false)}
+                />
+              )}
               {taskStatus && <p className="task-status" role="status">{taskStatus}</p>}
               {taskResult && <section ref={resultRef} className="task-result" aria-label="Claude task result"><AnkiSelectionArea sourceLanguage={sourceLanguage} userLanguage={explanationLanguage} sourceText={text} context={studyContext(taskResult, followUps)} options={{ providerId, learnerLevel, outputStyle }}><div className="result-label">Claude result · {explanationLanguage}</div>{flashcards.length ? <FlashcardEditor cards={flashcards} sourceLanguage={sourceLanguage} sourceText={text} onChange={setFlashcards} /> : <div className="result-text">{taskResult}</div>}<div className="result-actions"><button className="save-input-button" type="button" disabled={flashcards.some((card) => !card.front.trim() || !card.back.trim())} onClick={() => void saveForReview()}>Save for review</button>{reviewStatus && <span className="example-status" role="status">{reviewStatus}</span>}</div>
                 {canSendToAnki(sourceLanguage, explanationLanguage, selectedTemplate) && <SendToAnki key={taskResult} sourceText={text} sourceLanguage={sourceLanguage} result={taskResult} promptTemplateId={selectedTemplate} providerId={providerId} />}

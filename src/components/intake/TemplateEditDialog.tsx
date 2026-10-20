@@ -10,12 +10,14 @@ type TemplateEditDialogProps = {
   onClose: () => void;
   onSaved: (template: PromptTemplate) => void;
   onDeleted: (id: string) => void;
+  // A new task's starting instructions (e.g. from the Custom task).
+  initialInstruction?: string;
 };
 
-export function TemplateEditDialog({ template, defaultScope, onClose, onSaved, onDeleted }: TemplateEditDialogProps) {
+export function TemplateEditDialog({ template, defaultScope, onClose, onSaved, onDeleted, initialInstruction = "" }: TemplateEditDialogProps) {
   const [name, setName] = useState(template?.name || "");
   const [description, setDescription] = useState(template?.description || "");
-  const [instruction, setInstruction] = useState(template?.instruction || "");
+  const [instruction, setInstruction] = useState(template?.instruction || initialInstruction);
   const [icon, setIcon] = useState(template?.icon || "");
   const [scope, setScope] = useState<TemplateScope>(template?.scope || defaultScope);
   const [status, setStatus] = useState("");

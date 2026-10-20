@@ -1,45 +1,26 @@
 import { NextResponse } from "next/server";
-import { buildStudyPrompt } from "@/lib/prompts/buildPrompt";
-import { isSupportedLanguage } from "@/lib/presets";
-import { getTemplate } from "@/lib/storage/templates";
-import type { LearnerLevel, OutputStyle, PromptTemplateId } from "@/lib/types";
+import { auth } from "@/lib/auth";
+import { japaneseReference } from "@/lib/dictionary/reference";
+import { buildPromptParts, generalInstructions, joinPromptParts } from "@/lib/prompts/buildPrompt";
+import { readTaskRequest } from "@/lib/prompts/taskRequest";
 
-const learnerLevels = new Set<LearnerLevel>(["Beginner", "Intermediate", "Advanced"]);
-const outputStyles = new Set<OutputStyle>(["Concise", "Detailed", "Literal", "Natural", "Formal", "Informal"]);
-
+// Preview prompt: exactly what Run task would send, in its four parts —
+// general instructions, task, dictionary reference (Japanese), source text —
+// plus the standard general instructions for these settings, to start
+// editing from.
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null) as Record<string, unknown> | null;
-  const text = body?.text;
-  const sourceLanguage = body?.sourceLanguage;
-  const userLanguage = body?.userLanguage;
-  const learnerLevel = body?.learnerLevel;
-  const outputStyle = body?.outputStyle;
-  const promptTemplateId = body?.promptTemplateId;
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
 
-  if (typeof text !== "string" || !text.trim() || text.length > 12000) {
-    return NextResponse.json({ error: "Enter between 1 and 12,000 characters of source text." }, { status: 400 });
-  }
-  if (typeof sourceLanguage !== "string" || !isSupportedLanguage(sourceLanguage) || typeof userLanguage !== "string" || !isSupportedLanguage(userLanguage)) {
-    return NextResponse.json({ error: "Choose supported source and explanation languages." }, { status: 400 });
-  }
-  if (typeof learnerLevel !== "string" || !learnerLevels.has(learnerLevel as LearnerLevel) || typeof outputStyle !== "string" || !outputStyles.has(outputStyle as OutputStyle)) {
-    return NextResponse.json({ error: "Choose a supported learner level and output style." }, { status: 400 });
-  }
-  if (typeof promptTemplateId !== "string" || !(await getTemplate(promptTemplateId))) {
-    return NextResponse.json({ error: "Choose a supported prompt template." }, { status: 400 });
-  }
+  const checked = await readTaskRequest(await request.json().catch(() => null) as Record<string, unknown> | null);
+  if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
+  const { input } = checked;
 
   try {
-    const prompt = await buildStudyPrompt({
-      text,
-      sourceLanguage,
-      userLanguage,
-      learnerLevel: learnerLevel as LearnerLevel,
-      outputStyle: outputStyle as OutputStyle,
-      promptTemplateId: promptTemplateId as PromptTemplateId,
-    });
-    return NextResponse.json({ prompt, promptTemplateId });
-  } catch {
-    return NextResponse.json({ error: "The prompt could not be built." }, { status: 422 });
+    const reference = input.sourceLanguage === "Japanese" ? await japaneseReference(input.promptTemplateId, input.text, request) : undefined;
+    const parts = await buildPromptParts({ ...input, ...(reference ? { reference } : {}) });
+    return NextResponse.json({ prompt: joinPromptParts(parts), parts, defaultGeneral: generalInstructions(input), promptTemplateId: input.promptTemplateId });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "The prompt could not be built." }, { status: 422 });
   }
 }

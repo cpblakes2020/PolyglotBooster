@@ -476,3 +476,15 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
   .topbar { flex-wrap: wrap; gap: 10px 16px; }
   .topbar-note { flex-wrap: wrap; gap: 6px 14px; }
 }
+
+/* Custom task, edited general instructions, prompt preview in parts */
+.custom-task, .general-edit { margin-top: 14px; }
+.custom-task-text { width: 100%; box-sizing: border-box; resize: vertical; border: 1px solid var(--line); background: #f3f1e7; padding: 10px 12px; color: var(--ink); font-family: inherit; font-size: 14px; line-height: 1.5; }
+.general-edit .custom-task-text { font-family: var(--font-geist-mono), monospace; font-size: 12px; }
+.general-edit { border-left: 3px solid var(--coral); padding-left: 12px; }
+.prompt-parts { display: grid; gap: 10px; margin-top: 14px; }
+.prompt-part .prompt-preview { margin: 4px 0 0; }
+.prompt-part-label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.prompt-part-label .text-button { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.review-detail-short { min-height: 60px; }
+.custom-task-card .template-icon { color: var(--coral); }

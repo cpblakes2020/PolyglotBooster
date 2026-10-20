@@ -81,6 +81,8 @@ export async function POST(request: Request) {
     flashcards: Array.isArray(flashcards) ? flashcards : undefined,
     followUps: Array.isArray(followUps) ? followUps : undefined,
     audio,
+    ...(typeof body?.customInstruction === "string" && body.customInstruction.trim() ? { customInstruction: body.customInstruction.slice(0, 6000) } : {}),
+    ...(typeof body?.generalInstructions === "string" && body.generalInstructions.trim() ? { generalInstructions: body.generalInstructions.slice(0, 8000) } : {}),
   };
 
   try {

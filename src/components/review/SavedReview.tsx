@@ -7,6 +7,7 @@ import { FlashcardsToAnki, canSendFlashcardsToAnki } from "@/components/anki/Fla
 import { SendToAnki, canSendToAnki } from "@/components/anki/SendToAnki";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { SavedTaskRun } from "@/lib/reviews";
+import { customTaskId, customTaskName } from "@/lib/customTask";
 import { downloadTaskRun } from "@/lib/exports";
 
 type SavedReviewProps = {
@@ -52,7 +53,7 @@ export function SavedReview({ runs, providerId, onOpen, onUpdate, onDelete, kick
                 <button className="review-open" type="button" aria-expanded={isExpanded} onClick={() => setExpandedId(isExpanded ? null : run.taskRunId)}>
                   <span className="review-item-main">
                     <strong>{run.title || `${run.sourceText.slice(0, 72)}${run.sourceText.length > 72 ? "..." : ""}`}</strong>
-                    <small>{run.sourceLanguage} through {run.userLanguage} · {templateNames?.[run.promptTemplateId] || run.promptTemplateId}{run.flashcards?.length ? ` · ${run.flashcards.length} cards` : ""}{onSelect ? ` · ${new Date(run.createdAt).toLocaleDateString()}` : ""}</small>
+                    <small>{run.sourceLanguage} through {run.userLanguage} · {templateNames?.[run.promptTemplateId] || (run.promptTemplateId === customTaskId ? customTaskName : run.promptTemplateId)}{run.flashcards?.length ? ` · ${run.flashcards.length} cards` : ""}{onSelect ? ` · ${new Date(run.createdAt).toLocaleDateString()}` : ""}</small>
                     {run.title && <small className="review-first-line">{run.sourceText.slice(0, 90)}{run.sourceText.length > 90 ? "..." : ""}</small>}
                   </span>
                   <span className="card-arrow">{isExpanded ? "▾" : "▸"}</span>
@@ -61,6 +62,18 @@ export function SavedReview({ runs, providerId, onOpen, onUpdate, onDelete, kick
               {isExpanded && (
                 <div className="review-detail">
                   <AnkiSelectionArea sourceLanguage={run.sourceLanguage} userLanguage={run.userLanguage} sourceText={run.sourceText} context={studyContext(run.result, run.followUps)} options={{ providerId, learnerLevel: run.learnerLevel, outputStyle: run.outputStyle }}>
+                    {run.customInstruction && (
+                      <>
+                        <label className="text-label">Custom task</label>
+                        <textarea className="review-detail-text review-detail-short" readOnly value={run.customInstruction} />
+                      </>
+                    )}
+                    {run.generalInstructions && (
+                      <>
+                        <label className="text-label">General instructions (edited for this run)</label>
+                        <textarea className="review-detail-text review-detail-short" readOnly value={run.generalInstructions} />
+                      </>
+                    )}
                     <label className="text-label">Source text</label>
                     <textarea className="review-detail-text" readOnly value={run.sourceText} />
                     {run.audio && <AudioPlayback url={run.audio.url} label="Play the source text aloud" />}
