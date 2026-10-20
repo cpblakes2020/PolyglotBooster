@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
 import { IntakeWorkspace } from "@/components/intake/IntakeWorkspace";
+import { StudyTabs } from "@/components/StudyTabs";
 
 export default async function Home() {
   const session = await auth();
@@ -22,6 +23,7 @@ export default async function Home() {
         </div>
       </header>
 
+      <StudyTabs active="desk" />
       <IntakeWorkspace />
 
       <footer className="page-footer"><span>Polyglot Language Learner</span><span>Analyzed language first, always editable.</span></footer>

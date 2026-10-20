@@ -184,9 +184,15 @@ export async function updateAccountReview(userId: string, taskRunId: string, upd
 }
 
 export async function deleteAccountReview(userId: string, taskRunId: string): Promise<SavedTaskRun[]> {
+  return deleteAccountReviews(userId, [taskRunId]);
+}
+
+// Several at once, in one write.
+export async function deleteAccountReviews(userId: string, taskRunIds: string[]): Promise<SavedTaskRun[]> {
+  const remove = new Set(taskRunIds);
   const reviews = await getAccountReviews(userId);
-  const next = reviews.filter((run) => run.taskRunId !== taskRunId);
-  await writeJsonBlob(reviewsPathname(userId), next);
+  const next = reviews.filter((run) => !remove.has(run.taskRunId));
+  if (next.length !== reviews.length) await writeJsonBlob(reviewsPathname(userId), next);
   return next;
 }
 

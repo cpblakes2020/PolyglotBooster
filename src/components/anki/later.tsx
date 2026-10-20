@@ -50,13 +50,21 @@ export function useSaveForLater(language: AnkiLanguage, context: string, source:
   return { save, element };
 }
 
-// On the study desk: what's waiting, with a way to delete entries — from
-// any device.
-export function LaterListPanel() {
+// On the study desk: a one-line link to the list on Utilities.
+export function LaterListLink() {
   const items = useLaterItems();
   if (!items?.length) return null;
+  return <p className="anki-later-link"><a href="/utilities#saved-for-later">Saved for Anki later ({items.length}) →</a></p>;
+}
+
+// On Utilities: what's waiting, with a way to delete entries — from any
+// device.
+export function LaterListPanel() {
+  const items = useLaterItems();
+  if (!items) return null;
+  if (!items.length) return <p className="anki-note" id="saved-for-later">Nothing saved for Anki later right now.</p>;
   return (
-    <details className="settings-panel anki-later-panel">
+    <details className="settings-panel anki-later-panel" id="saved-for-later" open>
       <summary>Saved for Anki later ({items.length})</summary>
       <p className="anki-note">Add them to Anki from the <a href="/anki">Anki page</a> on the computer running Anki (<b>Saved for later</b>). Delete any you no longer want here.</p>
       <ul className="anki-later-list">

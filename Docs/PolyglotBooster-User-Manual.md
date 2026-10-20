@@ -11,7 +11,7 @@ PolyglotBooster is a study companion for learning languages through other langua
 1. [Getting started](#1-getting-started)
 2. [Settings: API keys and voices](#2-settings-api-keys-and-voices)
 3. [The study desk](#3-the-study-desk)
-4. [Saved reviews and exports](#4-saved-reviews-and-exports)
+4. [Saved reviews, exports and Utilities](#4-saved-reviews-exports-and-utilities)
 5. [Setting up Anki (first-time Anki users)](#5-setting-up-anki-first-time-anki-users)
 6. [The Anki page](#6-the-anki-page)
 7. [Studying your cards in Anki](#7-studying-your-cards-in-anki)
@@ -44,7 +44,7 @@ The header at the top of every page has three links:
 
 | Link | What's there |
 |---|---|
-| **Study desk** (the home page) | Analyze text, hear it read aloud, save and export results |
+| **Study desk** (the home page) | Analyze text, hear it read aloud, save and export results. Its **Utilities** tab saves the clipboard for Anki later, lists what's saved for later, and organizes every saved session |
 | **Anki** | Work directly with your Anki collection (computer only) |
 | **Settings** | API keys and voices |
 
@@ -148,16 +148,16 @@ Under a result, click **Ask a follow-up question**, type your question (the **In
 
 ### Step 6 — Save or send to Anki
 
-- **Save for review** keeps the result (with any follow-ups and audio) in your saved reviews — see [section 4](#4-saved-reviews-and-exports).
+- **Save for review** keeps the result (with any follow-ups and audio) in your saved reviews — see [section 4](#4-saved-reviews-exports-and-utilities).
 - **Send to Anki** (shown for Indonesian, Thai, Japanese, Spanish, French or Mandarin explained in English; works on a computer with Anki set up) puts it straight into your Anki collection — see [Send to Anki](#send-to-anki-from-the-study-desk).
 - **Send cards to Anki** does the same for a Make flashcards result — see [Flashcards to Anki](#flashcards-to-anki).
 - **Right-click a phrase** in the result or a follow-up answer to add just that phrase to Anki — see [Right-click to add a phrase](#right-click-to-add-a-phrase-from-the-study-desk).
 
 ---
 
-## 4. Saved reviews and exports
+## 4. Saved reviews, exports and Utilities
 
-Saved results appear under **Saved review** at the bottom of the study desk. Only reviews for the current source language are listed — switch the source language to see others.
+The study desk shows your **5 most recent** saved results for the current source language at the bottom, with **All N saved sessions → Utilities** below them. Every saved session, in every language, is on the [Utilities tab](#utilities).
 
 For each saved review you can:
 
@@ -169,6 +169,27 @@ For each saved review you can:
 - **Delete** it.
 
 Cards reach Anki only through the Anki connection (Send to Anki and the Anki page) — there are no deck files to download and import.
+
+### Utilities
+
+The study desk has two tabs at the top: **Study desk** and **Utilities**. Utilities has its own address (`/utilities`), so on the iPhone you can add it to the Home Screen (Share → **Add to Home Screen**) and open it in one tap.
+
+**Save clipboard for Anki later.** Copy a word or phrase in any app — a chat, a web page, an e-book — then tap **Save clipboard for Anki later**. On the iPhone, Safari first shows a small **Paste** bubble: tap it (Apple asks every time before a website reads the clipboard). A dialog then shows exactly what was copied, before anything is saved:
+- the text, editable — check it's what you meant and not something copied earlier, and trim it to the word or phrase to learn (up to 300 characters per item);
+- the **language**, guessed from the script (Thai and Japanese kana are certain; Chinese characters alone, or Latin text, keep the language you used last) — change it if needed;
+- **Seen in** (optional), e.g. *LINE chat* — it becomes the card's *Seen in:* line;
+- **Save each of the N lines as a separate item**, when several lines were copied (a word list).
+
+**Save** adds it to the same [Saved for Anki later](#saved-for-anki-later) list as everything else; on the Anki page it's looked up as usual, with the whole copied text as its context. If the clipboard can't be read or is empty, the dialog opens with an empty box — long-press it and choose **Paste**.
+
+**Saved for Anki later** — the list of what's waiting, with **Delete** for each (the study desk shows a one-line link to it).
+
+**Saved sessions** — every saved session, in every language:
+- **Search** the source text, results, follow-ups, notes and titles; filter by **language** and **task**; sort **newest** or **oldest first**.
+- Each row shows the title (or first line), languages, task name, card count for flashcard results, and date. Click one to expand it, as on the study desk.
+- Give a session a **title** (e.g. *Eijuin article, selective cards*), shown instead of its first line; add a **note**.
+- **Open on the study desk** loads it on the study desk, ready to read, right-click, ask follow-ups or send to Anki.
+- **Download TXT**, **Delete** one, or tick several (or **Select all N shown**) and **Delete N selected**.
 
 ---
 
@@ -399,7 +420,8 @@ Inside a box, select any text — a compound in a kanji's list, a word in a sens
 Save phrases while you study and add them to Anki later — without interrupting yourself, and from your phone or iPad too.
 
 - **Saving:** on the study desk (a result, a follow-up answer or an expanded saved review) or on the Anki page (the analysis preview or a follow-up answer), select a phrase, right-click and choose **Save "…" for Anki later**. On an iPhone or iPad, just select the text: a **Save "…" for Anki later** bar appears at the bottom of the screen; tap it. A message confirms how many are waiting. The list is kept in your PolyglotBooster account, so it's the same on every device and stays until you deal with it.
-- **Seeing the list:** **Saved for Anki later (N)** on the study desk lists every saved phrase with its language, where it came from and the date; **Delete** removes one. This works on any device.
+- **From any app:** copy it, then on the study desk's **Utilities** tab tap **Save clipboard for Anki later** — see [Utilities](#utilities).
+- **Seeing the list:** **Saved for Anki later (N)** on the **Utilities** tab lists every saved phrase with its language, where it came from and the date; **Delete** removes one. This works on any device.
 - **Adding to Anki** (on the computer running Anki): on the Anki page, pick the language and click **Saved for later (N)**. Each phrase is looked up in the context you saved it from — reading, English and brief explanations — and the usual list opens: **Start branch** to go one at a time, or **Add all N with brief explanations**. For each phrase: add it (it then leaves the list), **Skip, keep for later** (it stays), or **Delete from list**. In the list, **Delete the N unticked from the list** clears phrases you've decided against (e.g. ones already in Anki); unticked phrases otherwise stay saved.
 
 ### Flashcards to Anki

@@ -1,12 +1,26 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { addAccountReview, getAccountReviews } from "@/lib/storage/account";
+import { addAccountReview, deleteAccountReviews, getAccountReviews } from "@/lib/storage/account";
 import { isSupportedLanguage } from "@/lib/presets";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
 import { readSavedAudio, type SavedTaskRun } from "@/lib/reviews";
 
 const learnerLevels = new Set<LearnerLevel>(["Beginner", "Intermediate", "Advanced"]);
 const outputStyles = new Set<OutputStyle>(["Concise", "Detailed", "Literal", "Natural", "Formal", "Informal"]);
+
+// DELETE { ids }: removes several saved reviews at once (the organizer).
+export async function DELETE(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+  const body = await request.json().catch(() => null) as { ids?: unknown } | null;
+  const ids = Array.isArray(body?.ids) ? body.ids.filter((id): id is string => typeof id === "string") : [];
+  if (!ids.length) return NextResponse.json({ error: "Nothing to delete." }, { status: 400 });
+  try {
+    return NextResponse.json({ reviews: await deleteAccountReviews(session.user.id, ids) });
+  } catch {
+    return NextResponse.json({ error: "The reviews could not be deleted." }, { status: 503 });
+  }
+}
 
 export async function GET() {
   const session = await auth();

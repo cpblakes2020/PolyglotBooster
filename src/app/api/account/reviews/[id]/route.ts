@@ -10,8 +10,8 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!session?.user?.id) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
 
   const { id } = await context.params;
-  const body = await request.json().catch(() => null) as { notes?: unknown; audio?: unknown } | null;
-  if (!body || (body.notes === undefined && body.audio === undefined)) {
+  const body = await request.json().catch(() => null) as { notes?: unknown; audio?: unknown; title?: unknown } | null;
+  if (!body || (body.notes === undefined && body.audio === undefined && body.title === undefined)) {
     return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
   }
 
@@ -21,6 +21,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Notes must be 5,000 characters or fewer." }, { status: 400 });
     }
     updates.notes = body.notes;
+  }
+  if (body.title !== undefined) {
+    if (typeof body.title !== "string" || body.title.length > 200) {
+      return NextResponse.json({ error: "A title must be 200 characters or fewer." }, { status: 400 });
+    }
+    updates.title = body.title.trim();
   }
   if (body.audio !== undefined) {
     const audio = readSavedAudio(body.audio);

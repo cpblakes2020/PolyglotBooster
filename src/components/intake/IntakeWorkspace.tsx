@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AudioPlayback } from "@/components/audio/AudioPlayback";
 import { AnkiSelectionArea, studyContext } from "@/components/anki/AnkiSelectionArea";
-import { LaterListPanel } from "@/components/anki/later";
+import { LaterListLink } from "@/components/anki/later";
 import { useSelectionMenu } from "@/components/anki/selection";
 import { useJapaneseLookup } from "@/components/dictionary/LookupPopups";
 import { FlashcardEditor } from "@/components/intake/FlashcardEditor";
@@ -49,6 +49,8 @@ type Draft = {
   flashcards: Flashcard[];
   followUps: FollowUpExchange[];
 };
+// Saved reviews shown on the study desk; all of them are on Utilities.
+const recentReviews = 5;
 const defaultSourceLanguage: Language = "Indonesian";
 const defaultExplanationLanguage: Language = "English";
 const defaultKeyStatus: Record<LlmProviderId, boolean> = { anthropic: false, openai: false };
@@ -130,6 +132,11 @@ export function IntakeWorkspace() {
         const data = await parseJsonResponse<{ error?: string; reviews?: SavedTaskRun[] }>(response);
         if (!response.ok) throw new Error(data.error || "Saved reviews could not be loaded.");
         setReviewRuns(data.reviews || []);
+        // Opened from Utilities (?review=<id>): show that session here.
+        const wanted = new URLSearchParams(window.location.search).get("review");
+        const run = wanted ? data.reviews?.find((item) => item.taskRunId === wanted) : undefined;
+        if (wanted) window.history.replaceState(null, "", window.location.pathname);
+        if (run) openSavedRun(run);
       } catch (error) {
         setReviewStatus(error instanceof Error ? error.message : "Saved reviews could not be loaded.");
       }
@@ -503,13 +510,15 @@ export function IntakeWorkspace() {
         </div>
       </section>
       <section className="template-section" aria-labelledby="template-title"><PromptTemplatePicker templates={templates} isAdmin={templatesAdmin} status={templatesStatus} selectedTemplate={selectedTemplate} sourceLanguage={sourceLanguage} onTemplateChange={setSelectedTemplate} onTemplatesChange={setTemplates} /></section>
-      <LaterListPanel />
+      <LaterListLink />
       {(() => {
-        const visibleReviews = reviewRuns.filter((run) => run.sourceLanguage === sourceLanguage);
+        // The five most recent in this language; the rest are on Utilities.
+        const visibleReviews = reviewRuns.filter((run) => run.sourceLanguage === sourceLanguage).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        const allLink = <p className="review-all-link"><a href="/utilities#sessions-title">All {reviewRuns.length} saved session{reviewRuns.length === 1 ? "" : "s"} → Utilities</a></p>;
         if (!visibleReviews.length && reviewRuns.length > 0) {
-          return <p className="review-filter-note">You have {reviewRuns.length} saved review{reviewRuns.length === 1 ? "" : "s"}, but none with {sourceLanguage} as the source language. Switch source language above to see them.</p>;
+          return <><p className="review-filter-note">You have {reviewRuns.length} saved review{reviewRuns.length === 1 ? "" : "s"}, but none with {sourceLanguage} as the source language. Switch source language above, or see them all on Utilities.</p>{allLink}</>;
         }
-        return <SavedReview runs={visibleReviews} providerId={providerId} onOpen={openSavedRun} onUpdate={(run) => void updateSavedRun(run)} onDelete={(taskRunId) => void deleteSavedRun(taskRunId)} />;
+        return <SavedReview runs={visibleReviews.slice(0, recentReviews)} heading={visibleReviews.length > recentReviews ? `Recent saved reviews (${recentReviews} of ${visibleReviews.length})` : "Saved review"} footer={reviewRuns.length ? allLink : undefined} providerId={providerId} onOpen={openSavedRun} onUpdate={(run) => void updateSavedRun(run)} onDelete={(taskRunId) => void deleteSavedRun(taskRunId)} />;
       })()}
     </>
   );

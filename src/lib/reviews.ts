@@ -35,5 +35,8 @@ export type SavedTaskRun = {
   followUps?: FollowUpExchange[];
   audio?: SavedAudio;
   notes: string;
+  // A name you gave the session in the organizer, shown instead of its
+  // first line.
+  title?: string;
   createdAt: string;
 };
