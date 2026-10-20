@@ -70,3 +70,37 @@ export function dictItemsHtml(items: DictNoteItem[]) {
   });
   return parts.length ? `<div class="pb-dict">${parts.join("")}</div>` : "";
 }
+
+const itemKey = (item: DictNoteItem) => item.kind === "word" ? `w:${item.form}` : `k:${item.literal}`;
+
+// Entries added to a list (e.g. from a lookup popup): ones already there
+// aren't repeated.
+export function mergeDictItems(current: DictNoteItem[], added: DictNoteItem[]) {
+  const seen = new Set(current.map(itemKey));
+  return [...current, ...added.filter((item) => !seen.has(itemKey(item)) && seen.add(itemKey(item)))];
+}
+
+// Reads a saved pb-dict block (dictItemsHtml's output) back into items, so
+// it can be edited again. Browser only (DOMParser). Anything else in the
+// block — e.g. edited by hand in Anki — is kept as best it can be.
+export function parseDictHtml(html: string): DictNoteItem[] {
+  if (!html.trim() || typeof DOMParser === "undefined") return [];
+  const root = new DOMParser().parseFromString(html, "text/html").querySelector(".pb-dict");
+  if (!root) return [];
+  const textOutside = (element: Element, skip: string) => [...element.childNodes]
+    .filter((node) => !(node instanceof Element && (node.tagName === "B" || node.matches(skip))))
+    .map((node) => node.textContent || "").join("").trim();
+  const items = (selector: string, element: Element) => [...element.querySelectorAll(selector)].map((li) => (li.textContent || "").trim()).filter(Boolean);
+  return [...root.children].flatMap((element): DictNoteItem[] => {
+    if (element.classList.contains("pb-dict-word")) {
+      const form = element.querySelector("b")?.textContent?.trim() || "";
+      const reading = textOutside(element, "ol, ul").replace(/^【|】$/g, "");
+      return form ? [{ kind: "word", form, reading, senses: items("li", element) }] : [];
+    }
+    if (element.classList.contains("pb-dict-kanji")) {
+      const literal = element.querySelector("b")?.textContent?.trim() || "";
+      return literal ? [{ kind: "kanji", literal, summary: textOutside(element, "ul, ol"), compounds: items("li", element) }] : [];
+    }
+    return [];
+  });
+}

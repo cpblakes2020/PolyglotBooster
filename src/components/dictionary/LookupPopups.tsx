@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
-import { browserJapaneseDictionary, fetchJapaneseTextWords } from "@/lib/dictionary/client";
+import { lookUpDictItems } from "@/lib/dictionary/client";
 import { isJapaneseTerm } from "@/lib/dictionary/japanese";
-import { dictItemsHtml, sentenceDictItems, wordDictItems } from "@/lib/dictionary/notesBlock";
+import { dictItemsHtml, type DictNoteItem } from "@/lib/dictionary/notesBlock";
 
 // Japanese text worth a dictionary lookup (kana or kanji).
 export const hasJapanese = (text: string) => /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(text);
@@ -15,28 +15,33 @@ const popupWidth = 420;
 const shorten = (text: string) => text.length > 30 ? `${text.slice(0, 30)}…` : text;
 
 // The same dictionary entries as "Add dictionary entries" on the Anki page:
-// a word's entries and kanji, or only the hard parts of a sentence.
-function LookupContent({ text }: { text: string }) {
-  const [html, setHtml] = useState<string | null | undefined>(undefined);
+// a word's entries and kanji, or only the hard parts of a sentence. Given
+// onAdd, a button adds them to the card being edited.
+function LookupContent({ text, onAdd }: { text: string; onAdd?: (items: DictNoteItem[]) => void }) {
+  const [items, setItems] = useState<DictNoteItem[] | null | undefined>(undefined);
+  const [added, setAdded] = useState(false);
   const term = isJapaneseTerm(text);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      if (term) {
-        const found = await browserJapaneseDictionary.lookup(text);
-        return found ? dictItemsHtml(wordDictItems(text, found)) : null;
-      }
-      const [words, kanji] = await Promise.all([fetchJapaneseTextWords(text), browserJapaneseDictionary.kanji(text)]);
-      return words ? dictItemsHtml(sentenceDictItems(words, kanji)) : null;
-    })().catch(() => null).then((result) => { if (!cancelled) setHtml(result); });
+    lookUpDictItems(text, term ? "word" : "sentence").catch(() => null).then((result) => { if (!cancelled) setItems(result); });
     return () => { cancelled = true; };
   }, [text, term]);
 
-  if (html === undefined) return <p className="anki-note">Looking up…</p>;
-  if (html === null) return <p className="anki-note">The dictionary isn&apos;t available right now.</p>;
-  if (!html) return <p className="anki-note">{term ? "Not found in the dictionary." : "Nothing hard here: no kanji beyond elementary school and no uncommon words. Select a single word to look it up."}</p>;
-  return <div className="dict-popup-entries" dangerouslySetInnerHTML={{ __html: html }} />;
+  if (items === undefined) return <p className="anki-note">Looking up…</p>;
+  if (items === null) return <p className="anki-note">The dictionary isn&apos;t available right now.</p>;
+  if (!items.length) return <p className="anki-note">{term ? "Not found in the dictionary." : "Nothing hard here: no kanji beyond elementary school and no uncommon words. Select a single word to look it up."}</p>;
+  return (
+    <>
+      {onAdd && (
+        <div className="dict-popup-actions">
+          <button className="preview-prompt-button" type="button" disabled={added} onClick={() => { onAdd(items); setAdded(true); }}>{added ? "Added to the card" : "Add to this card"}</button>
+          <span className="anki-note">{added ? "Edit or trim it in the card's dictionary entries." : "You can edit or trim it there."}</span>
+        </div>
+      )}
+      <div className="dict-popup-entries" dangerouslySetInnerHTML={{ __html: dictItemsHtml(items) }} />
+    </>
+  );
 }
 
 function selectionIn(element: HTMLElement) {
@@ -46,9 +51,10 @@ function selectionIn(element: HTMLElement) {
 
 // Dictionary lookup popups: open(text, x, y) shows the entries for text in
 // a box near the click. Select text inside a box and right-click → Look up
-// to open another box on top of it, as deep as you like. × or Esc closes the
-// top box; clicking elsewhere on the page closes them all.
-export function useJapaneseLookup() {
+// to open another box on top of it, as deep as you like (or Copy). × or Esc
+// closes the top box; clicking elsewhere on the page closes them all. Given
+// onAdd (a card being edited), each box can add its entries to that card.
+export function useJapaneseLookup(onAdd?: (items: DictNoteItem[]) => void) {
   const [popups, setPopups] = useState<Popup[]>([]);
   const [menu, setMenu] = useState<Menu | null>(null);
 
@@ -71,10 +77,21 @@ export function useJapaneseLookup() {
   }, [popups.length, menu]);
 
   function onPopupContextMenu(event: MouseEvent<HTMLElement>) {
+    // Inside a box, its own menu (not the page's) answers the right-click.
+    event.stopPropagation();
     const text = selectionIn(event.currentTarget);
-    if (!text || !hasJapanese(text)) return;
+    if (!text) return;
     event.preventDefault();
     setMenu({ x: event.clientX, y: event.clientY, text });
+  }
+
+  async function copy(text: string) {
+    setMenu(null);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Ctrl+C still copies the selection.
+    }
   }
 
   const element = (popups.length > 0 || menu) && (
@@ -91,14 +108,15 @@ export function useJapaneseLookup() {
               <span className="dict-popup-title">{shorten(popup.text)}</span>
               <button className="dict-remove" type="button" aria-label="Close" onClick={() => setPopups((current) => current.filter((item) => item.id !== popup.id))}>×</button>
             </div>
-            <LookupContent text={popup.text} />
-            {index === popups.length - 1 && <p className="dict-popup-hint">Select text here and right-click to look it up too.</p>}
+            <LookupContent text={popup.text} onAdd={onAdd} />
+            {index === popups.length - 1 && <p className="dict-popup-hint">Select text here and right-click to look it up too, or to copy it.</p>}
           </div>
         );
       })}
       {menu && (
         <div className="anki-context-menu" style={{ left: menu.x, top: menu.y, zIndex: 60 + popups.length }} role="menu">
-          <button type="button" role="menuitem" onClick={() => open(menu.text, menu.x, menu.y)}>Look up “{shorten(menu.text)}”</button>
+          {hasJapanese(menu.text) && <button type="button" role="menuitem" onClick={() => open(menu.text, menu.x, menu.y)}>Look up “{shorten(menu.text)}”</button>}
+          <button type="button" role="menuitem" onClick={() => void copy(menu.text)}>Copy</button>
         </div>
       )}
     </div>

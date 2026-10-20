@@ -14,8 +14,8 @@ import { anki, ankiSearchValue, reviewFlag } from "@/lib/anki/connect";
 import { blockHtml, cleanField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, handwrittenRubyReading, hasReading, htmlToText, joinNotesBlocks, markdownToAnkiHtml, notesMiddle, readingHtml, splitNotesBlocks, type NotesBlock } from "@/lib/anki/fields";
 import type { BranchItem, FollowUpExchange } from "@/lib/anki/prompts";
 import { analysisLanguage, ankiLanguages, audioField, audioFilename, notesField, pbTags, readingLabel, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
-import { browserJapaneseDictionary, fetchJapaneseTextWords } from "@/lib/dictionary/client";
-import { dictItemsHtml, sentenceDictItems, wordDictItems, type DictNoteItem } from "@/lib/dictionary/notesBlock";
+import { lookUpDictItems } from "@/lib/dictionary/client";
+import { dictItemsHtml, mergeDictItems, parseDictHtml, type DictNoteItem } from "@/lib/dictionary/notesBlock";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
 
@@ -128,7 +128,12 @@ export function ReviewSession() {
   const [followUpStatus, setFollowUpStatus] = useState("");
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
   // Right-click → Look up on Japanese text: dictionary popups.
-  const lookup = useJapaneseLookup();
+  // "Add to this card" in a box adds its entries to the note's (starting
+  // from the ones it has saved, if they haven't been looked up again here).
+  const lookup = useJapaneseLookup(language === "Japanese" ? (items) => setDraft((current) => current && {
+    ...current,
+    dict: mergeDictItems(current.dict ?? parseDictHtml(blockHtml(queue?.[index]?.fields[notesField(language)] || "", "pb-dict")), items),
+  }) : undefined);
   const selectionMenu = useSelectionMenu((text) => void addSelection(text), (text) => void later.save(text), language === "Japanese" ? lookup.open : undefined);
   // The saved-for-later list: this language's count, and whether it's open.
   const laterItems = useLaterItems();
@@ -285,16 +290,7 @@ export function ReviewSession() {
     setStatus("Looking up the dictionary...");
     try {
       const text = draft.fieldText.trim() || draft.cleanedText;
-      let items: DictNoteItem[];
-      if (draft.kind === "word") {
-        const found = await browserJapaneseDictionary.lookup(text);
-        if (!found) throw new Error("The dictionary isn't available right now.");
-        items = wordDictItems(text, found);
-      } else {
-        const [words, kanji] = await Promise.all([fetchJapaneseTextWords(text), browserJapaneseDictionary.kanji(text)]);
-        if (!words) throw new Error("The sentence couldn't be split into words right now.");
-        items = sentenceDictItems(words, kanji);
-      }
+      const items = await lookUpDictItems(text, draft.kind);
       if (!items.length) {
         setStatus(draft.kind === "word" ? "Not found in the dictionary." : "Nothing hard enough here: no kanji beyond elementary school and no uncommon words.");
         return;
@@ -687,6 +683,7 @@ export function ReviewSession() {
                 <div className="input-action-row">
                   <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void lookUpDictionary()}>{draft.dict?.length || (!draft.dict && savedDictHtml) ? "Look up dictionary entries again" : "Add dictionary entries"}</button>
                   {(draft.dict ? draft.dict.length > 0 : Boolean(savedDictHtml)) && <button className="text-button" type="button" disabled={busy} onClick={() => update({ dict: [] })}>Remove dictionary entries</button>}
+                  {!draft.dict && savedDictHtml && <button className="text-button" type="button" disabled={busy} onClick={() => update({ dict: parseDictHtml(savedDictHtml) })}>Edit dictionary entries</button>}
                   {dictDirty && <button className="text-button" type="button" disabled={busy} onClick={() => update({ dict: null })}>Undo</button>}
                 </div>
                 <p className="anki-note">
@@ -697,7 +694,7 @@ export function ReviewSession() {
                 </p>
                 {draft.dict && draft.dict.length > 0 && (
                   <>
-                    <p className="anki-note">Click × to leave out a word, sense, kanji or compound; Save changes saves what&apos;s left.</p>
+                    <p className="anki-note">Edit any line, or click × to leave it out; Save changes saves what&apos;s left. To add a word from the text, select it, right-click → Look up, and click <b>Add to this card</b>.</p>
                     <DictEntriesEditor items={draft.dict} disabled={busy} onChange={(items) => update({ dict: items })} />
                   </>
                 )}

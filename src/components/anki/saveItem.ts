@@ -4,7 +4,8 @@
 import { speak } from "@/components/anki/api";
 import type { ItemKind } from "@/lib/anki/classify";
 import { anki } from "@/lib/anki/connect";
-import { appendToField, branchNoteBlock, composeNotesField, escapeHtml, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
+import { appendToField, branchNoteBlock, composeNotesField, escapeHtml, markdownToAnkiHtml, readingHtml, withDictBlock } from "@/lib/anki/fields";
+import { dictItemsHtml, type DictNoteItem } from "@/lib/dictionary/notesBlock";
 import { audioField, audioFilename, notesField, pbTags, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
 export type ItemOutcome = { kind: "added"; note: VocabNote } | { kind: "commented" } | { kind: "skipped" };
@@ -27,15 +28,23 @@ export type ItemDraft = {
   analysis: string;
   kind: ItemKind;
   tags: string[];
+  // Japanese dictionary entries to save under the reading (for an item
+  // already in Anki, they replace any it has).
+  dict?: DictNoteItem[];
 };
 
 // The language's Notes field the item will be saved with: its reading, the
-// explanation in that language and the "Seen in" line (and any analysis).
+// explanation in that language and the "Seen in" line (and any dictionary
+// entries and analysis).
 export function itemNotesHtml(draft: ItemDraft) {
   const { language, text, reading, explanation, seenIn, match, target, analysis } = draft;
   const block = branchNoteBlock(explanation, seenIn);
-  if (target === "existing" && match) return appendToField(match.fields[notesField(language)] || "", block);
-  return composeNotesField(block, readingLanguages.has(language) ? readingHtml(reading, language, text) : "", markdownToAnkiHtml(analysis));
+  const dict = draft.dict?.length ? dictItemsHtml(draft.dict) : "";
+  if (target === "existing" && match) {
+    const appended = appendToField(match.fields[notesField(language)] || "", block);
+    return dict ? withDictBlock(appended, dict) : appended;
+  }
+  return composeNotesField(block, readingLanguages.has(language) ? readingHtml(reading, language, text) : "", markdownToAnkiHtml(analysis), dict);
 }
 
 // The English note the item will be saved with: the English explanation,

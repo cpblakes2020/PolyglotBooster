@@ -181,15 +181,27 @@ function removeBlock(html: string, className: string) {
 
 // Builds a Notes_<Language> value. Whatever the field already holds (e.g. a
 // hand-written furigana reading) is kept; PolyglotBooster's own blocks are
-// replaced on re-analysis rather than stacked. Layout: reading, existing
-// content, analysis.
-export function composeNotesField(existing: string, reading: string, analysisHtml: string) {
-  const kept = removeBlock(removeBlock(existing, "pb-reading"), "pb-analysis").trim();
+// replaced on re-analysis rather than stacked. Layout: reading, dictionary
+// entries, existing content, analysis. Given dictHtml (a pb-dict block, or
+// "" for none), it replaces any dictionary entries the field already has.
+export function composeNotesField(existing: string, reading: string, analysisHtml: string, dictHtml?: string) {
+  let kept = removeBlock(removeBlock(existing, "pb-reading"), "pb-analysis").trim();
+  if (dictHtml !== undefined) kept = removeBlock(kept, "pb-dict").trim();
   return [
     reading.trim() ? `<div class="pb-reading">${reading.trim()}</div>` : "",
+    dictHtml || "",
     kept,
     analysisHtml.trim() ? `<div class="pb-analysis">${analysisHtml.trim()}</div>` : "",
   ].filter(Boolean).join("");
+}
+
+// A Notes field with its dictionary entries replaced by dictHtml (a pb-dict
+// block), placed right after the reading; everything else is left as it is.
+export function withDictBlock(existing: string, dictHtml: string) {
+  const rest = removeBlock(existing, "pb-dict");
+  const reading = findBlock(rest, "pb-reading");
+  const at = reading ? reading[1] : 0;
+  return `${rest.slice(0, at)}${dictHtml}${rest.slice(at)}`;
 }
 
 // The parts of a Notes_<Language> field besides PolyglotBooster's reading

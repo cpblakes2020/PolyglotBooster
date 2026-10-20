@@ -87,6 +87,9 @@ export function useSelectionMenu(onPick?: (text: string) => void, onSaveLater?: 
     // Without a selection inside this element, keep the browser's own menu.
     if (!text || (!onPick && !onSaveLater && !(onLookUp && hasJapanese(text)))) return;
     event.preventDefault();
+    // The innermost menu answers (e.g. a card editor inside a study desk
+    // result), not every area around it too.
+    event.stopPropagation();
     setMenu({ x: event.clientX, y: event.clientY, text: text.slice(0, 300) });
   }
 

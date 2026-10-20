@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { analyze, describeSelection, type AnalysisOptions } from "@/components/anki/api";
 import { itemEnglishNoteHtml, itemNotesHtml, saveItem, type ItemDraft, type ItemOutcome } from "@/components/anki/saveItem";
 import { BranchQueue } from "@/components/anki/BranchQueue";
+import { DictEntriesEditor } from "@/components/dictionary/DictEntriesEditor";
 import { JapaneseDictionaryPanel } from "@/components/dictionary/JapaneseDictionaryPanel";
 import { TagInput, parseTags, useSelectionMenu } from "@/components/anki/selection";
 import { useJapaneseLookup } from "@/components/dictionary/LookupPopups";
 import { classifyItem, type ItemKind } from "@/lib/anki/classify";
 import { cleanField } from "@/lib/anki/fields";
+import { lookUpDictItems } from "@/lib/dictionary/client";
+import { isJapaneseTerm } from "@/lib/dictionary/japanese";
+import { mergeDictItems, type DictNoteItem } from "@/lib/dictionary/notesBlock";
 import type { BranchItem } from "@/lib/anki/prompts";
 import { notesField, readingLabel, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
@@ -29,6 +33,8 @@ type ItemEditorProps = {
   // Given for saved-for-later items: delete it from the list instead of
   // skipping it (which keeps it for later).
   onDelete?: () => void;
+  // Japanese word cards start with their dictionary entries looked up.
+  autoDictionary?: boolean;
 };
 
 // Adds one item found in an analysis to Anki: as a new note with its brief
@@ -36,7 +42,7 @@ type ItemEditorProps = {
 // already in Anki — as a comment appended to that note. New notes get
 // learning-language audio straight away. An item with a full analysis can
 // itself be branched from, one level deeper.
-export function ItemEditor({ item, language, seenIn, match, options, depth, tagSuggestions, onDone, onDelete }: ItemEditorProps) {
+export function ItemEditor({ item, language, seenIn, match, options, depth, tagSuggestions, onDone, onDelete, autoDictionary = false }: ItemEditorProps) {
   const [text, setText] = useState(item.text);
   const [english, setEnglish] = useState(item.english);
   const [reading, setReading] = useState(item.reading);
@@ -49,14 +55,40 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
   const [subBranch, setSubBranch] = useState<{ items?: BranchItem[] } | null>(null);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
-  const lookup = useJapaneseLookup();
-  const selectionMenu = useSelectionMenu((selected) => void branchSelection(selected), undefined, language === "Japanese" ? lookup.open : undefined);
+  // Japanese dictionary entries for the card: looked up with the button, or
+  // added from a right-click lookup box; editable before saving.
+  const [dict, setDict] = useState<DictNoteItem[]>([]);
+  const japanese = language === "Japanese";
+  const canBranch = target === "new" && Boolean(analysis.trim());
+  const lookup = useJapaneseLookup(japanese ? (items) => setDict((current) => mergeDictItems(current, items)) : undefined);
+  const selectionMenu = useSelectionMenu(canBranch ? (selected) => void branchSelection(selected) : undefined, undefined, japanese ? lookup.open : undefined);
 
   const usesReading = readingLanguages.has(language);
   const matchEnglish = match ? cleanField(match.fields.English || "", "English").text : "";
-  const canBranch = target === "new" && Boolean(analysis.trim());
 
-  const draft: ItemDraft = { language, text, english, reading, comment, explanation, seenIn, match, target, analysis, kind, tags: parseTags(newTags) };
+  const draft: ItemDraft = { language, text, english, reading, comment, explanation, seenIn, match, target, analysis, kind, tags: parseTags(newTags), dict };
+
+  async function addDictionary(mode: "word" | "sentence") {
+    setBusy(true);
+    setStatus("Looking up the dictionary...");
+    try {
+      const items = await lookUpDictItems(text.trim(), mode);
+      setDict(items);
+      setStatus(items.length ? "" : mode === "word" ? "Not found in the dictionary." : "Nothing hard enough here: no kanji beyond elementary school and no uncommon words.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The dictionary couldn't be looked up.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // "Add dictionary entries to word cards": a word card opens with them.
+  useEffect(() => {
+    if (!autoDictionary || !japanese || !isJapaneseTerm(item.text)) return;
+    let cancelled = false;
+    lookUpDictItems(item.text.trim(), "word").then((items) => { if (!cancelled) setDict((current) => current.length ? current : items); }, () => {});
+    return () => { cancelled = true; };
+  }, [autoDictionary, japanese, item.text]);
   const preview = itemNotesHtml(draft);
   const englishPreview = itemEnglishNoteHtml(draft);
 
@@ -131,7 +163,7 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
 
       <div className="anki-item-fields">
         <label className="anki-field-edit">{language}
-          <input value={text} disabled={target === "existing"} onChange={(event) => setText(event.target.value)} />
+          <input value={text} disabled={target === "existing"} onChange={(event) => setText(event.target.value)} onContextMenu={japanese ? selectionMenu.onContextMenu : undefined} />
         </label>
         {target === "new" && (
           <label className="anki-field-edit">English
@@ -151,7 +183,27 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
         </label>
       </div>
 
-      {language === "Japanese" && <JapaneseDictionaryPanel text={text} />}
+      {japanese && (
+        <>
+          <div onContextMenu={selectionMenu.onContextMenu}><JapaneseDictionaryPanel text={text} /></div>
+          <div className="anki-dict-tool">
+            <div className="input-action-row">
+              <button className="preview-prompt-button" type="button" disabled={busy || !text.trim()} onClick={() => void addDictionary(isJapaneseTerm(text) ? "word" : "sentence")}>{dict.length ? "Look up dictionary entries again" : "Add dictionary entries"}</button>
+              {dict.length > 0 && <button className="text-button" type="button" disabled={busy} onClick={() => setDict([])}>Remove dictionary entries</button>}
+            </div>
+            <p className="anki-note">
+              {isJapaneseTerm(text) ? "The word's JMdict entries and each of its kanji with other words that use it" : "Only the hard parts: the hardest kanji and the words that use them or aren't everyday words"} — no AI, saved under the reading.
+              {" "}Or select a word in the {language} text or the dictionary panel, right-click → Look up, and click <b>Add to this card</b>.
+            </p>
+            {dict.length > 0 && (
+              <>
+                <p className="anki-note">Edit any line, or click × to leave it out.</p>
+                <DictEntriesEditor items={dict} disabled={busy} onChange={setDict} />
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       {target === "new" && (
         <div className="anki-template-choice" role="radiogroup" aria-label="Analysis template">
@@ -168,7 +220,7 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
       )}
 
       <p className="result-label">{notesField(language)} as it will appear under &ldquo;more&rdquo;</p>
-      <div className="anki-card-preview" onContextMenu={canBranch || language === "Japanese" ? selectionMenu.onContextMenu : undefined} dangerouslySetInnerHTML={{ __html: preview }} />
+      <div className="anki-card-preview" onContextMenu={canBranch || japanese ? selectionMenu.onContextMenu : undefined} dangerouslySetInnerHTML={{ __html: preview }} />
       {selectionMenu.element}
       {lookup.element}
       {englishPreview && (

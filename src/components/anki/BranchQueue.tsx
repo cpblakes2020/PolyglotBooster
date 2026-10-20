@@ -9,6 +9,8 @@ import { anki } from "@/lib/anki/connect";
 import { cleanField } from "@/lib/anki/fields";
 import type { BranchItem } from "@/lib/anki/prompts";
 import type { AnkiLanguage, VocabNote } from "@/lib/anki/vocab";
+import { lookUpDictItems } from "@/lib/dictionary/client";
+import { isJapaneseTerm } from "@/lib/dictionary/japanese";
 
 type BranchQueueProps = {
   language: AnkiLanguage;
@@ -57,6 +59,10 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
   // "Add all": progress while items are saved with their defaults.
   const [bulk, setBulk] = useState<{ done: number; total: number; failures: string[] } | null>(null);
   const stopBulk = useRef(false);
+  // Japanese: word cards get their dictionary entries (under the reading),
+  // both with "Add all" and when worked through one at a time.
+  const [withDictionary, setWithDictionary] = useState(false);
+  const wordCount = (rows || []).filter((row) => row.selected && isJapaneseTerm(row.item.text)).length;
 
   const seenIn = parentEnglish ? `${parentText} (${parentEnglish})` : parentText;
 
@@ -120,9 +126,10 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
       const key = cleanField(item.text, language).text;
       const match = known.get(key) || null;
       try {
+        const dict = withDictionary && language === "Japanese" && isJapaneseTerm(item.text) ? await lookUpDictItems(item.text.trim(), "word").catch(() => []) : [];
         const { outcome } = await saveItem({
           language, text: item.text, english: item.english, reading: item.reading, comment: item.comment, explanation: item.explanation, seenIn: item.seenIn || seenIn,
-          match, target: match ? "existing" : "new", analysis: "", kind: classifyItem(item.text, language).kind, tags: item.tags || [],
+          match, target: match ? "existing" : "new", analysis: "", kind: classifyItem(item.text, language).kind, tags: item.tags || [], dict,
         });
         if (outcome.kind === "added") known.set(key, outcome.note);
         setTally((current) => ({ ...current, [outcome.kind]: current[outcome.kind] + 1 }));
@@ -224,6 +231,9 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
             {rows.some((row) => row.selected) && (
               <button className="preview-prompt-button" type="button" disabled={bulk !== null} onClick={() => void addAllFromPicker()}>Add all {rows.filter((row) => row.selected).length} with brief explanations</button>
             )}
+            {language === "Japanese" && wordCount > 0 && (
+              <label className="anki-checkbox"><input type="checkbox" checked={withDictionary} onChange={(event) => setWithDictionary(event.target.checked)} /> Add dictionary entries to the {wordCount} word card{wordCount === 1 ? "" : "s"} (JMdict, no AI — trimmable one at a time)</label>
+            )}
             {batchTags.length > 0 && untickedExisting.length > 0 && (
               <label className="anki-checkbox"><input type="checkbox" checked={tagExisting} onChange={(event) => setTagExisting(event.target.checked)} /> Also tag the {untickedExisting.length} unticked card{untickedExisting.length === 1 ? "" : "s"} already in Anki with {batchTags.join(" ")}</label>
             )}
@@ -264,6 +274,7 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
             tagSuggestions={tagSuggestions}
             onDone={handleDone}
             onDelete={deletable ? handleDeleted : undefined}
+            autoDictionary={withDictionary}
           />
         </>
       )}

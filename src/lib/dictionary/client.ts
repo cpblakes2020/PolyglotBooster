@@ -1,4 +1,5 @@
 import { createJapaneseDictionary, type JmEntry } from "@/lib/dictionary/japanese";
+import { sentenceDictItems, wordDictItems, type DictNoteItem } from "@/lib/dictionary/notesBlock";
 
 // One Japanese dictionary for the whole page in the browser, loading files
 // from the site itself (public/dict/jmdict) and keeping them for later
@@ -19,4 +20,18 @@ export async function fetchJapaneseTextWords(text: string): Promise<SentenceWord
   } catch {
     return null;
   }
+}
+
+// Dictionary entries for a note (see notesBlock): "word" — a word's
+// entries and every kanji in it; "sentence" — only the hard parts. Throws
+// when the dictionary isn't available.
+export async function lookUpDictItems(text: string, mode: "word" | "sentence"): Promise<DictNoteItem[]> {
+  if (mode === "word") {
+    const found = await browserJapaneseDictionary.lookup(text);
+    if (!found) throw new Error("The dictionary isn't available right now.");
+    return wordDictItems(text, found);
+  }
+  const [words, kanji] = await Promise.all([fetchJapaneseTextWords(text), browserJapaneseDictionary.kanji(text)]);
+  if (!words) throw new Error("The sentence couldn't be split into words right now.");
+  return sentenceDictItems(words, kanji);
 }
