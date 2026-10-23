@@ -90,11 +90,32 @@ function soundFilename(field: string) {
   return field.match(/\[sound:([^\]]+)\]/)?.[1];
 }
 
+// Audio files that can be added by hand, and how to play them here.
+const audioTypes: Record<string, string> = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg", oga: "audio/ogg", opus: "audio/ogg", flac: "audio/flac", webm: "audio/webm" };
+const maxAudioFileBytes = 20 * 1024 * 1024;
+const audioExtension = (filename: string) => filename.split(".").pop()?.toLowerCase() || "";
+const audioMime = (filename: string) => audioTypes[audioExtension(filename)] || "audio/mpeg";
+
+// A recording or audio file waiting to replace the note's audio on save.
+type NewAudio = { data: string; extension: string; from: string };
+
+function readAudioFile(file: File): Promise<NewAudio> {
+  return new Promise((resolve, reject) => {
+    const extension = audioExtension(file.name);
+    if (!audioTypes[extension]) { reject(new Error(`${file.name} isn't an audio file Anki plays (MP3, M4A, AAC, WAV, OGG, FLAC).`)); return; }
+    if (file.size > maxAudioFileBytes) { reject(new Error(`${file.name} is over 20 MB.`)); return; }
+    const reader = new FileReader();
+    reader.onload = () => resolve({ data: String(reader.result).replace(/^data:[^,]*,/, ""), extension, from: file.name });
+    reader.onerror = () => reject(new Error(`${file.name} couldn't be read.`));
+    reader.readAsDataURL(file);
+  });
+}
+
 async function playAnkiSound(field: string) {
   const filename = soundFilename(field);
   if (!filename) return;
   const data = await anki.retrieveMedia(filename);
-  if (data) await new Audio(`data:audio/mpeg;base64,${data}`).play();
+  if (data) await new Audio(`data:${audioMime(filename)};base64,${data}`).play();
 }
 
 export function ReviewSession() {
@@ -140,7 +161,11 @@ export function ReviewSession() {
   const laterCount = laterItems?.filter((item) => item.language === language).length || 0;
   const [showLater, setShowLater] = useState(false);
   // A new recording (base64 MP3) waiting to replace the note's audio on save.
-  const [newAudio, setNewAudio] = useState<string | null>(null);
+  const [newAudio, setNewAudio] = useState<NewAudio | null>(null);
+  const [draggingAudio, setDraggingAudio] = useState(false);
+  // The Markdown editor for the analysis opens on request (the preview
+  // shows the analysis either way).
+  const [editingAnalysis, setEditingAnalysis] = useState(false);
   // Whether the note's cards carry Anki's red flag (null while checking).
   const [flagged, setFlagged] = useState<boolean | null>(null);
 
@@ -166,6 +191,7 @@ export function ReviewSession() {
     setAskingFollowUp(false);
     setFollowUpStatus("");
     setNewAudio(null);
+    setEditingAnalysis(false);
     setStatus(next ? "" : "That's every note in this set.");
   }
 
@@ -408,7 +434,7 @@ export function ReviewSession() {
       if (newAudio) {
         // A replaced recording gets a new file name so the change syncs.
         const version = note.fields[audioField(language)]?.trim() ? Date.now().toString(36) : undefined;
-        const filename = await anki.storeMedia(audioFilename(note.noteId, language, version), newAudio);
+        const filename = await anki.storeMedia(audioFilename(note.noteId, language, version, newAudio.extension), newAudio.data);
         fields[audioField(language)] = `[sound:${filename}]`;
         tags.push(pbTags.audio(language));
       }
@@ -441,13 +467,26 @@ export function ReviewSession() {
     setStatus("Recording...");
     try {
       const data = await speak(draft.fieldText.trim() || draft.cleanedText, language, draft.reading || handwrittenReading);
-      setNewAudio(data);
+      setNewAudio({ data, extension: "mp3", from: "" });
       setStatus("");
       await new Audio(`data:audio/mpeg;base64,${data}`).play();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "The audio could not be recorded.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  // An audio file chosen or dropped (e.g. a textbook recording): it
+  // replaces the note's audio when you save, keeping its format.
+  async function takeAudioFile(file: File) {
+    try {
+      const audio = await readAudioFile(file);
+      setNewAudio(audio);
+      setStatus("");
+      await new Audio(`data:${audioTypes[audio.extension]};base64,${audio.data}`).play().catch(() => {});
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The audio file couldn't be used.");
     }
   }
 
@@ -638,14 +677,14 @@ export function ReviewSession() {
 
           {readingLanguages.has(language) && (
             <section className="anki-tool">
-              <p className="result-label">{readingLabel(language)}{readingDirty && <span className="anki-changed">changed</span>}</p>
+              <div className="anki-tool-head">
+                <p className="result-label">{readingLabel(language)}{readingDirty && <span className="anki-changed">changed</span>}</p>
+                {usesReading && <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void generate("reading")}>Regenerate</button>}
+                {usesReading && readingDirty && <button className="text-button" type="button" disabled={busy} onClick={() => update({ reading: draft.origReading })}>Undo</button>}
+              </div>
               {usesReading ? (
                 <>
                   <textarea className="anki-reading-input" rows={Math.min(10, Math.max(3, draft.reading.split("\n").reduce((rows, line) => rows + Math.max(1, Math.ceil(line.length / 40)), 0)))} value={draft.reading} placeholder={mode === "reading" ? "Writing the reading..." : "No reading yet — Regenerate writes one"} onChange={(event) => update({ reading: event.target.value })} />
-                  <div className="input-action-row">
-                    <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void generate("reading")}>Regenerate</button>
-                    {readingDirty && <button className="text-button" type="button" disabled={busy} onClick={() => update({ reading: draft.origReading })}>Undo</button>}
-                  </div>
                 </>
               ) : (
                 <p className="anki-note"><b>{handwrittenReading}</b> — from the furigana written by hand in the notes below, which is kept as it is (the audio uses it too).</p>
@@ -653,16 +692,29 @@ export function ReviewSession() {
             </section>
           )}
 
-          <section className="anki-tool">
-            <p className="result-label">Audio{newAudio && <span className="anki-changed">new recording</span>}</p>
-            <div className="input-action-row">
-              {soundFilename(note.fields[audioField(language)] || "")
-                ? <button className="text-button" type="button" onClick={() => void playAnkiSound(note.fields[audioField(language)])}>▶ Current recording</button>
-                : <span className="anki-note">No recording yet.</span>}
-              {newAudio && <button className="text-button" type="button" onClick={() => void new Audio(`data:audio/mpeg;base64,${newAudio}`).play()}>▶ New recording</button>}
-              <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void recordAudio()}>{newAudio ? "Record again" : soundFilename(note.fields[audioField(language)] || "") ? "Re-record" : "Record"}</button>
+          <section
+            className={`anki-tool anki-audio-tool${draggingAudio ? " dragging" : ""}`}
+            onDragOver={(event) => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDraggingAudio(true); } }}
+            onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDraggingAudio(false); }}
+            onDrop={(event) => { event.preventDefault(); setDraggingAudio(false); const file = event.dataTransfer.files[0]; if (file) void takeAudioFile(file); }}
+          >
+            <div className="anki-tool-head">
+              <p className="result-label">Audio{newAudio && <span className="anki-changed">{newAudio.from ? "new file" : "new recording"}</span>}</p>
+              {soundFilename(note.fields[audioField(language)] || "") && <button className="text-button" type="button" onClick={() => void playAnkiSound(note.fields[audioField(language)])}>▶ Current</button>}
+              {newAudio && <button className="text-button" type="button" onClick={() => void new Audio(`data:${audioTypes[newAudio.extension]};base64,${newAudio.data}`).play()}>▶ New</button>}
+              <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void recordAudio()}>{newAudio && !newAudio.from ? "Record again" : soundFilename(note.fields[audioField(language)] || "") ? "Re-record" : "Record"}</button>
+              <label className={`preview-prompt-button anki-file-button${busy ? " disabled" : ""}`}>
+                Choose file…
+                <input type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void takeAudioFile(file); }} />
+              </label>
               {newAudio && <button className="text-button" type="button" disabled={busy} onClick={() => setNewAudio(null)}>Keep the {soundFilename(note.fields[audioField(language)] || "") ? "old one" : "note without audio"}</button>}
             </div>
+            <p className="anki-audio-file" title="The Audio field in Anki">
+              {newAudio
+                ? <>On save: <code>[sound:{audioFilename(note.noteId, language, soundFilename(note.fields[audioField(language)] || "") ? "…" : undefined, newAudio.extension)}]</code>{newAudio.from ? <> from <b>{newAudio.from}</b></> : " (new recording)"}{soundFilename(note.fields[audioField(language)] || "") && <> · now <code>[sound:{soundFilename(note.fields[audioField(language)] || "")}]</code></>}</>
+                : soundFilename(note.fields[audioField(language)] || "") ? <code>[sound:{soundFilename(note.fields[audioField(language)] || "")}]</code> : <span className="anki-note">No audio yet.</span>}
+              <span className="anki-audio-drop">{draggingAudio ? "Drop the audio file to use it" : "or drop an audio file here"}</span>
+            </p>
           </section>
 
           <section className="anki-tool">
@@ -675,6 +727,7 @@ export function ReviewSession() {
             </div>
             <div className="input-action-row">
               <button className="save-input-button" type="button" disabled={busy} onClick={() => void generate(draft.analysis ? "analysis" : "all")}>{draft.analysis ? "Regenerate analysis" : "Analyze"}</button>
+              {draft.analysis && <button className="text-button" type="button" disabled={busy} onClick={() => setEditingAnalysis(!editingAnalysis)}>{editingAnalysis ? "Hide the Markdown" : "Edit analysis (Markdown)"}</button>}
               {draft.analysis && <button className="text-button" type="button" disabled={busy} onClick={() => update({ analysis: "" })}>Remove analysis</button>}
               {analysisDirty && <button className="text-button" type="button" disabled={busy} onClick={() => update({ analysis: draft.origAnalysis })}>Undo</button>}
             </div>
@@ -700,7 +753,7 @@ export function ReviewSession() {
                 )}
               </div>
             )}
-            {draft.analysis && (
+            {draft.analysis && editingAnalysis && (
               <label className="anki-field-edit">Analysis (Markdown, editable)
                 <textarea value={draft.analysis} onChange={(event) => update({ analysis: event.target.value })} />
               </label>

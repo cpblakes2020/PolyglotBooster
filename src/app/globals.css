@@ -28,7 +28,7 @@ body {
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 
-.app-shell { max-width: 1240px; margin: 0 auto; padding: 28px 42px 22px; }
+.app-shell { width: 100%; min-width: 0; max-width: 1240px; margin: 0 auto; padding: 28px 42px 22px; }
 .topbar, .page-footer, .panel-heading, .template-heading, .field-footer { display: flex; align-items: center; justify-content: space-between; }
 .topbar { border-bottom: 1px solid var(--line); padding-bottom: 22px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-size: 15px; font-weight: 700; letter-spacing: .01em; text-decoration: none; }
@@ -134,7 +134,7 @@ h2 { margin-bottom: 0; color: var(--ink); font-family: Georgia, serif; font-size
 .follow-up-question strong, .follow-up-answer strong { color: var(--teal); }
 .follow-up-form { margin-top: 12px; }
 .follow-up-textarea { display: block; width: 100%; min-height: 90px; resize: vertical; border: 1px solid var(--line); background: #f3f1e7; margin-top: 10px; padding: 12px; color: var(--ink); font-size: 13px; line-height: 1.5; }
-.result-actions { display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line); padding: 12px 14px; }
+.result-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; border-top: 1px solid var(--line); padding: 12px 14px; }
 .review-section { border-top: 1px solid var(--line); padding: 46px 0 36px; }
 .review-filter-note { border-top: 1px solid var(--line); margin-top: 46px; padding: 20px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .review-list { display: grid; gap: 8px; }
@@ -488,3 +488,16 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .prompt-part-label .text-button { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .review-detail-short { min-height: 60px; }
 .custom-task-card .template-icon { color: var(--coral); }
+
+/* Review screen: buttons beside each tool's heading, audio file line */
+.anki-tool-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 6px; }
+.anki-tool-head .result-label { margin: 0; margin-right: 6px; }
+.anki-file-button { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+.anki-file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.anki-file-button.disabled { opacity: .5; cursor: default; }
+.anki-file-button:focus-within { outline: 2px solid var(--coral); outline-offset: 2px; }
+.anki-audio-file { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0; border: 1px dashed var(--line); background: #f3f1e7; padding: 6px 10px; color: var(--ink); font-size: 12px; overflow-wrap: anywhere; }
+.anki-audio-file code { font-size: 12px; }
+.anki-audio-drop { margin-left: auto; color: var(--muted); font-size: 11px; }
+.anki-audio-tool.dragging .anki-audio-file { border-color: var(--teal); background: #e3efe9; }
+@media (pointer: coarse) { .anki-audio-drop { display: none; } }
