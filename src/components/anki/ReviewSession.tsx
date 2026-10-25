@@ -13,7 +13,7 @@ import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/cla
 import { anki, ankiSearchValue, reviewFlag } from "@/lib/anki/connect";
 import { blockHtml, cleanField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, handwrittenRubyReading, hasReading, htmlToText, joinNotesBlocks, markdownToAnkiHtml, notesMiddle, readingHtml, splitNotesBlocks, type NotesBlock } from "@/lib/anki/fields";
 import type { BranchItem, FollowUpExchange } from "@/lib/anki/prompts";
-import { analysisLanguage, ankiLanguages, audioField, audioFilename, notesField, pbTags, readingLabel, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { analysisLanguage, ankiLanguages, audioField, audioFilename, notesField, pbTags, readingLabel, readingLanguages, sentenceTemplateId, soundField, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import { lookUpDictItems } from "@/lib/dictionary/client";
 import { dictItemsHtml, mergeDictItems, parseDictHtml, type DictNoteItem } from "@/lib/dictionary/notesBlock";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
@@ -441,7 +441,7 @@ export function ReviewSession() {
         // A replaced recording gets a new file name so the change syncs.
         const version = note.fields[audioField(language)]?.trim() ? Date.now().toString(36) : undefined;
         const filename = await anki.storeMedia(audioFilename(note.noteId, language, version, newAudio.extension), newAudio.data);
-        fields[audioField(language)] = `[sound:${filename}]`;
+        fields[audioField(language)] = soundField(filename);
         tags.push(pbTags.audio(language));
       }
       if (Object.keys(fields).length) await anki.updateFields(note.noteId, fields);

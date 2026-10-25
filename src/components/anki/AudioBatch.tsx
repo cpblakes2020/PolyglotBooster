@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { speak } from "@/components/anki/api";
 import { anki } from "@/lib/anki/connect";
 import { audioReading, cleanField } from "@/lib/anki/fields";
-import { audioField, audioFilename, audioLanguages, notesField, pbTags, type AnkiLanguage } from "@/lib/anki/vocab";
+import { audioField, audioFilename, audioLanguages, notesField, pbTags, soundField, type AnkiLanguage } from "@/lib/anki/vocab";
 import type { Language } from "@/lib/types";
 import { defaultVoiceSettings, type VoiceSetting } from "@/lib/voices";
 
@@ -84,7 +84,7 @@ export function AudioBatch() {
   async function runJob(job: Job, version?: string) {
     const audio = await speak(job.text, job.language, job.reading);
     const filename = await anki.storeMedia(audioFilename(job.noteId, job.language, version), audio);
-    await anki.updateFields(job.noteId, { [audioField(job.language)]: `[sound:${filename}]` });
+    await anki.updateFields(job.noteId, { [audioField(job.language)]: soundField(filename) });
     await anki.addTags([job.noteId], [pbTags.audio(job.language)]);
   }
 

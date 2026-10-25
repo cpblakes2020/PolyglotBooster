@@ -5,16 +5,24 @@ import { ClipMatcher, type ClipChoice, type ClipTarget } from "@/components/anki
 import { isWordNote } from "@/lib/anki/bookAudio";
 import { anki, ankiSearchValue } from "@/lib/anki/connect";
 import { cleanField, htmlToText } from "@/lib/anki/fields";
-import { audioField, audioFilename, audioLanguages, pbTags, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { audio2Field, audioField, audioFilename, audioLanguages, pbTags, soundField, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
-function toTarget(note: VocabNote, language: AnkiLanguage): ClipTarget {
+// Which recording the clips go in: the first (replacing text-to-speech) or
+// the second, which plays after it.
+type Slot = 1 | 2;
+
+function slotField(slot: Slot, language: AnkiLanguage) {
+  return slot === 1 ? audioField(language) : audio2Field(language);
+}
+
+function toTarget(note: VocabNote, language: AnkiLanguage, slot: Slot): ClipTarget {
   const text = cleanField(note.fields[language] || "", language).text;
   return {
     id: String(note.noteId),
     text,
     english: htmlToText(note.fields.English || "").replace(/\n/g, " "),
     isWord: isWordNote(text, language),
-    audio: note.fields[audioField(language)] || "",
+    audio: note.fields[slotField(slot, language)] || "",
     bookAudio: note.tags.includes(pbTags.bookAudio(language)),
   };
 }
@@ -25,6 +33,7 @@ function toTarget(note: VocabNote, language: AnkiLanguage): ClipTarget {
 // transcribing each clip, and written after one review of the whole table.
 export function BookAudio() {
   const [language, setLanguage] = useState<AnkiLanguage>("Thai");
+  const [slot, setSlot] = useState<Slot>(1);
   const [tag, setTag] = useState("");
   const [allTags, setAllTags] = useState<string[]>([]);
   const [notes, setNotes] = useState<VocabNote[] | null>(null);
@@ -39,7 +48,7 @@ export function BookAudio() {
     void anki.getTags().then((tags) => setAllTags(tags.filter((item) => !item.startsWith("pb::")))).catch(() => {});
   }, []);
 
-  const targets = useMemo(() => notes && notes.map((note) => toTarget(note, language)).filter((target) => target.text), [notes, language]);
+  const targets = useMemo(() => notes && notes.map((note) => toTarget(note, language, slot)).filter((target) => target.text), [notes, language, slot]);
   const choose = useCallback((next: ClipChoice[], valid: boolean) => {
     setChoices(next);
     setReady(valid);
@@ -72,18 +81,21 @@ export function BookAudio() {
       for (const choice of choices) {
         const noteId = Number(choice.targetId);
         const filename = await anki.storeMedia(audioFilename(noteId, language, version), choice.data);
-        const field = `[sound:${filename}]`;
-        await anki.updateFields(noteId, { [audioField(language)]: field });
-        await anki.addTags([noteId], [pbTags.audio(language), pbTags.bookAudio(language)]);
+        const field = soundField(filename);
+        await anki.updateFields(noteId, { [slotField(slot, language)]: field });
+        // Only the first recording needs protecting from Bulk audio.
+        await anki.addTags([noteId], slot === 1 ? [pbTags.audio(language), pbTags.bookAudio(language)] : [pbTags.audio(language)]);
         written.set(noteId, field);
         setDone((count) => count + 1);
       }
-      setStatus(`Replaced the audio on ${written.size} notes and tagged them ${pbTags.bookAudio(language)}, so Bulk audio leaves them alone.`);
+      setStatus(slot === 1
+        ? `Replaced the audio on ${written.size} notes and tagged them ${pbTags.bookAudio(language)}, so Bulk audio leaves them alone.`
+        : `Put the clips on ${written.size} notes as their second recording.`);
     } catch (error) {
       setStatus(`${error instanceof Error ? error.message : "Writing to Anki failed."} ${written.size} of ${choices.length} notes were done.`);
     } finally {
       setNotes((current) => current && current.map((note) => written.has(note.noteId)
-        ? { ...note, fields: { ...note.fields, [audioField(language)]: written.get(note.noteId)! }, tags: [...note.tags, pbTags.bookAudio(language)] }
+        ? { ...note, fields: { ...note.fields, [slotField(slot, language)]: written.get(note.noteId)! }, tags: slot === 1 ? [...note.tags, pbTags.bookAudio(language)] : note.tags }
         : note));
       setRunning(false);
     }
@@ -91,7 +103,7 @@ export function BookAudio() {
 
   return (
     <div className="settings-panel anki-panel book-audio">
-      <p>Puts a textbook&apos;s own recordings on notes already in Anki, in place of their text-to-speech audio. Choose the chapter&apos;s tag and its MP3 files: each file is split into sentences at the longer pauses, and the clips are matched to the chapter&apos;s notes in the order they were added. Each clip is transcribed (with your OpenAI key, a fraction of a cent per chapter) to check the match. Nothing is written until you press Replace.</p>
+      <p>Puts a textbook&apos;s own recordings on notes already in Anki, in place of their text-to-speech audio — or, with <b>Audio 2</b>, as a second recording that plays after it (useful for listening notes). Choose the chapter&apos;s tag and its MP3 files: each file is split into sentences at the longer pauses, and the clips are matched to the chapter&apos;s notes in the order they were added. Each clip is transcribed (with your OpenAI key, a fraction of a cent per chapter) to check the match. Nothing is written until you press Replace.</p>
 
       <div className="book-audio-pick">
         <label>
@@ -105,6 +117,13 @@ export function BookAudio() {
           <input list="book-audio-tags" value={tag} placeholder="source::STT::24" disabled={running} onChange={(event) => setTag(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void loadNotes(); }} />
           <datalist id="book-audio-tags">{allTags.map((item) => <option key={item} value={item} />)}</datalist>
         </label>
+        <label>
+          <span>Put clips in</span>
+          <select value={slot} disabled={running} onChange={(event) => setSlot(Number(event.target.value) as Slot)}>
+            <option value={1}>Audio 1 (replaces text-to-speech)</option>
+            <option value={2}>Audio 2 (plays after audio 1)</option>
+          </select>
+        </label>
         <button className="save-input-button" type="button" disabled={running || !tag.trim()} onClick={() => void loadNotes()}>Load notes</button>
         {notes && <span className="anki-note">{notes.length} notes</span>}
       </div>
@@ -116,11 +135,11 @@ export function BookAudio() {
       {targets && choices.length > 0 && (
         <>
           <div className="input-action-row">
-            {!confirming && <button className="save-input-button" type="button" disabled={running || !ready} onClick={() => setConfirming(true)}>Replace audio on {choices.length} notes</button>}
+            {!confirming && <button className="save-input-button" type="button" disabled={running || !ready} onClick={() => setConfirming(true)}>{slot === 1 ? "Replace audio" : "Add as audio 2"} on {choices.length} notes</button>}
             {confirming && (
               <>
-                <span className="anki-note">Replace the {language} audio on {choices.length} notes with these clips? The old recordings stay in Anki&apos;s media folder until you run Tools → Check Media.</span>
-                <button className="save-input-button" type="button" onClick={() => void replace()}>Yes, replace {choices.length}</button>
+                <span className="anki-note">{slot === 1 ? "Replace" : "Set"} the {language} {slot === 1 ? "audio" : "second recording"} on {choices.length} notes with these clips? Any old recordings stay in Anki&apos;s media folder until you run Tools → Check Media.</span>
+                <button className="save-input-button" type="button" onClick={() => void replace()}>Yes, {slot === 1 ? "replace" : "add"} {choices.length}</button>
                 <button className="text-button" type="button" onClick={() => setConfirming(false)}>Cancel</button>
               </>
             )}

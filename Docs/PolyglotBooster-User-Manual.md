@@ -1,6 +1,6 @@
 # PolyglotBooster User Manual
 
-*Last updated: October 24, 2026*
+*Last updated: October 25, 2026*
 
 PolyglotBooster is a study companion for learning languages through other languages. You give it a word, a sentence, or a whole document in the language you're learning; it explains it through a language you already know, reads it aloud, and turns it into Anki flashcards — including rich notes, audio, and new cards for the example sentences and related words it finds along the way.
 
@@ -246,6 +246,8 @@ This adds, without touching anything already in Anki:
 - a note type called **Polyglot Vocab**, and
 - a deck for each language: **Polyglot::Indonesian**, **::Thai**, **::Japanese**, **::Spanish**, **::French** and **::Mandarin**.
 
+It includes [listening cards](#63b-listening-notes); their decks (**Polyglot::Listening::***Language*) are made when you add your first listening note.
+
 The page then shows **Connected to Anki**, and you're ready.
 
 ### 5.4a Adding Spanish, French and Mandarin to an older setup
@@ -256,6 +258,12 @@ If you set up Polyglot Vocab before these languages were added, the Anki page sh
 2. Click **Add Spanish, French, Mandarin**.
 3. Sync Anki on your computer; when it asks, choose **Upload to AnkiWeb**. Then sync your phone.
 
+### 5.4b Adding listening cards to an older setup
+
+If you set up Polyglot Vocab before listening cards existed, the Anki page offers **Add listening cards**. It adds a second audio field for each language, the *Listening* and *ListeningOnly* fields and a listening card for each language, and lets every card play the second recording after the first. Your existing notes and cards stay as they are. Follow the same three steps as above: sync your phone first, click the button, then upload from your computer and sync your phone.
+
+When a later version of PolyglotBooster improves the listening cards, the page shows **Update listening cards** instead. It only replaces the listening card layouts and needs the same one-way sync.
+
 ### 5.5 How Polyglot Vocab notes work
 
 One note holds one item in several languages. Its fields are:
@@ -264,9 +272,12 @@ One note holds one item in several languages. Its fields are:
 |---|---|
 | English, Indonesian, Thai, Japanese, Spanish, French, Mandarin | The item in each language |
 | Audio_*Language* | That language's recording |
+| Audio2_*Language* | An optional second recording (another voice, or the textbook's), played after the first |
 | Notes_*Language* | The reading (Thai romanization, Japanese furigana or Mandarin pinyin), the analysis, and brief explanations written in that language |
 | Notes_English (*English note*) | Brief explanations in English, and anything you write yourself, e.g. a question when flagging a card |
 | Origin | The language the item was first learned in |
+| Listening | Filled in (e.g. *yes*): the note also gets a [listening card](#63b-listening-notes) for each of its languages that has audio |
+| ListeningOnly | Filled in on a paragraph made on the *Listening* tab: the note gets only listening cards, not the usual directions |
 
 Anki creates a **card for each language direction** that has both sides filled in — for example a note with English and Thai gives you *English → Thai* and *Thai → English* cards. Fill in Japanese later and the Japanese directions appear automatically.
 
@@ -276,7 +287,7 @@ Cards with English go in that language's deck (an *English → Spanish* card in 
 
 **Chinese characters:** Mandarin is entered in simplified characters. Its reading under **more** shows the pinyin, then the other script — *Traditional:* for simplified text, or *Simplified:* if you entered traditional text from Taiwan or Hong Kong — and, for words, the *Japanese kanji* form when it differs (e.g. 经济 → 経済). On a Japanese note that also has Mandarin, the reading adds the *Simplified Chinese* form of the kanji. These are character-form conversions, not translations.
 
-On each card, the audio plays automatically and the notes are tucked under a **more** link, so the card stays clean until you want the detail.
+On each card, the audio plays automatically (both recordings, one after the other, if the note has two; press space to show the answer and skip the rest) and the notes are tucked under a **more** link, so the card stays clean until you want the detail.
 
 > **Adding notes by hand in Anki:** click **Add**, choose the *Polyglot Vocab* note type, fill in English plus at least one other language, and set *Origin* to that language.
 
@@ -284,7 +295,7 @@ On each card, the audio plays automatically and the notes are tucked under a **m
 
 ## 6. The Anki page
 
-The Anki page works on a **computer with Anki open**. At the top it shows the connection status; once connected it has four tabs: **Review & analyze**, **Bulk audio**, **Book audio** and **Tags**.
+The Anki page works on a **computer with Anki open**. At the top it shows the connection status; once connected it has five tabs: **Review & analyze**, **Bulk audio**, **Book audio**, **Listening** and **Tags**.
 
 ### 6.1 Review & analyze
 
@@ -411,14 +422,40 @@ Bulk audio never touches notes whose audio came from a textbook (see *Book audio
 
 If your textbook comes with recordings, **Book audio** puts them on the chapter's notes in place of the text-to-speech audio. It's for notes already in Anki — for example a chapter you turned into cards with *Make flashcards*. (For a new chapter, add the recordings while sending the cards instead — see [Flashcards to Anki](#flashcards-to-anki).)
 
-1. Pick the **Language** and type the chapter's **tag** (e.g. *source::STT::24*), then **Load notes**.
+1. Pick the **Language**, type the chapter's **tag** (e.g. *source::STT::24*) and choose where the clips go under **Put clips in**: **Audio 1** replaces the text-to-speech recording, while **Audio 2** keeps it and adds the book's clip as a second recording that plays after it (handy for listening notes). Then **Load notes**.
 2. **Add MP3 files…** and choose the chapter's recordings. If there are several, put them in book order with the ↑ ↓ buttons (they start sorted by file name).
 3. Each file is split into one clip per sentence at the longer pauses, and the clips are matched to the notes **in the order the notes were added** — the order *Make flashcards* listed them, which follows the book. Notes for single words (e.g. ถ้า, ก็) are left out by default, since recordings usually only have the sentences; untick **Leave out single-word notes** if yours include them.
 4. Each clip is transcribed with your OpenAI key (a fraction of a cent per chapter) and compared with its note: **✓ matches**, **≈ close** or **✗ doesn't match**. When a clip sounds like a different note, **Use that note** moves it there.
 5. Check the table: **▶ Book** plays the clip, **▶ Current** the note's audio now. Change a row's note with its menu, or untick **Use** to skip it. If the number of clips and notes differs, try a different **Pause between sentences**.
-6. **Replace audio on N notes** writes the clips to Anki and tags those notes `pb::book-audio::<language>`.
+6. **Replace audio on N notes** (or **Add as audio 2 on N notes**) writes the clips to Anki. Clips put in Audio 1 tag their notes `pb::book-audio::<language>`.
 
 Only MP3 files can be split. Notes that get book audio keep it: Bulk audio skips them, and editing their text doesn't re-record them. Recording or choosing new audio for one in *Review & analyze* removes the tag.
+
+### 6.3b Listening notes
+
+A **listening note** is a paragraph to listen to. Its card has no text on the front, just the recordings, so you practise understanding by ear:
+
+- **Front:** both recordings play, one after the other. Under them are buttons for each recording: **↺10** and **↺5** (back 10 or 5 seconds), **▶** (play/pause) and **🔁** (loop until you tap it again).
+- **Back:** the text, and the first recording plays again. **more** shows the English translation (and any notes).
+
+To make listening notes, open the **Listening** tab:
+
+1. Pick the **Language**, and optionally a **Tag** (e.g. *source::Genki::L3*) to study the set together later.
+2. Under **Second recording**, choose **Another voice** (the paragraph is recorded twice, in two different voices) or **None** (add the textbook's recording later with [Book audio](#63a-book-audio) → *Audio 2*).
+3. Paste the paragraphs, with a blank line between them, and click **Prepare**. Each paragraph gets a suggested English translation; edit any you like and untick any you don't want. Paragraphs already in Anki as listening notes are marked and left out.
+4. Click **Add N listening notes**. They go into **Polyglot::Listening::***Language* with their recordings, tagged `pb::listening`.
+
+A listening note only makes the listening card, not the usual language-direction cards. Any note can have a second recording, though, and on ordinary cards it plays after the first.
+
+**Listening cards for notes you already have.** Any note with audio can get a listening card too, and it keeps its usual cards. At the bottom of the **Listening** tab:
+
+1. With the **Language** chosen above, optionally type an **Anki search** to narrow the notes, e.g. `tag:source::STT::22` for one chapter. Leave it empty for every note in that language with audio.
+2. Click **Find notes**. Notes that already have a listening card are left out. Untick any you don't want (**Select all / none** help with long lists).
+3. Click **Give N notes listening cards**. Each gets a listening card in **Polyglot::Listening::***Language* and the tag `pb::listening`. Its other cards and their review history don't change.
+
+A note with audio in two learning languages (e.g. Indonesian and Thai) gets a listening card for each; the list marks these notes with *(also …)*. To take a note's listening card away again, clear its *Listening* field in Anki and run **Tools → Empty Cards**.
+
+See [Listening practice](#listening-practice) for studying them by hand or hands-free.
 
 ### Send to Anki from the study desk
 
@@ -509,9 +546,21 @@ Install **AnkiMobile Flashcards** by Ankitects (iPhone/iPad, paid) or **AnkiDroi
 
 In Anki's **Browse** window, select a note and press **Ctrl+Shift+P** (or click **Preview**). Space shows the answer. Switch the list from *Notes* to *Cards* to choose a particular direction. Previewing doesn't count as a review.
 
-### Hands-free listening
+### Listening practice
 
-Anki's **Auto Advance** (deck *Options → Auto Advance*) can play a card's audio, pause, show the answer and play its audio, then move on — like a listening drill. Auto Advance also answers each card, which affects scheduling, so for pure listening create a **filtered deck** (*Tools → Create Filtered Deck*) with *Reschedule cards based on my answers* turned off, and run Auto Advance there.
+Study a **Polyglot::Listening::***Language* deck in one of two ways. Which way is set on the deck, not the notes.
+
+**By hand (the usual way).** Study the deck like any other. Both recordings play; replay one, go back 5 or 10 seconds, or loop it with the buttons under it, then press space (or *Show Answer*) to see the text and hear the first recording again. Rate the card to move on.
+
+**Hands-free.** Anki's **Auto Advance** runs the deck for you: play both recordings, show the text and play the first again, then go to the next card.
+
+1. Give the listening deck its own options preset (deck ⚙ → **Options** → add a preset, e.g. *Listening*), so your other decks aren't affected.
+2. Under **Auto Advance**, turn on **Wait for audio**, set **Question action** to *Show Answer* and **Answer action** to *Answer Good* (or *Bury Card* to go through each card once). Set *Seconds to show question/answer for* to a short pause, e.g. 2.
+3. Start studying the deck and turn on Auto Advance from the **More** menu (Shift+A on a computer). On a phone, it's in the review screen's menu. It runs until you turn it off or the deck runs out.
+
+**To keep looping** through the same paragraphs without changing their review schedule, make a **filtered deck** (*Tools → Create Filtered Deck*, search `deck:"Polyglot::Listening::Japanese"`, or `deck:"Polyglot::Listening"` for every language). Turn off *Reschedule cards based on my answers* and give *Good* a short delay. With Auto Advance answering *Good*, each card comes back after the others. **Empty** the filtered deck when you're done.
+
+Auto Advance works for ordinary decks too, as a listening drill.
 
 ### Tidying up media
 
@@ -553,6 +602,7 @@ After re-recording audio, old clips remain in Anki's media folder. **Tools → C
 | `pb::book-audio::<language>` | The recording is the textbook's own (added with *Book audio*); Bulk audio leaves it alone |
 | `pb::skip::<language>` | You chose *Never analyze this note* — remove the tag to bring it back |
 | `pb::branch` | The note was created from another note's analysis (see its *Seen in:* line) |
+| `pb::listening` | The note has listening cards (a paragraph made on the *Listening* tab, or a note given a listening card there) |
 
 Search for them in Anki's Browse window, e.g. `tag:pb::branch`.
 

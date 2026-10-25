@@ -6,7 +6,7 @@ import type { ItemKind } from "@/lib/anki/classify";
 import { anki } from "@/lib/anki/connect";
 import { appendToField, branchNoteBlock, composeNotesField, escapeHtml, markdownToAnkiHtml, readingHtml, withDictBlock } from "@/lib/anki/fields";
 import { dictItemsHtml, type DictNoteItem } from "@/lib/dictionary/notesBlock";
-import { audioField, audioFilename, notesField, pbTags, readingLanguages, sentenceTemplateId, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { audioField, audioFilename, notesField, pbTags, readingLanguages, sentenceTemplateId, soundField, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
 export type ItemOutcome = { kind: "added"; note: VocabNote } | { kind: "commented" } | { kind: "skipped" };
 
@@ -40,7 +40,7 @@ export type ItemDraft = {
 // audio leaves it alone. version: for replacing audio the note already has.
 async function saveBookAudio(noteId: number, language: AnkiLanguage, audio: string, version?: string) {
   const filename = await anki.storeMedia(audioFilename(noteId, language, version ? `book-${version}` : "book"), audio);
-  await anki.updateFields(noteId, { [audioField(language)]: `[sound:${filename}]` });
+  await anki.updateFields(noteId, { [audioField(language)]: soundField(filename) });
   await anki.addTags([noteId], [pbTags.audio(language), pbTags.bookAudio(language)]);
 }
 
@@ -95,7 +95,7 @@ export async function saveItem(draft: ItemDraft, onProgress: (message: string) =
     }
     onProgress(`Recording ${language} audio...`);
     const filename = await anki.storeMedia(audioFilename(noteId, language), await speak(text.trim(), language, draft.reading));
-    await anki.updateFields(noteId, { [audioField(language)]: `[sound:${filename}]` });
+    await anki.updateFields(noteId, { [audioField(language)]: soundField(filename) });
     await anki.addTags([noteId], [pbTags.audio(language)]);
   } catch {
     audioFailed = true;

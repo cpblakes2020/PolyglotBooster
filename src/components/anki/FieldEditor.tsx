@@ -4,7 +4,7 @@ import { useState } from "react";
 import { assist, speak } from "@/components/anki/api";
 import { anki } from "@/lib/anki/connect";
 import { audioReading, cleanField, escapeHtml, htmlToText, readingHtml, withReadingBlock } from "@/lib/anki/fields";
-import { ankiLanguages, audioField, audioFilename, audioLanguages, notesField, pbTags, readingLabel, readingLanguages, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { ankiLanguages, audioField, audioFilename, audioLanguages, notesField, pbTags, readingLabel, readingLanguages, soundField, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import type { LlmProviderId } from "@/lib/llm/provider";
 
 type FieldEditorProps = {
@@ -88,7 +88,7 @@ export function FieldEditor({ note, providerId, onSaved, onClose }: FieldEditorP
           // Replacing a recording gets a new filename so the change syncs.
           const version = note.fields[audioField(language)]?.trim() ? Date.now().toString(36) : undefined;
           const filename = await anki.storeMedia(audioFilename(note.noteId, language, version), await speak(values[language].trim(), language, audioReading(fields[notesField(language)] ?? note.fields[notesField(language)] ?? "")));
-          fields[audioField(language)] = `[sound:${filename}]`;
+          fields[audioField(language)] = soundField(filename);
           await anki.updateFields(note.noteId, { [audioField(language)]: fields[audioField(language)] });
           tags.push(pbTags.audio(language));
         }

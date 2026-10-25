@@ -506,6 +506,15 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .book-audio-pick, .book-audio-options { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 18px; margin-top: 14px; font-size: 13px; }
 .book-audio-pick label, .book-audio-options > label:not(.anki-checkbox) { display: grid; gap: 4px; }
 .book-audio-pick label span, .book-audio-options label span { color: var(--muted); font-size: 11px; }
+.listening-notes .anki-field-edit textarea { font-family: inherit; font-size: 14px; line-height: 1.6; }
+.listening-paragraphs { margin: 16px 0 0; padding-left: 22px; display: grid; gap: 14px; }
+.listening-paragraphs .anki-checkbox { margin-top: 0; }
+.listening-existing { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 14px; }
+.listening-existing h3 { margin: 0 0 6px; font-size: 15px; }
+.listening-existing-list { max-height: 360px; overflow-y: auto; margin: 10px 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.listening-existing-list .anki-checkbox { margin-top: 0; align-items: flex-start; color: var(--ink); font-size: 13px; }
+.listening-existing-list em { color: var(--muted); }
+.listening-paragraph-text { margin: 6px 0 8px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; }
 .book-audio-pick select, .book-audio-pick input, .book-audio-options input[type="number"] { border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 6px 8px; font: inherit; }
 .book-audio-options input[type="number"] { width: 70px; }
 .book-audio-tag { flex: 1 1 220px; }

@@ -33,6 +33,27 @@ export function audioField(language: AnkiLanguage) {
   return `Audio_${language}`;
 }
 
+// The second recording, which plays after the first (another voice, or the
+// textbook's own).
+export function audio2Field(language: AnkiLanguage) {
+  return `Audio2_${language}`;
+}
+
+// An audio field's contents: Anki's sound tag, plus the filename again in a
+// hidden span for the listening cards' player, since Anki replaces sound
+// tags with its own button before a card's script can read them.
+export function soundField(filename: string) {
+  return `[sound:${filename}]<span class="pb-src" data-src="${filename.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"></span>`;
+}
+
+// An audio field written before soundField existed (just the sound tag),
+// rewritten so the listening cards' player can use it. Anything else is
+// returned as it is.
+export function withPlayerSource(field: string) {
+  const filename = field.trim().match(/^\[sound:([^\]]+)\]$/)?.[1];
+  return filename ? soundField(filename) : field;
+}
+
 export function notesField(language: AnkiLanguage) {
   return `Notes_${language}`;
 }
@@ -52,6 +73,8 @@ export const pbTags = {
   // Notes created from an item in another note's analysis. Which note is
   // recorded in a "Seen in" line in the Notes field, not in a tag.
   branch: "pb::branch",
+  // Listening notes: a paragraph to listen to, with listening cards only.
+  listening: "pb::listening",
 };
 
 export function wordTemplateId(language: AnkiLanguage) {

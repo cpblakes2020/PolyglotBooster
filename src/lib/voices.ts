@@ -29,3 +29,9 @@ export function resolveVoiceSetting(language: Language | undefined, saved?: Part
   if (!language) return undefined;
   return saved?.[language] || defaultVoiceSettings[language];
 }
+
+// A clearly different voice for a second recording of the same text, with
+// the same accent instructions.
+export function secondVoice(setting: VoiceSetting): VoiceSetting {
+  return { ...setting, voice: setting.voice === "marin" ? "cedar" : "marin" };
+}

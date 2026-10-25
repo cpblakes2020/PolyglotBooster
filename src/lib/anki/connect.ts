@@ -4,7 +4,7 @@
 // works on the machine running Anki, and only once this site's origin is in
 // AnkiConnect's webCorsOriginList.
 
-import { noteLanguages, vocabCardTemplates, vocabNoteCss, vocabNoteFields, type NoteLanguage } from "@/lib/anki/noteType";
+import { listeningCss, listeningField, listeningOnlyField, listeningTemplate, listeningTemplateName, noteLanguages, spokenLanguages, vocabCardTemplates, vocabNoteCss, vocabNoteFields, type NoteLanguage } from "@/lib/anki/noteType";
 import { ankiNoteType, audioLanguages, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
 const endpoint = "http://127.0.0.1:8765";
@@ -44,11 +44,14 @@ export function ankiSearchValue(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/\*/g, "\\*").replace(/_/g, "\\_");
 }
 
-// The deck a card direction belongs in: Polyglot::X for X ↔ English, and
-// Polyglot::Cross-Language::A-B (in field order) for a language pair.
-// Undefined for directions PolyglotBooster doesn't know (e.g. Balinese),
-// which are left where Anki put them.
+// The deck a card direction belongs in: Polyglot::X for X ↔ English,
+// Polyglot::Cross-Language::A-B (in field order) for a language pair, and
+// Polyglot::Listening::X for X's listening cards. Undefined for directions
+// PolyglotBooster doesn't know (e.g. Balinese), which are left where Anki
+// put them.
 export function directionDeck(direction: string) {
+  const listening = spokenLanguages.find((language) => listeningTemplateName(language) === direction);
+  if (listening) return `Polyglot::Listening::${listening}`;
   const sides = direction.split(" → ") as NoteLanguage[];
   if (sides.length !== 2 || !sides.every((side) => noteLanguages.includes(side))) return undefined;
   const [a, b] = [...sides].sort((x, y) => noteLanguages.indexOf(x) - noteLanguages.indexOf(y));
@@ -58,6 +61,15 @@ export function directionDeck(direction: string) {
 async function noteCards(noteId: number) {
   const [info] = await invoke<{ cards: number[] }[]>("notesInfo", { notes: [noteId] });
   return info?.cards ?? [];
+}
+
+// A direction's template with each language's second recording after its
+// first, wherever the first is shown in the usual way.
+function withSecondAudio(side: string) {
+  return spokenLanguages.reduce((result, language) => {
+    const first = `{{#Audio_${language}}}{{Audio_${language}}}{{/Audio_${language}}}`;
+    return result.includes(`{{Audio2_${language}}}`) ? result : result.replace(first, `${first}\n{{#Audio2_${language}}}{{Audio2_${language}}}{{/Audio2_${language}}}`);
+  }, side);
 }
 
 // Moves newly created cards into their direction's deck. Anki only does this
@@ -72,7 +84,11 @@ async function fileCards(cardIds: number[]) {
     const deck = directionDeck(directions[card.ord]);
     if (deck && deck !== card.deckName) moves.set(deck, [...(moves.get(deck) ?? []), card.cardId]);
   }
-  for (const [deck, ids] of moves) await invoke<null>("changeDeck", { cards: ids, deck });
+  for (const [deck, ids] of moves) {
+    // Listening decks are only made once there's a card for them.
+    await invoke<number>("createDeck", { deck });
+    await invoke<null>("changeDeck", { cards: ids, deck });
+  }
 }
 
 export const anki = {
@@ -102,8 +118,9 @@ export const anki = {
   // Note: Anki ignores field updates to a note that's currently open in its
   // Browse window editor — close or move off it first.
   async updateFields(noteId: number, fields: Record<string, string>) {
-    // Only language fields can create cards; audio and notes fields can't.
-    const languageFields = Object.keys(fields).some((name) => !name.startsWith("Audio_") && !name.startsWith("Notes_"));
+    // Only language fields (and the Listening switches) can create cards;
+    // audio and notes fields can't.
+    const languageFields = Object.keys(fields).some((name) => !/^(Audio2?|Notes)_/.test(name));
     const before = languageFields ? await noteCards(noteId) : [];
     await invoke<null>("updateNoteFields", { note: { id: noteId, fields } });
     if (languageFields) await fileCards((await noteCards(noteId)).filter((card) => !before.includes(card)));
@@ -118,30 +135,55 @@ export const anki = {
 
   modelNames: () => invoke<string[]>("modelNames"),
 
-  // Languages PolyglotBooster supports that this profile's note type has no
-  // fields for yet (it predates them).
-  async missingLanguages(): Promise<NoteLanguage[]> {
+  // What an existing Polyglot Vocab lacks: languages PolyglotBooster
+  // supports that it has no fields for, and whether its listening cards (the
+  // Audio2_ fields, the Listening and ListeningOnly fields, the listening
+  // templates and the directions' ListeningOnly switch) are missing or older
+  // than this version of PolyglotBooster's.
+  async missingFeatures(): Promise<{ languages: NoteLanguage[]; listening: "missing" | "outdated" | "current" }> {
     const fields = await anki.fieldNames();
-    return noteLanguages.filter((language) => !fields.includes(language));
+    const languages = noteLanguages.filter((language) => !fields.includes(language));
+    if (!fields.includes(listeningField)) return { languages, listening: "missing" };
+    const templates = await invoke<Record<string, { Front: string; Back: string }>>("modelTemplates", { modelName: ankiNoteType });
+    const outdated = !fields.includes(listeningOnlyField)
+      || spokenLanguages.map(listeningTemplate).some((template) => templates[template.Name]?.Front !== template.Front || templates[template.Name]?.Back !== template.Back)
+      || Object.entries(templates).some(([name, template]) => directionDeck(name) && !name.endsWith(" listening") && !template.Front.includes(`{{^${listeningOnlyField}}}`));
+    return { languages, listening: outdated ? "outdated" : "current" };
   },
 
   // Brings an existing Polyglot Vocab up to date: adds the missing
-  // languages' fields (each next to the existing fields of its kind), adds
-  // every card direction it lacks, repairs older card backs whose "more"
+  // languages' fields (each next to the existing fields of its kind), the
+  // Audio2_ fields and the Listening and ListeningOnly fields, adds every
+  // card template it lacks (directions and listening cards), keeps
+  // listening-only notes out of the existing directions and gives them the
+  // second recording, adds the
+  // listening cards' styling, repairs older card backs whose "more"
   // disclosure lost its </summary>, and creates the new languages' decks.
-  // This changes the note type, so Anki asks for a one-way sync afterwards.
-  async addLanguages() {
-    const missing = await anki.missingLanguages();
+  // Existing notes and cards stay as they are. This changes the note type,
+  // so Anki asks for a one-way sync afterwards.
+  async upgradeNoteType() {
+    const { languages: missing } = await anki.missingFeatures();
     for (const language of missing) {
       for (const field of [language, `Audio_${language}`, `Notes_${language}`]) {
         const fields = await anki.fieldNames();
         const prefix = field.startsWith("Audio_") ? "Audio_" : field.startsWith("Notes_") ? "Notes_" : "";
         const sameKind = fields
           .map((name, index) => ({ name, index }))
-          .filter(({ name }) => prefix ? name.startsWith(prefix) : !name.includes("_") && name !== "Origin");
+          .filter(({ name }) => prefix ? name.startsWith(prefix) : !name.includes("_") && name !== "Origin" && name !== listeningField && name !== listeningOnlyField);
         const index = sameKind.length ? sameKind[sameKind.length - 1].index + 1 : fields.length;
         await invoke<null>("modelFieldAdd", { modelName: ankiNoteType, fieldName: field, index });
       }
+    }
+    // Audio2_ fields go after the existing ones, or at the end, before Listening.
+    for (const language of spokenLanguages) {
+      const fields = await anki.fieldNames();
+      if (fields.includes(`Audio2_${language}`)) continue;
+      const listening = fields.indexOf(listeningField);
+      await invoke<null>("modelFieldAdd", { modelName: ankiNoteType, fieldName: `Audio2_${language}`, index: listening < 0 ? fields.length : listening });
+    }
+    for (const field of [listeningField, listeningOnlyField]) {
+      const fields = await anki.fieldNames();
+      if (!fields.includes(field)) await invoke<null>("modelFieldAdd", { modelName: ankiNoteType, fieldName: field, index: fields.length });
     }
 
     const existing = await invoke<Record<string, { Front: string; Back: string }>>("modelTemplates", { modelName: ankiNoteType });
@@ -152,15 +194,38 @@ export const anki = {
       added.push(template.Name);
     }
 
-    const repairs: Record<string, { Front: string; Back: string }> = {};
+    const updates: Record<string, { Front: string; Back: string }> = {};
+    let repaired = 0;
+    let refreshed = 0;
     for (const [name, template] of Object.entries(existing)) {
       const correct = vocabCardTemplates.find((candidate) => candidate.Name === name);
-      if (correct && /<summary>more\n<div class="origin">/.test(template.Back)) repairs[name] = { Front: template.Front, Back: correct.Back };
+      let { Front, Back } = template;
+      if (correct && /<summary>more\n<div class="origin">/.test(Back)) {
+        Back = correct.Back;
+        repaired += 1;
+      }
+      // The listening cards are PolyglotBooster's own, so they're replaced
+      // with the current version.
+      if (correct && name.endsWith(" listening")) {
+        if (Front !== correct.Front || Back !== correct.Back) refreshed += 1;
+        ({ Front, Back } = correct);
+      }
+      else if (directionDeck(name)) {
+        // Earlier test versions switched the directions off with Listening.
+        const old = [`{{^${listeningField}}}`, `{{/${listeningField}}}`];
+        if (Front.startsWith(old[0]) && Front.endsWith(old[1])) Front = Front.slice(old[0].length, -old[1].length);
+        if (!Front.includes(`{{^${listeningOnlyField}}}`)) Front = `{{^${listeningOnlyField}}}${Front}{{/${listeningOnlyField}}}`;
+        [Front, Back] = [Front, Back].map((side) => withSecondAudio(side));
+      }
+      if (Front !== template.Front || Back !== template.Back) updates[name] = { Front, Back };
     }
-    if (Object.keys(repairs).length) await invoke<null>("updateModelTemplates", { model: { name: ankiNoteType, templates: repairs } });
+    if (Object.keys(updates).length) await invoke<null>("updateModelTemplates", { model: { name: ankiNoteType, templates: updates } });
+
+    const { css } = await invoke<{ css: string }>("modelStyling", { modelName: ankiNoteType });
+    if (!css.includes(".pb-listen")) await invoke<null>("updateModelStyling", { model: { name: ankiNoteType, css: css + listeningCss } });
 
     for (const language of missing) if (language !== "English") await invoke<number>("createDeck", { deck: `Polyglot::${language}` });
-    return { languages: missing, directions: added, repaired: Object.keys(repairs) };
+    return { languages: missing, directions: added, repaired, refreshed };
   },
 
   // Removes the red flag (Ctrl+1 in Anki, used to mark cards for

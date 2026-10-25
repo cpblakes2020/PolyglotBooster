@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { assist, speak } from "@/components/anki/api";
 import { anki } from "@/lib/anki/connect";
 import { cleanField, composeNotesField, escapeHtml, existingReading, fieldNeedsCleanup, hasHandwrittenReadingOnly, markdownToAnkiHtml, readingHtml } from "@/lib/anki/fields";
-import { audioField, audioFilename, isAnkiLanguage, notesField, pbTags, readingLabel, readingLanguages, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { audioField, audioFilename, isAnkiLanguage, notesField, pbTags, readingLabel, readingLanguages, soundField, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import { isFlashcardTemplate } from "@/lib/flashcards";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { Language, PromptTemplateId } from "@/lib/types";
@@ -111,7 +111,7 @@ export function SendToAnki({ sourceText, sourceLanguage, result, promptTemplateI
       if (!match?.fields[audioField(language)]?.trim()) {
         setStatus(`Recording ${language} audio...`);
         const filename = await anki.storeMedia(audioFilename(noteId, language), await speak(draft.fieldText.trim(), language, draft.reading));
-        await anki.updateFields(noteId, { [audioField(language)]: `[sound:${filename}]` });
+        await anki.updateFields(noteId, { [audioField(language)]: soundField(filename) });
         await anki.addTags([noteId], [pbTags.audio(language)]);
       }
 

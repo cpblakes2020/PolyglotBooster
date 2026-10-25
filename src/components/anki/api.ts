@@ -5,6 +5,7 @@ import type { BranchItem, BranchItemKind, FollowUpExchange } from "@/lib/anki/pr
 import type { AnkiLanguage } from "@/lib/anki/vocab";
 import type { LlmProviderId } from "@/lib/llm/provider";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
+import type { VoiceSetting } from "@/lib/voices";
 
 async function postJson<T>(url: string, body: unknown, headers: Record<string, string> = {}): Promise<T> {
   const response = await fetch(url, {
@@ -25,8 +26,9 @@ async function postJson<T>(url: string, body: unknown, headers: Record<string, s
 
 // Thai is respelled the way it sounds before recording (see
 // spokenSpelling.ts); reading, the note's romanization, guides that.
-export async function speak(text: string, language: AnkiLanguage, reading?: string) {
-  const { data } = await postJson<{ data: string }>("/api/tts", { text, language, delivery: "inline", respell: true, reading });
+// voice: one other than the saved one (e.g. for a second recording).
+export async function speak(text: string, language: AnkiLanguage, reading?: string, voice?: VoiceSetting) {
+  const { data } = await postJson<{ data: string }>("/api/tts", { text, language, delivery: "inline", respell: true, reading, voice });
   return data;
 }
 
