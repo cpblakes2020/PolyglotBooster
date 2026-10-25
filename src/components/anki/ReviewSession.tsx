@@ -83,8 +83,9 @@ type Branch = { items?: BranchItem[] };
 
 // "session": notes not yet analyzed; "search": found by text; "flagged":
 // red-flagged in Anki; "reading": Thai/Japanese/Mandarin notes with no
-// reading yet (e.g. made in Anki, or a language added later), newest first.
-type SessionMode = "session" | "search" | "flagged" | "reading";
+// reading yet (e.g. made in Anki, or a language added later), newest first;
+// "tag": every note with a tag, analyzed or not, in the order added.
+type SessionMode = "session" | "search" | "flagged" | "reading" | "tag";
 
 function soundFilename(field: string) {
   return field.match(/\[sound:([^\]]+)\]/)?.[1];
@@ -134,6 +135,7 @@ export function ReviewSession() {
   // Anki (Ctrl+1) to look at here — the flag is cleared once it's dealt with.
   const [mode, setMode] = useState<SessionMode>("session");
   const [search, setSearch] = useState("");
+  const [reviewTag, setReviewTag] = useState("");
   const [branch, setBranch] = useState<Branch | null>(null);
   // Tags to add to the current note on save, and the collection's tags to suggest.
   const [newTags, setNewTags] = useState("");
@@ -198,6 +200,8 @@ export function ReviewSession() {
   async function loadQueue(nextMode: SessionMode) {
     const term = search.trim();
     if (nextMode === "search" && !term) return;
+    const tag = reviewTag.trim();
+    if (nextMode === "tag" && !tag) return;
     setBusy(true);
     setStatus("Loading notes from Anki...");
     setQueue(null);
@@ -209,6 +213,8 @@ export function ReviewSession() {
       const query = nextMode === "search"
         ? `${language}:_* ("${language}:*${ankiSearchValue(term)}*" OR "English:*${ankiSearchValue(term)}*")`
         : nextMode === "flagged" ? `${language}:_* flag:${reviewFlag}`
+        // A tag also matches the tags nested under it (source::STT covers every chapter).
+        : nextMode === "tag" ? `${language}:_* "tag:${ankiSearchValue(tag)}"`
         : nextMode === "reading" ? `${language}:_* -"${notesField(language)}:*pb-reading*" ${extraQuery.trim()}`
         // A session: notes not yet analyzed, plus analyzed ones whose field
         // still needs cleaning up (filtered below; Anki can't search for that).
@@ -599,12 +605,19 @@ export function ReviewSession() {
         <input id="anki-find" value={search} placeholder={`${language} or English text`} onChange={(event) => setSearch(event.target.value)} />
         <button className="preview-prompt-button" type="submit" disabled={busy || !search.trim()}>Find</button>
       </form>
+      <form className="anki-find" onSubmit={(event) => { event.preventDefault(); void loadQueue("tag"); }}>
+        <label htmlFor="anki-review-tag">Or review every note with a tag (analyzed or not)</label>
+        <input id="anki-review-tag" list="anki-review-tags" value={reviewTag} placeholder="e.g. source::STT::24" onChange={(event) => setReviewTag(event.target.value)} />
+        <datalist id="anki-review-tags">{tagSuggestions.map((tag) => <option key={tag} value={tag} />)}</datalist>
+        <button className="preview-prompt-button" type="submit" disabled={busy || !reviewTag.trim()}>Review tag</button>
+      </form>
 
       {queue && (
         <p className="anki-note">
           {mode === "search"
             ? `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} matching “${search.trim()}”`
             : mode === "flagged" ? `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} red-flagged in Anki — the flag comes off when you save`
+            : mode === "tag" ? `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} tagged ${reviewTag.trim()}, in the order they were added`
             : mode === "reading" ? `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} with no ${readingLabel(language).split(" ")[0].toLowerCase()} yet, newest first`
             : `${queue.length} ${language} note${queue.length === 1 ? "" : "s"} not yet analyzed or needing cleanup${extraQuery.trim() ? " matching your search" : ""}`}
           {queue.length > 0 && note && ` · note ${index + 1} of ${queue.length}`}

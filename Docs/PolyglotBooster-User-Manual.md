@@ -292,17 +292,18 @@ This is where you enrich notes one at a time — which doubles as a study sessio
 
 **Choose what to work on**
 
-- **Language** — Indonesian, Thai, Japanese, Spanish, French or Mandarin. **Start session** only brings up notes whose *Origin* is this language (an Indonesian-origin note that also has Thai comes up in Indonesian sessions); **Flagged in Anki** and **Find** show every note with this language filled in, whatever its origin.
+- **Language** — Indonesian, Thai, Japanese, Spanish, French or Mandarin. **Start session** only brings up notes whose *Origin* is this language (an Indonesian-origin note that also has Thai comes up in Indonesian sessions); **Flagged in Anki**, **Find** and **Review tag** show every note with this language filled in, whatever its origin.
 - **Narrow with an Anki search** *(optional)* — any Anki search, e.g. `tag:food` or `deck:Polyglot::Thai`.
 - **Model, Level, Style** — the provider and settings for the analysis (defaults: Anthropic, Intermediate, Concise).
 - **Start session** — works through notes that haven't been analyzed yet, plus analyzed notes whose field still needs cleaning up (e.g. an old romanization in the Thai field), oldest first.
 - **Flagged in Anki** — works through notes you've red-flagged in Anki (see below), analyzed or not.
 - **Missing romanization** (Thai) / **Missing reading** (Japanese, Mandarin) — every note with that language filled in but no reading yet, **newest first**: notes you made in Anki itself, notes marked *Never analyze*, and languages added to a note later. Each note's reading is written as soon as it comes up; check or edit it, then **Save changes & next**, which saves only the reading — the note isn't marked as analyzed, and anything else in its Notes field stays as it was. You can still **Analyze** a note here if you want the full analysis too.
 - **Or find a note to edit** — type Thai/Indonesian/Japanese or English text and click **Find**; this works for any note, analyzed or not, and opens its saved analysis for editing.
+- **Or review every note with a tag** — pick or type a tag (e.g. *source::STT::24*) and click **Review tag** to go through every note with it, analyzed or not, in the order they were added — e.g. to look over a chapter's cards. A tag also covers the tags nested under it, so *source::STT* brings up every chapter of that book. (The *Narrow with an Anki search* box, by contrast, only narrows **Start session**, which brings up notes not yet analyzed.)
 
 **Working on a note**
 
-Every note opens with the same tools, however you got to it (a session, **Flagged in Anki**, **Missing romanization**, **Find**), each showing what the card has now — so a finished card can be fixed just as easily as a new one analyzed:
+Every note opens with the same tools, however you got to it (a session, **Flagged in Anki**, **Missing romanization**, **Find**, **Review tag**), each showing what the card has now — so a finished card can be fixed just as easily as a new one analyzed:
 
 1. **The card** — the learning-language text, and **Show English** to reveal the meaning when you're ready (try recalling it first). Under it, the **English note** (*Notes_English*), e.g. a question you typed in Anki when you flagged the card: edit it, or empty it to delete it.
 2. **Clean up the field** *(when needed)* — older notes sometimes contain formatting or an old romanization in the language field. The page shows the stored version and a cleaned version you can edit; tick **Replace the field on save** to fix it.
@@ -334,7 +335,7 @@ Above the buttons, **Will save:** lists exactly what you've changed (e.g. *roman
 | **Edit fields** | Edit the note's other language fields, Origin or Notes HTML right here (below) |
 | **Open in Anki** | Opens the note in Anki's own editor (the window may open behind your browser) |
 
-Saving an analysis marks the note as analyzed. A note comes up in **Start session** until it's analyzed and its field is clean (or it's marked *Never analyze*); to work on any other note, use **Find**.
+Saving an analysis marks the note as analyzed. A note comes up in **Start session** until it's analyzed and its field is clean (or it's marked *Never analyze*); to work on any other note, use **Find** or **Review tag**.
 
 **Sending a card back from Anki:** while studying in Anki, press **Ctrl+1** (on iPhone/iPad, use a flag button — see [On your phone](#on-your-phone)) on any card you want to edit or analyze in PolyglotBooster. Later, click **Flagged in Anki** on the Anki page to work through them. The red flag comes off automatically when you save anything for the note (**Save changes**, **Edit fields**, *Never analyze*), or click **Clear flag & next** if you only wanted to look. Typical fixes — a wrong romanization, a mispronounced recording, an analysis to correct — are all on the same screen.
 
