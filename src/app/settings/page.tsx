@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { getAccountKeyStatus } from "@/lib/storage/account";
 import { SettingsForm } from "@/components/settings/SettingsForm";
-import { ImportLegacyReviews } from "@/components/settings/ImportLegacyReviews";
 import { VoiceSettings } from "@/components/settings/VoiceSettings";
 
 export default async function SettingsPage() {
@@ -29,7 +28,6 @@ export default async function SettingsPage() {
       </header>
       <SettingsForm initialKeyStatus={keyStatus} />
       <VoiceSettings />
-      <ImportLegacyReviews />
     </main>
   );
 }

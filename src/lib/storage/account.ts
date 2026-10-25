@@ -200,12 +200,3 @@ export async function deleteAccountReviews(userId: string, taskRunIds: string[])
   if (next.length !== reviews.length) await writeJsonBlob(reviewsPathname(userId), next);
   return next;
 }
-
-export async function mergeAccountReviews(userId: string, incoming: SavedTaskRun[]): Promise<{ merged: SavedTaskRun[]; added: number; skipped: number }> {
-  const existing = await getAccountReviews(userId);
-  const existingIds = new Set(existing.map((run) => run.taskRunId));
-  const newRuns = incoming.filter((run) => !existingIds.has(run.taskRunId));
-  const merged = [...newRuns, ...existing];
-  await writeJsonBlob(reviewsPathname(userId), merged);
-  return { merged, added: newRuns.length, skipped: incoming.length - newRuns.length };
-}
