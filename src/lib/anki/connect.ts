@@ -163,6 +163,7 @@ export const anki = {
   // so Anki asks for a one-way sync afterwards.
   async upgradeNoteType() {
     const { languages: missing } = await anki.missingFeatures();
+    const fieldCount = (await anki.fieldNames()).length;
     for (const language of missing) {
       for (const field of [language, `Audio_${language}`, `Notes_${language}`]) {
         const fields = await anki.fieldNames();
@@ -230,7 +231,11 @@ export const anki = {
     await anki.storeMedia(pauseFilename, pauseWav());
 
     for (const language of missing) if (language !== "English") await invoke<number>("createDeck", { deck: `Polyglot::${language}` });
-    return { languages: missing, directions: added, repaired, refreshed };
+    // Adding fields or card types changes the note type's schema, which
+    // Anki can only sync one way (it asks to upload); changed card layouts
+    // and styling sync normally.
+    const oneWaySync = added.length > 0 || (await anki.fieldNames()).length !== fieldCount;
+    return { languages: missing, directions: added, repaired, refreshed, oneWaySync };
   },
 
   // Removes the red flag (Ctrl+1 in Anki, used to mark cards for

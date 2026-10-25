@@ -263,7 +263,7 @@ If you set up Polyglot Vocab before these languages were added, the Anki page sh
 
 If you set up Polyglot Vocab before listening cards existed, the Anki page offers **Add listening cards**. It adds a second audio field for each language, the *Listening* and *ListeningOnly* fields and a listening card for each language, and lets every card play the second recording after the first. Your existing notes and cards stay as they are. Follow the same three steps as above: sync your phone first, click the button, then upload from your computer and sync your phone.
 
-When a later version of PolyglotBooster improves the listening cards, the page shows **Update listening cards** instead. It only replaces the listening card layouts and needs the same one-way sync.
+When a later version of PolyglotBooster improves the listening cards, the page shows **Update listening cards** instead. It only replaces the listening card layouts, so afterwards an ordinary sync is enough (Anki won't ask to upload); sync your computer, then your phone.
 
 ### 5.5 How Polyglot Vocab notes work
 

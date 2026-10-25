@@ -62,7 +62,7 @@ export function AnkiDesk() {
         result.refreshed ? `updated ${result.refreshed} listening cards` : "",
         result.repaired ? `repaired ${result.repaired} card backs` : "",
       ].filter(Boolean).join(", ");
-      setUpgradeStatus(`Done: ${done || "nothing needed changing"}. Now sync Anki — it will ask for a one-way sync: choose Upload to AnkiWeb.`);
+      setUpgradeStatus(`Done: ${done || "nothing needed changing"}. ${result.oneWaySync ? "Now sync Anki — it will ask for a one-way sync: choose Upload to AnkiWeb. Then sync your phone." : "Now sync Anki as usual, then your phone."}`);
     } catch (error) {
       setUpgradeStatus(error instanceof Error ? error.message : "Polyglot Vocab couldn't be updated.");
     } finally {
@@ -107,7 +107,7 @@ export function AnkiDesk() {
                 {connection.missing.length > 0 && <p><b>{connection.missing.join(", ")}</b> {connection.missing.length === 1 ? "isn't" : "aren't"} in your {ankiNoteType} note type yet. Adding {connection.missing.length === 1 ? "it" : "them"} adds a field, audio field and notes field for each, their card directions (with English, plus Spanish–French, Mandarin–Japanese and Mandarin–Thai), and a <code>Polyglot::</code> deck for each.</p>}
                 {connection.listening === "outdated" && <p>There&apos;s a newer version of the <b>listening cards</b>. Updating replaces the listening card templates; your notes and their cards stay as they are.</p>}
                 {connection.listening === "missing" && <p>Your {ankiNoteType} note type doesn&apos;t have <b>listening cards</b> yet. Adding them adds a second audio field for each language (<code>Audio2_&lt;Language&gt;</code>, played after the first — another voice, or the textbook&apos;s recording), <code>Listening</code> and <code>ListeningOnly</code> fields that give a note a listening card (alongside its usual cards, or instead of them), and a listening card for each language: audio only on the front, the text on the back, with back 5 s / back 10 s / loop buttons.</p>}
-                <p className="anki-note">Your existing notes and cards aren&apos;t changed. This changes the note type, so afterwards Anki needs a one-way sync to AnkiWeb. <b>Sync your phone first</b> so nothing studied there is lost.</p>
+                <p className="anki-note">Your existing notes and cards aren&apos;t changed. {connection.missing.length > 0 || connection.listening === "missing" ? <>This adds fields and card types to the note type, so afterwards Anki needs a one-way sync to AnkiWeb. <b>Sync your phone first</b> so nothing studied there is lost.</> : <>This only changes the card layouts, so an ordinary sync afterwards is enough.</>}</p>
                 <button className="save-input-button" type="button" disabled={settingUp} onClick={() => void upgrade()}>{settingUp ? "Updating..." : [connection.missing.length ? `Add ${connection.missing.join(", ")}` : "", connection.listening === "missing" ? "Add listening cards" : connection.listening === "outdated" ? "Update listening cards" : ""].filter(Boolean).join(" and ")}</button>
               </>
             )}
