@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { analyze, describeSelection, type AnalysisOptions } from "@/components/anki/api";
+import { playData } from "@/components/anki/ClipMatcher";
 import { itemEnglishNoteHtml, itemNotesHtml, saveItem, type ItemDraft, type ItemOutcome } from "@/components/anki/saveItem";
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { DictEntriesEditor } from "@/components/dictionary/DictEntriesEditor";
@@ -66,7 +67,7 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
   const usesReading = readingLanguages.has(language);
   const matchEnglish = match ? cleanField(match.fields.English || "", "English").text : "";
 
-  const draft: ItemDraft = { language, text, english, reading, comment, explanation, seenIn, match, target, analysis, kind, tags: parseTags(newTags), dict };
+  const draft: ItemDraft = { language, text, english, reading, comment, explanation, seenIn, match, target, analysis, kind, tags: parseTags(newTags), dict, audio: item.audio };
 
   async function addDictionary(mode: "word" | "sentence") {
     setBusy(true);
@@ -182,6 +183,9 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
           <textarea rows={2} value={comment} onChange={(event) => setComment(event.target.value)} />
         </label>
       </div>
+      {item.audio && (
+        <p className="anki-note">Audio: the book&apos;s recording, not text-to-speech{target === "existing" ? " (it replaces the existing note's audio)" : ""}. <button className="text-button" type="button" onClick={() => playData(item.audio!)}>▶ Play</button></p>
+      )}
 
       {japanese && (
         <>

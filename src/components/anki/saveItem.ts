@@ -31,7 +31,18 @@ export type ItemDraft = {
   // Japanese dictionary entries to save under the reading (for an item
   // already in Anki, they replace any it has).
   dict?: DictNoteItem[];
+  // The textbook's recording (base64 MP3), used instead of text-to-speech;
+  // for an item already in Anki it replaces the note's audio.
+  audio?: string;
 };
+
+// Writes a textbook recording to the note's audio field, tagged so Bulk
+// audio leaves it alone. version: for replacing audio the note already has.
+async function saveBookAudio(noteId: number, language: AnkiLanguage, audio: string, version?: string) {
+  const filename = await anki.storeMedia(audioFilename(noteId, language, version ? `book-${version}` : "book"), audio);
+  await anki.updateFields(noteId, { [audioField(language)]: `[sound:${filename}]` });
+  await anki.addTags([noteId], [pbTags.audio(language), pbTags.bookAudio(language)]);
+}
 
 // The language's Notes field the item will be saved with: its reading, the
 // explanation in that language and the "Seen in" line (and any dictionary
@@ -64,6 +75,7 @@ export async function saveItem(draft: ItemDraft, onProgress: (message: string) =
   if (target === "existing" && match) {
     await anki.updateFields(match.noteId, { [notesField(language)]: notes, ...(draft.comment.trim() ? { [notesField("English")]: englishNote } : {}) });
     if (extraTags.length) await anki.addTags([match.noteId], extraTags);
+    if (draft.audio) await saveBookAudio(match.noteId, language, draft.audio, Date.now().toString(36));
     return { outcome: { kind: "commented" }, audioFailed: false };
   }
 
@@ -76,6 +88,11 @@ export async function saveItem(draft: ItemDraft, onProgress: (message: string) =
   // (a duplicate note); Bulk audio fills in anything missed.
   let audioFailed = false;
   try {
+    if (draft.audio) {
+      onProgress(`Saving the book's ${language} audio...`);
+      await saveBookAudio(noteId, language, draft.audio);
+      return { outcome: { kind: "added", note: { noteId, tags, fields } }, audioFailed };
+    }
     onProgress(`Recording ${language} audio...`);
     const filename = await anki.storeMedia(audioFilename(noteId, language), await speak(text.trim(), language, draft.reading));
     await anki.updateFields(noteId, { [audioField(language)]: `[sound:${filename}]` });

@@ -408,7 +408,7 @@ Bulk audio never touches notes whose audio came from a textbook (see *Book audio
 
 ### 6.3a Book audio
 
-If your textbook comes with recordings, **Book audio** puts them on the chapter's notes in place of the text-to-speech audio. It's for notes already in Anki — for example a chapter you turned into cards with *Make flashcards*.
+If your textbook comes with recordings, **Book audio** puts them on the chapter's notes in place of the text-to-speech audio. It's for notes already in Anki — for example a chapter you turned into cards with *Make flashcards*. (For a new chapter, add the recordings while sending the cards instead — see [Flashcards to Anki](#flashcards-to-anki).)
 
 1. Pick the **Language** and type the chapter's **tag** (e.g. *source::STT::24*), then **Load notes**.
 2. **Add MP3 files…** and choose the chapter's recordings. If there are several, put them in book order with the ↑ ↓ buttons (they start sorted by file name).
@@ -453,8 +453,9 @@ After **Make flashcards** or **Make flashcards (selective)** (Indonesian, Thai, 
 
 1. Optionally say where the cards are from, e.g. *Speak Thai Today, chapter 22* — it's added to each note as a *Seen in:* line.
 2. **Tag every card** fills in a tag from that name, nested under *source* (e.g. *source::STT::22*); change or add tags with the tag picker. Every note in the batch gets it, so you can study the set together later — see [Studying one chapter or set](#studying-one-chapter-or-set).
-3. **Choose cards** shows the list with each card's type (*Vocabulary* or *Sentence*), reading and meaning. Cards you already have in Anki are marked *In Anki* and unticked; **Also tag the unticked cards already in Anki** (on by default) gives them the batch tag too, so the set is complete. Use **Select all / none** and the checkboxes, then **Start branch**.
-4. Each card then opens in the same editor as branching: **Add note with brief explanations**, **Analyze fully** first, add its explanations to an existing card, or **Skip**. The card's topic tags are filled in for you and can be edited. New notes get audio straight away.
+3. **The book's audio (optional).** If the book comes with MP3 recordings, tick **Add the book's audio recordings (MP3) instead of text-to-speech** and add the chapter's files. They're split and matched to the cards in order, with the same checks and table as [Book audio](#63a-book-audio) — single-word cards are left out by default, since recordings usually only have the sentences. The button then reads e.g. **Choose cards (13 with book audio)**.
+4. **Choose cards** shows the list with each card's type (*Vocabulary* or *Sentence*), reading and meaning. Cards you already have in Anki are marked *In Anki* and unticked; **Also tag the unticked cards already in Anki** (on by default) gives them the batch tag too, so the set is complete. Use **Select all / none** and the checkboxes, then **Start branch**.
+5. Each card then opens in the same editor as branching: **Add note with brief explanations**, **Analyze fully** first, add its explanations to an existing card, or **Skip**. The card's topic tags are filled in for you and can be edited. New notes get audio straight away: the book's clip for cards marked *Book audio* in the list (tagged `pb::book-audio::<language>`, so Bulk audio leaves it alone), text-to-speech for the rest. Adding a book-audio card's explanations to a note already in Anki puts the clip on that note too.
 
 **Japanese: dictionary entries on cards.** The card editor has the same dictionary entries as the Anki page, saved under the reading in *more*:
 - **Add dictionary entries** — one click: for a word card, its JMdict entries and each kanji with other words that use it; for a sentence card, only the [hard parts](#hardest-kanji).
@@ -475,7 +476,7 @@ A count above the cards shows how many there are — e.g. *23 cards — 18 vocab
 2. **Upload document**, choose **AI reader**, click **Choose documents** and select all the page photos at once (name them so they sort in page order). Each page is read and added to the text box.
 3. Choose **Make flashcards** and **Run task**. Check the cards, remove any you don't want.
 4. **Send cards to Anki**, enter the book and chapter (the tag, e.g. *source::STT::22*, is filled in for you), pick the cards, and work through them.
-5. If the book has recordings, use **Book audio** on the Anki page to replace the generated audio with them.
+5. If the book has recordings, tick **Add the book's audio recordings** in step 4's form so the cards get them straight away. For a chapter already in Anki, use **Book audio** on the Anki page instead.
 
 ---
 

@@ -129,7 +129,7 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
         const dict = withDictionary && language === "Japanese" && isJapaneseTerm(item.text) ? await lookUpDictItems(item.text.trim(), "word").catch(() => []) : [];
         const { outcome } = await saveItem({
           language, text: item.text, english: item.english, reading: item.reading, comment: item.comment, explanation: item.explanation, seenIn: item.seenIn || seenIn,
-          match, target: match ? "existing" : "new", analysis: "", kind: classifyItem(item.text, language).kind, tags: item.tags || [], dict,
+          match, target: match ? "existing" : "new", analysis: "", kind: classifyItem(item.text, language).kind, tags: item.tags || [], dict, audio: item.audio,
         });
         if (outcome.kind === "added") known.set(key, outcome.note);
         setTally((current) => ({ ...current, [outcome.kind]: current[outcome.kind] + 1 }));
@@ -219,7 +219,7 @@ export function BranchQueue({ language, parentText, parentEnglish, analysis, opt
                   <td><span className="anki-branch-text">{row.item.text}</span>{row.item.reading && <small>{row.item.reading}</small>}</td>
                   <td>{row.item.english}</td>
                   <td>{row.item.explanation}{row.item.comment && <small>{row.item.comment}</small>}</td>
-                  <td><span className="anki-branch-kind">{kindLabels[row.item.kind]}</span>{row.match && <span className="anki-branch-badge">In Anki</span>}</td>
+                  <td><span className="anki-branch-kind">{kindLabels[row.item.kind]}</span>{row.match && <span className="anki-branch-badge">In Anki</span>}{row.item.audio && <span className="anki-branch-badge">Book audio</span>}</td>
                 </tr>
               ))}
             </tbody>

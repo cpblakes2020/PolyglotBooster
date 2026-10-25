@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
+import { ClipMatcher, type ClipChoice, type ClipTarget } from "@/components/anki/ClipMatcher";
 import { TagInput, parseTags } from "@/components/anki/selection";
 import { anki } from "@/lib/anki/connect";
 import { classifyItem } from "@/lib/anki/classify";
@@ -59,13 +60,28 @@ export function FlashcardsToAnki({ cards, sourceLanguage, options }: FlashcardsT
   const [tagEdited, setTagEdited] = useState(false);
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const [items, setItems] = useState<BranchItem[]>([]);
+  // The textbook's recordings, matched to the cards (optional).
+  const [withAudio, setWithAudio] = useState(false);
+  const [clips, setClips] = useState<ClipChoice[]>([]);
+  const [clipsReady, setClipsReady] = useState(true);
   const language = sourceLanguage as AnkiLanguage;
 
   const batchTags = parseTags(batchTag);
+  const targets = useMemo<ClipTarget[]>(() => cards.map((card, index) => ({
+    id: String(index),
+    text: card.front,
+    english: card.back,
+    isWord: toItem(card, language).kind === "vocabulary",
+  })), [cards, language]);
+  const chooseClips = useCallback((choices: ClipChoice[], ready: boolean) => {
+    setClips(choices);
+    setClipsReady(ready);
+  }, []);
 
   function start() {
-    setItems(cards.map((card) => {
-      const item = toItem(card, language);
+    const audio = new Map(withAudio ? clips.map((clip) => [Number(clip.targetId), clip.data]) : []);
+    setItems(cards.map((card, index) => {
+      const item = { ...toItem(card, language), ...(audio.has(index) ? { audio: audio.get(index) } : {}) };
       return batchTags.length ? { ...item, tags: [...new Set([...batchTags, ...(item.tags || [])])] } : item;
     }));
     setStage("queue");
@@ -94,8 +110,18 @@ export function FlashcardsToAnki({ cards, sourceLanguage, options }: FlashcardsT
         </label>
         <TagInput id="flashcards-batch-tags" value={batchTag} onChange={(value) => { setBatchTag(value); setTagEdited(true); }} suggestions={tagSuggestions}
           label={`Tag every card (optional — for studying this set later with tag:${batchTags[0] || "…"})`} />
+        <label className="anki-checkbox">
+          <input type="checkbox" checked={withAudio} onChange={(event) => setWithAudio(event.target.checked)} />
+          Add the book&apos;s audio recordings (MP3) instead of text-to-speech
+        </label>
+        {withAudio && (
+          <div className="book-audio">
+            <p className="anki-note">Each file is split into sentences at the longer pauses and matched to the cards in order; each clip is transcribed (with your OpenAI key) to check the match. Cards without a clip get text-to-speech as usual.</p>
+            <ClipMatcher language={language} targets={targets} noun="card" unmatchedLabel="No clip, so these get text-to-speech:" onChange={chooseClips} />
+          </div>
+        )}
         <div className="result-actions">
-          <button className="save-input-button" type="submit">Choose cards</button>
+          <button className="save-input-button" type="submit" disabled={withAudio && !clipsReady}>{withAudio && clips.length ? `Choose cards (${clips.length} with book audio)` : "Choose cards"}</button>
           <button className="text-button" type="button" onClick={() => setStage("closed")}>Cancel</button>
         </div>
       </form>

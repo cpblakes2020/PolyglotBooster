@@ -84,6 +84,9 @@ export type BranchItem = {
   kind: BranchItemKind;
   // Tags suggested for the note (flashcard lists carry topic tags).
   tags?: string[];
+  // The textbook's recording of it (base64 MP3), used instead of
+  // text-to-speech when it's added.
+  audio?: string;
 };
 
 function readingInstruction(language: AnkiLanguage) {
