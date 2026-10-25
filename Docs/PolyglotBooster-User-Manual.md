@@ -1,6 +1,6 @@
 # PolyglotBooster User Manual
 
-*Last updated: October 1, 2026*
+*Last updated: October 24, 2026*
 
 PolyglotBooster is a study companion for learning languages through other languages. You give it a word, a sentence, or a whole document in the language you're learning; it explains it through a language you already know, reads it aloud, and turns it into Anki flashcards — including rich notes, audio, and new cards for the example sentences and related words it finds along the way.
 
@@ -284,7 +284,7 @@ On each card, the audio plays automatically and the notes are tucked under a **m
 
 ## 6. The Anki page
 
-The Anki page works on a **computer with Anki open**. At the top it shows the connection status; once connected it has two tabs: **Review & analyze** and **Bulk audio**.
+The Anki page works on a **computer with Anki open**. At the top it shows the connection status; once connected it has four tabs: **Review & analyze**, **Bulk audio**, **Book audio** and **Tags**.
 
 ### 6.1 Review & analyze
 
@@ -404,6 +404,21 @@ Records audio for every note that doesn't have it yet.
 
 **Re-recording after changing a voice:** tick **Replace existing audio too**, then find and **Re-record**. New recordings get new file names so they sync reliably to your phone.
 
+Bulk audio never touches notes whose audio came from a textbook (see *Book audio* below), even when replacing.
+
+### 6.3a Book audio
+
+If your textbook comes with recordings, **Book audio** puts them on the chapter's notes in place of the text-to-speech audio. It's for notes already in Anki — for example a chapter you turned into cards with *Make flashcards*.
+
+1. Pick the **Language** and type the chapter's **tag** (e.g. *source::STT::24*), then **Load notes**.
+2. **Add MP3 files…** and choose the chapter's recordings. If there are several, put them in book order with the ↑ ↓ buttons (they start sorted by file name).
+3. Each file is split into one clip per sentence at the longer pauses, and the clips are matched to the notes **in the order the notes were added** — the order *Make flashcards* listed them, which follows the book. Notes for single words (e.g. ถ้า, ก็) are left out by default, since recordings usually only have the sentences; untick **Leave out single-word notes** if yours include them.
+4. Each clip is transcribed with your OpenAI key (a fraction of a cent per chapter) and compared with its note: **✓ matches**, **≈ close** or **✗ doesn't match**. When a clip sounds like a different note, **Use that note** moves it there.
+5. Check the table: **▶ Book** plays the clip, **▶ Current** the note's audio now. Change a row's note with its menu, or untick **Use** to skip it. If the number of clips and notes differs, try a different **Pause between sentences**.
+6. **Replace audio on N notes** writes the clips to Anki and tags those notes `pb::book-audio::<language>`.
+
+Only MP3 files can be split. Notes that get book audio keep it: Bulk audio skips them, and editing their text doesn't re-record them. Recording or choosing new audio for one in *Review & analyze* removes the tag.
+
 ### Send to Anki from the study desk
 
 On a result or saved review (Indonesian, Thai, Japanese, Spanish, French or Mandarin explained in English), click **Send to Anki**:
@@ -460,6 +475,7 @@ A count above the cards shows how many there are — e.g. *23 cards — 18 vocab
 2. **Upload document**, choose **AI reader**, click **Choose documents** and select all the page photos at once (name them so they sort in page order). Each page is read and added to the text box.
 3. Choose **Make flashcards** and **Run task**. Check the cards, remove any you don't want.
 4. **Send cards to Anki**, enter the book and chapter (the tag, e.g. *source::STT::22*, is filled in for you), pick the cards, and work through them.
+5. If the book has recordings, use **Book audio** on the Anki page to replace the generated audio with them.
 
 ---
 
@@ -532,6 +548,7 @@ After re-recording audio, old clips remain in Anki's media folder. **Tools → C
 |---|---|
 | `pb::analyzed::<language>::<task>` | The note has an analysis (and which task made it) |
 | `pb::audio::<language>` | The note has a recording for that language |
+| `pb::book-audio::<language>` | The recording is the textbook's own (added with *Book audio*); Bulk audio leaves it alone |
 | `pb::skip::<language>` | You chose *Never analyze this note* — remove the tag to bring it back |
 | `pb::branch` | The note was created from another note's analysis (see its *Seen in:* line) |
 

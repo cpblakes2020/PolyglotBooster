@@ -31,7 +31,10 @@ const devLogin = devLoginEnabled ? [Credentials({
 })] : [];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [Google, ...devLogin],
+  // Google always asks which account to use, so you can switch accounts
+  // (each has its own API keys and saved data) instead of being signed
+  // straight back in as the last one.
+  providers: [Google({ authorization: { params: { prompt: "select_account" } } }), ...devLogin],
   session: { strategy: "jwt" },
   callbacks: {
     jwt({ token, profile, user, account }) {

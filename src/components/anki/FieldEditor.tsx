@@ -50,8 +50,10 @@ export function FieldEditor({ note, providerId, onSaved, onClose }: FieldEditorP
   const changed = Object.keys(values).filter((field) => field.startsWith("Notes_")
     ? values[field] !== (note.fields[field] || "")
     : values[field].trim() !== plainValue(note, field));
-  // Learning languages whose text is new or different now need a recording.
-  const audioNeeded = audioLanguages.filter((language) => changed.includes(language) && values[language].trim());
+  // Learning languages whose text is new or different now need a recording,
+  // except where the audio is a textbook recording (a fix to the text
+  // shouldn't swap it for text-to-speech).
+  const audioNeeded = audioLanguages.filter((language) => changed.includes(language) && values[language].trim() && !note.tags.includes(pbTags.bookAudio(language)));
   // ...and, for Thai, Japanese and Mandarin, a new reading — unless you're
   // editing that language's Notes HTML yourself in this save.
   const readingsNeeded = ankiLanguages.filter((language) => readingLanguages.has(language) && changed.includes(language) && values[language].trim() && !changed.includes(notesField(language)));

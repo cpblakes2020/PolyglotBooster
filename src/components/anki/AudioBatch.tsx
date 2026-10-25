@@ -69,7 +69,7 @@ export function AudioBatch() {
       const found: Job[] = [];
       for (const language of audioLanguages.filter((item) => selected.has(item))) {
         const missingOnly = replace ? "" : `${audioField(language)}:`;
-        for (const note of await anki.notesMatching(`${language}:_* ${missingOnly} -tag:${pbTags.skip(language)}`)) {
+        for (const note of await anki.notesMatching(`${language}:_* ${missingOnly} -tag:${pbTags.skip(language)} -tag:${pbTags.bookAudio(language)}`)) {
           const text = cleanField(note.fields[language] || "", language).text;
           if (text) found.push({ noteId: note.noteId, language, text, reading: audioReading(note.fields[notesField(language)] || "") });
         }
@@ -133,7 +133,7 @@ export function AudioBatch() {
 
   return (
     <div className="settings-panel anki-panel">
-      <p>Generates a recording for every filled learning-language field (not English, which is only the prompt) that has no audio yet, and writes it to that note&apos;s <code>Audio_&lt;Language&gt;</code> field. Uses your OpenAI key and the voices set in <a href="/settings">Settings</a>. Notes tagged <code>pb::skip::&lt;language&gt;</code> are left alone.</p>
+      <p>Generates a recording for every filled learning-language field (not English, which is only the prompt) that has no audio yet, and writes it to that note&apos;s <code>Audio_&lt;Language&gt;</code> field. Uses your OpenAI key and the voices set in <a href="/settings">Settings</a>. Notes tagged <code>pb::skip::&lt;language&gt;</code> are left alone, and so is textbook audio added with Book audio (tagged <code>pb::book-audio::&lt;language&gt;</code>), even when replacing.</p>
       <fieldset className="anki-language-picks" disabled={running}>
         <legend>Languages</legend>
         {audioLanguages.map((language) => (

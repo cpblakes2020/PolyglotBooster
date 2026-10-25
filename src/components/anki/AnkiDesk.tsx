@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AudioBatch } from "@/components/anki/AudioBatch";
+import { BookAudio } from "@/components/anki/BookAudio";
 import { ReviewSession } from "@/components/anki/ReviewSession";
 import { TagManager } from "@/components/anki/TagManager";
 import { anki } from "@/lib/anki/connect";
@@ -9,7 +10,7 @@ import { ankiNoteType } from "@/lib/anki/vocab";
 
 // "setup": Anki is reachable but this profile doesn't have the note type yet.
 type Connection = { state: "checking" } | { state: "ready"; missing: string[] } | { state: "setup"; message?: string } | { state: "error"; message: string };
-type Tab = "review" | "audio" | "tags";
+type Tab = "review" | "audio" | "book" | "tags";
 
 export function AnkiDesk() {
   const [connection, setConnection] = useState<Connection>({ state: "checking" });
@@ -105,11 +106,12 @@ export function AnkiDesk() {
           <div className="mode-tabs anki-tabs" role="tablist">
             <button className={`mode-tab${tab === "review" ? " active" : ""}`} role="tab" aria-selected={tab === "review"} type="button" onClick={() => setTab("review")}>Review &amp; analyze</button>
             <button className={`mode-tab${tab === "audio" ? " active" : ""}`} role="tab" aria-selected={tab === "audio"} type="button" onClick={() => setTab("audio")}>Bulk audio</button>
+            <button className={`mode-tab${tab === "book" ? " active" : ""}`} role="tab" aria-selected={tab === "book"} type="button" onClick={() => setTab("book")}>Book audio</button>
             <button className={`mode-tab${tab === "tags" ? " active" : ""}`} role="tab" aria-selected={tab === "tags"} type="button" onClick={() => setTab("tags")}>Tags</button>
           </div>
         )}
       </div>
-      {connection.state === "ready" && (tab === "review" ? <ReviewSession /> : tab === "audio" ? <AudioBatch /> : <TagManager />)}
+      {connection.state === "ready" && (tab === "review" ? <ReviewSession /> : tab === "audio" ? <AudioBatch /> : tab === "book" ? <BookAudio /> : <TagManager />)}
     </section>
   );
 }

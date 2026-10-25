@@ -440,13 +440,16 @@ export function ReviewSession() {
       }
       if (Object.keys(fields).length) await anki.updateFields(note.noteId, fields);
       if (tags.length) await anki.addTags([note.noteId], tags);
+      // New audio replaces any textbook recording, so bulk audio may record it again.
+      const removedTags = newAudio && note.tags.includes(pbTags.bookAudio(language)) ? [pbTags.bookAudio(language)] : [];
+      if (removedTags.length) await anki.removeTags([note.noteId], removedTags);
       await clearFlagIfFlagged(note.noteId);
       setSaved((count) => count + 1);
       if (advance) {
         goTo(index + 1);
         return;
       }
-      const updated: VocabNote = { ...note, fields: { ...note.fields, ...fields }, tags: [...new Set([...note.tags, ...tags])] };
+      const updated: VocabNote = { ...note, fields: { ...note.fields, ...fields }, tags: [...new Set([...note.tags, ...tags])].filter((tag) => !removedTags.includes(tag)) };
       setQueue((current) => current && current.map((item) => item.noteId === note.noteId ? updated : item));
       setDraft({ ...newDraft(updated, language), kind: draft.kind });
       setNewAudio(null);
