@@ -4,7 +4,7 @@
 // works on the machine running Anki, and only once this site's origin is in
 // AnkiConnect's webCorsOriginList.
 
-import { listeningCss, listeningField, listeningOnlyField, listeningTemplate, listeningTemplateName, noteLanguages, spokenLanguages, vocabCardTemplates, vocabNoteCss, vocabNoteFields, type NoteLanguage } from "@/lib/anki/noteType";
+import { listeningCss, listeningCssMarker, listeningField, listeningOnlyField, listeningTemplate, listeningTemplateName, noteLanguages, pauseFilename, pauseWav, spokenLanguages, vocabCardTemplates, vocabNoteCss, vocabNoteFields, type NoteLanguage } from "@/lib/anki/noteType";
 import { ankiNoteType, audioLanguages, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
 const endpoint = "http://127.0.0.1:8765";
@@ -221,8 +221,13 @@ export const anki = {
     }
     if (Object.keys(updates).length) await invoke<null>("updateModelTemplates", { model: { name: ankiNoteType, templates: updates } });
 
+    // The listening styling sits at the end of the note type's CSS, so it's
+    // replaced there with the current version.
     const { css } = await invoke<{ css: string }>("modelStyling", { modelName: ankiNoteType });
-    if (!css.includes(".pb-listen")) await invoke<null>("updateModelStyling", { model: { name: ankiNoteType, css: css + listeningCss } });
+    const marker = css.indexOf(listeningCssMarker);
+    const styled = (marker < 0 ? css : css.slice(0, marker)).trimEnd() + listeningCss;
+    if (styled !== css) await invoke<null>("updateModelStyling", { model: { name: ankiNoteType, css: styled } });
+    await anki.storeMedia(pauseFilename, pauseWav());
 
     for (const language of missing) if (language !== "English") await invoke<number>("createDeck", { deck: `Polyglot::${language}` });
     return { languages: missing, directions: added, repaired, refreshed };
@@ -259,6 +264,7 @@ export const anki = {
       isCloze: false,
       cardTemplates: vocabCardTemplates,
     });
+    await anki.storeMedia(pauseFilename, pauseWav());
     for (const language of audioLanguages) await invoke<number>("createDeck", { deck: `Polyglot::${language}` });
   },
 

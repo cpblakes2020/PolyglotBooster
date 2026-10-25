@@ -160,6 +160,7 @@ Under a result, click **Ask a follow-up question**, type your question (the **In
 - **Send to Anki** (shown for Indonesian, Thai, Japanese, Spanish, French or Mandarin explained in English; works on a computer with Anki set up) puts it straight into your Anki collection — see [Send to Anki](#send-to-anki-from-the-study-desk).
 - **Send cards to Anki** does the same for a Make flashcards result — see [Flashcards to Anki](#flashcards-to-anki).
 - **Right-click a phrase** in the result or a follow-up answer to add just that phrase to Anki — see [Right-click to add a phrase](#right-click-to-add-a-phrase-from-the-study-desk).
+- **Save for listening** (under the text box; no task needs running) saves the text, or just the part you've selected in it, to make [listening notes](#63b-listening-notes) from later. It works on any device. For example, read a textbook page with the AI reader on a tablet, fix the text, select the part you want and tap **Save for listening**. Then make the notes on the computer running Anki.
 
 ---
 
@@ -435,15 +436,16 @@ Only MP3 files can be split. Notes that get book audio keep it: Bulk audio skips
 
 A **listening note** is a paragraph to listen to. Its card has no text on the front, just the recordings, so you practise understanding by ear:
 
-- **Front:** both recordings play, one after the other. Under them are buttons for each recording: **↺10** and **↺5** (back 10 or 5 seconds), **▶** (play/pause) and **🔁** (loop until you tap it again).
+- **Front:** both recordings play, with a 2-second pause between them. Under them are buttons for each recording: **↺10** and **↺5** (back 10 or 5 seconds), **▶** (play/pause) and **🔁** (loop until you tap it again). To pause or stop the recordings Anki plays by itself, use Anki's own audio controls (see [Listening practice](#listening-practice)).
 - **Back:** the text, and the first recording plays again. **more** shows the English translation (and any notes).
 
 To make listening notes, open the **Listening** tab:
 
-1. Pick the **Language**, and optionally a **Tag** (e.g. *source::Genki::L3*) to study the set together later.
-2. Under **Second recording**, choose **Another voice** (the paragraph is recorded twice, in two different voices) or **None** (add the textbook's recording later with [Book audio](#63a-book-audio) → *Audio 2*).
-3. Paste the paragraphs, with a blank line between them, and click **Prepare**. Each paragraph gets a suggested English translation; edit any you like and untick any you don't want. Paragraphs already in Anki as listening notes are marked and left out.
-4. Click **Add N listening notes**. They go into **Polyglot::Listening::***Language* with their recordings, tagged `pb::listening`.
+1. If you saved text with **Save for listening** on the study desk, it's listed under **Saved for listening**. Click **Use** to put it in the paragraphs box and set the language. It's removed from the list once all its notes are added; **Delete** removes it sooner.
+2. Pick the **Language**, and optionally a **Tag** (e.g. *source::Genki::L3*) to study the set together later.
+3. Under **Second recording**, choose **Another voice** (the paragraph is recorded twice, in two different voices) or **None** (add the textbook's recording later with [Book audio](#63a-book-audio) → *Audio 2*).
+4. Paste the paragraphs (or edit the saved text), with a blank line between them, and click **Prepare**. Each paragraph gets a suggested English translation; edit any you like and untick any you don't want. Paragraphs already in Anki as listening notes are marked and left out.
+5. Click **Add N listening notes**. They go into **Polyglot::Listening::***Language* with their recordings, tagged `pb::listening`.
 
 A listening note only makes the listening card, not the usual language-direction cards. Any note can have a second recording, though, and on ordinary cards it plays after the first.
 
@@ -551,6 +553,12 @@ In Anki's **Browse** window, select a note and press **Ctrl+Shift+P** (or click 
 Study a **Polyglot::Listening::***Language* deck in one of two ways. Which way is set on the deck, not the notes.
 
 **By hand (the usual way).** Study the deck like any other. Both recordings play; replay one, go back 5 or 10 seconds, or loop it with the buttons under it, then press space (or *Show Answer*) to see the text and hear the first recording again. Rate the card to move on.
+
+**Pausing the recordings Anki plays by itself.** The buttons on the card control their own playback, not the recordings Anki starts automatically. To pause those:
+
+- **AnkiMobile (iPhone/iPad):** in AnkiMobile's preferences, assign **Pause Audio** (and, if you like, **Current Audio -5s**) to the top bar or to a tap or swipe. They're also in the study screen's tools (the gear icon). *Pause Audio* stops the recording and starts it again where it left off.
+- **Anki on a computer:** **More → Pause Audio** during review, or its keyboard shortcut shown in that menu; **Audio -5s / +5s** are there too.
+- Pressing space to show the answer also stops the front's recordings.
 
 **Hands-free.** Anki's **Auto Advance** runs the deck for you: play both recordings, show the text and play the first again, then go to the next card.
 

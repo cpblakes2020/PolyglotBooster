@@ -159,6 +159,39 @@ const listeningPlayer = `<script>
 })();
 </script>`;
 
+// A short silence played between the two recordings on a listening card's
+// front, as a sound tag of its own, so Anki's autoplay (and Auto Advance's
+// "wait for audio") include it. Media files starting with "_" are kept by
+// Tools → Check Media even though no note uses them.
+export const pauseSeconds = 2;
+export const pauseFilename = `_pb-pause-${pauseSeconds}s.wav`;
+
+// The silence as a WAV file (8 kHz, 8-bit mono), base64-encoded for
+// AnkiConnect's storeMediaFile.
+export function pauseWav() {
+  const samples = 8000 * pauseSeconds;
+  const bytes = new Uint8Array(44 + samples);
+  const view = new DataView(bytes.buffer);
+  const text = (offset: number, value: string) => [...value].forEach((char, index) => view.setUint8(offset + index, char.charCodeAt(0)));
+  text(0, "RIFF");
+  view.setUint32(4, 36 + samples, true);
+  text(8, "WAVE");
+  text(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, 8000, true);
+  view.setUint32(28, 8000, true);
+  view.setUint16(32, 1, true);
+  view.setUint16(34, 8, true);
+  text(36, "data");
+  view.setUint32(40, samples, true);
+  bytes.fill(128, 44);
+  let binary = "";
+  for (let start = 0; start < bytes.length; start += 4096) binary += String.fromCharCode(...bytes.subarray(start, start + 4096));
+  return btoa(binary);
+}
+
 export function listeningTemplateName(language: NoteLanguage) {
   return `${language} listening`;
 }
@@ -180,7 +213,7 @@ ${english}{{Notes_${language}}}
 <div class="tag">${language.toUpperCase()} · LISTENING</div>
 <div class="pb-listen">
 <div class="pb-track" data-track="1">{{Audio_${language}}}</div>
-{{#Audio2_${language}}}<div class="pb-track" data-track="2">{{Audio2_${language}}}</div>{{/Audio2_${language}}}
+{{#Audio2_${language}}}<span class="pb-gap">[sound:${pauseFilename}]</span><div class="pb-track" data-track="2">{{Audio2_${language}}}</div>{{/Audio2_${language}}}
 </div>
 {{^Audio_${language}}}<div class="listening-text">{{${language}}}</div>{{/Audio_${language}}}
 ${listeningPlayer}
@@ -213,9 +246,11 @@ export const vocabCardTemplates: CardTemplate[] = [
 
 // Styling for the listening cards. Setting up listening adds it to an
 // existing note type's own CSS, which may have been adjusted by hand.
+export const listeningCssMarker = "/* PolyglotBooster listening cards */";
+
 export const listeningCss = `
 
-/* PolyglotBooster listening cards */
+${listeningCssMarker}
 .listening-text {
   font-size: 26px;
   line-height: 1.6;
@@ -237,6 +272,7 @@ export const listeningCss = `
 }
 
 .pb-src,
+.pb-gap,
 .pb-has-player .replay-button,
 .pb-has-player .soundLink {
   display: none;

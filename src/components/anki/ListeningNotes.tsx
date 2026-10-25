@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { assist, speak } from "@/components/anki/api";
+import { assist, deleteListening, listeningList, speak, type LaterItem } from "@/components/anki/api";
 import { anki } from "@/lib/anki/connect";
 import { cleanField, escapeHtml, htmlToText } from "@/lib/anki/fields";
 import { listeningField, listeningOnlyField } from "@/lib/anki/noteType";
@@ -48,8 +48,13 @@ export function ListeningNotes({ ready }: { ready: boolean }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(0);
   const [failures, setFailures] = useState<string[]>([]);
+  // Texts saved with "Save for listening" on the study desk, and which one
+  // the paragraphs came from (removed from the list once its notes are in).
+  const [saved, setSaved] = useState<LaterItem[] | null>(null);
+  const [usedId, setUsedId] = useState("");
 
   useEffect(() => {
+    void listeningList().then(setSaved).catch(() => setSaved([]));
     void anki.getTags().then((tags) => setAllTags(tags.filter((item) => !item.startsWith("pb::")))).catch(() => {});
     void (async () => {
       try {
@@ -124,7 +129,27 @@ export function ListeningNotes({ ready }: { ready: boolean }) {
     }
     setParagraphs((current) => current && current.map((paragraph) => added.has(paragraph.text) ? { ...paragraph, include: false, existing: true } : paragraph));
     setStatus(`Added ${added.size} listening ${added.size === 1 ? "note" : "notes"} to Polyglot::Listening::${language}. Sync Anki to get them on your phone.`);
+    if (usedId && added.size === chosen.length) {
+      await removeSaved(usedId);
+      setUsedId("");
+    }
     setBusy(false);
+  }
+
+  function pickSaved(item: LaterItem) {
+    setLanguage(item.language as AnkiLanguage);
+    setSource(item.text);
+    setParagraphs(null);
+    setUsedId(item.id);
+    setStatus("");
+  }
+
+  async function removeSaved(id: string) {
+    try {
+      setSaved(await deleteListening([id]));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The saved text couldn't be removed.");
+    }
   }
 
   const update = (index: number, changes: Partial<Paragraph>) =>
@@ -136,7 +161,22 @@ export function ListeningNotes({ ready }: { ready: boolean }) {
 
   return (
     <div className="settings-panel anki-panel listening-notes">
-      <p>Makes <b>listening notes</b>: one paragraph each, with its English translation and its recording. Each gets one listening card in <code>Polyglot::Listening::&lt;language&gt;</code>: the front plays the audio with no text, the back shows the text and plays the first recording again, and <b>more</b> shows the English. The card has back 5 s, back 10 s and loop buttons. Separate paragraphs with a blank line.</p>
+      <p>Makes <b>listening notes</b>: one paragraph each, with its English translation and its recording. Each gets one listening card in <code>Polyglot::Listening::&lt;language&gt;</code>: the front plays the audio with no text, the back shows the text and plays the first recording again, and <b>more</b> shows the English. The card has back 5 s, back 10 s and loop buttons. Separate paragraphs with a blank line. To bring in text read from a photo on another device, use <b>Save for listening</b> under the study desk&apos;s text box.</p>
+      {saved && saved.length > 0 && (
+        <div className="listening-saved">
+          <p className="result-label">Saved for listening</p>
+          <ul>
+            {saved.map((item) => (
+              <li key={item.id} className={item.id === usedId ? "active" : ""}>
+                <span><b>{item.language}</b> · {new Date(item.createdAt).toLocaleDateString()} · {item.text.replace(/\s+/g, " ").slice(0, 90)}{item.text.length > 90 ? "…" : ""}</span>
+                <button className="text-button" type="button" disabled={busy} onClick={() => pickSaved(item)}>{item.id === usedId ? "In use" : "Use"}</button>
+                <button className="text-button" type="button" disabled={busy} onClick={() => void removeSaved(item.id)}>Delete</button>
+              </li>
+            ))}
+          </ul>
+          <p className="anki-note">Saved from the study desk with <b>Save for listening</b>, on any device. <b>Use</b> puts the text in the box below; once its notes are added, it&apos;s removed from this list.</p>
+        </div>
+      )}
       <div className="book-audio-pick">
         <label>
           <span>Language</span>

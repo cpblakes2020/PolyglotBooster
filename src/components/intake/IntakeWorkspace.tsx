@@ -9,6 +9,7 @@ import { useSelectionMenu } from "@/components/anki/selection";
 import { useJapaneseLookup } from "@/components/dictionary/LookupPopups";
 import { FlashcardEditor } from "@/components/intake/FlashcardEditor";
 import { FlashcardsToAnki, canSendFlashcardsToAnki } from "@/components/anki/FlashcardsToAnki";
+import { SaveForListeningButton, canSaveForListening } from "@/components/anki/SaveForListening";
 import { SendToAnki, canSendToAnki } from "@/components/anki/SendToAnki";
 import { LanguageSettings } from "@/components/intake/LanguageSettings";
 import { PromptTemplatePicker } from "@/components/intake/PromptTemplatePicker";
@@ -108,6 +109,7 @@ export function IntakeWorkspace() {
   const [followUpPreview, setFollowUpPreview] = useState("");
   const [followUpStatus, setFollowUpStatus] = useState("");
   const followUpTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const studyTextRef = useRef<HTMLTextAreaElement>(null);
   // A saved review opened from the list below: scroll up to it once shown.
   const resultRef = useRef<HTMLElement>(null);
   const [scrollToResult, setScrollToResult] = useState(0);
@@ -491,10 +493,10 @@ export function IntakeWorkspace() {
           {mode === "text" ? (
             <>
               <label className="text-label" htmlFor="study-text">Paste a word, sentence, or passage</label>
-              <textarea id="study-text" className="study-text" value={text} maxLength={12000} onChange={(event) => setText(event.target.value)} onContextMenu={sourceMenu.onContextMenu} placeholder="Try something in a language you are learning..." />
+              <textarea ref={studyTextRef} id="study-text" className="study-text" value={text} maxLength={12000} onChange={(event) => setText(event.target.value)} onContextMenu={sourceMenu.onContextMenu} placeholder="Try something in a language you are learning..." />
               {sourceMenu.element}
               {sourceLookup.element}
-              <div className="field-footer"><span>{text.length} / 12,000 characters</span><button className="clear-input-button" type="button" disabled={!text} onClick={clearInput}>Clear</button><span>Text stays in this workspace</span></div>
+              <div className="field-footer"><span>{text.length} / 12,000 characters</span><button className="clear-input-button" type="button" disabled={!text} onClick={clearInput}>Clear</button>{canSaveForListening(sourceLanguage) && <SaveForListeningButton textarea={studyTextRef} text={text} language={sourceLanguage} />}<span>Text stays in this workspace</span></div>
               <div className="provider-row">
                 <label htmlFor="llm-provider">Provider</label>
                 <select id="llm-provider" value={providerId} onChange={(event) => changeProvider(event.target.value as LlmProviderId)}>{llmProviderOptions.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select>

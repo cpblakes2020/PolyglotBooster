@@ -102,6 +102,22 @@ export function saveForLater(text: string, language: AnkiLanguage, context: stri
 
 export const deleteLater = (ids: string[]) => laterRequest("DELETE", { ids });
 
+// "Save for listening": texts saved on any device (e.g. a page read with the
+// AI reader on a tablet) to make listening notes from on the computer
+// running Anki.
+async function listeningRequest(method: "GET" | "POST" | "DELETE", body?: unknown) {
+  const response = await fetch("/api/anki/listening", { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const data = await response.json().catch(() => ({})) as { items?: LaterItem[]; error?: string };
+  if (!response.ok || !data.items) throw new Error(data.error || `Request failed (${response.status}).`);
+  return data.items;
+}
+
+export const listeningList = () => listeningRequest("GET");
+
+export const saveForListening = (text: string, language: AnkiLanguage, source: string) => listeningRequest("POST", { text, language, source });
+
+export const deleteListening = (ids: string[]) => listeningRequest("DELETE", { ids });
+
 const itemKinds = new Set<BranchItemKind>(["example", "related", "register", "vocabulary", "sentence"]);
 
 function toBranchItem(value: unknown): BranchItem | null {
