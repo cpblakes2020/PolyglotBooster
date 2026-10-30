@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { transcribe } from "@/components/anki/api";
-import { matchQuality, similarity } from "@/lib/anki/bookAudio";
+import { alignClips, matchQuality, similarity } from "@/lib/anki/bookAudio";
 import { anki } from "@/lib/anki/connect";
 import type { AnkiLanguage } from "@/lib/anki/vocab";
 import { analyzeMp3, clipBytes, defaultSentenceGap, findClips, toBase64, type Mp3Analysis } from "@/lib/audio/mp3Split";
@@ -104,8 +104,18 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
   const inOrder = useMemo(() => (targets || []).filter((target) => !(skipWords && target.isWord)), [targets, skipWords]);
   const byId = useMemo(() => new Map((targets || []).map((target) => [target.id, target])), [targets]);
 
-  // The target each clip goes with: its place in book order, unless changed by hand.
-  const targetFor = (clip: BookClip, index: number) => clip.key in assigned ? assigned[clip.key] : inOrder[index]?.id ?? null;
+  // Once every clip has been through transcription, each goes with the
+  // target it sounds like, still in book order; until then, its place in order.
+  const transcribed = clips.length > 0 && clips.every((clip) => heard[clip.key]);
+  const aligned = useMemo(() => {
+    if (!transcribed || !targets) return null;
+    const matches = alignClips(clips.map((clip) => heard[clip.key]?.text), targets);
+    return new Map(clips.map((clip, index) => [clip.key, matches[index] === null ? null : targets[matches[index]!].id]));
+  }, [transcribed, clips, heard, targets]);
+  const byOrder = (index: number) => inOrder[index]?.id ?? null;
+  const reordered = aligned !== null && clips.some((clip, index) => aligned.get(clip.key) !== byOrder(index));
+  // ...unless changed by hand.
+  const targetFor = (clip: BookClip, index: number) => clip.key in assigned ? assigned[clip.key] : aligned ? aligned.get(clip.key) ?? null : byOrder(index);
 
   // Transcribes every clip once, a few at a time.
   useEffect(() => {
@@ -115,11 +125,21 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
     const worker = async () => {
       for (let clip = queue.shift(); clip; clip = queue.shift()) {
         const key = clip.key;
-        try {
-          const text = await transcribe(clip.data, language);
-          setHeard((current) => ({ ...current, [key]: { text } }));
-        } catch (error) {
-          setHeard((current) => ({ ...current, [key]: { error: error instanceof Error ? error.message : "Couldn't transcribe" } }));
+        // A failure is often OpenAI turning away requests that come too
+        // fast, so try twice more after a pause.
+        for (let attempt = 1; ; attempt++) {
+          try {
+            const text = await transcribe(clip.data, language);
+            setHeard((current) => ({ ...current, [key]: { text } }));
+            break;
+          } catch (error) {
+            if (attempt < 3) {
+              await new Promise((resolve) => setTimeout(resolve, attempt * 3000));
+              continue;
+            }
+            setHeard((current) => ({ ...current, [key]: { error: error instanceof Error ? error.message : "Couldn't transcribe" } }));
+            break;
+          }
         }
       }
     };
@@ -217,6 +237,7 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
             {clips.length} clips for {inOrder.length} {noun}s{clips.length === inOrder.length ? ", one each." : ` — the counts differ, so check the order carefully. A different pause length may split the audio better.`}
             {pendingChecks > 0 && ` Transcribing ${pendingChecks} clips...`}
           </p>
+          {reordered && <p className="anki-note">Matched by what each clip says, keeping book order — the order alone didn&apos;t line up. Check any row not marked ✓.</p>}
           {failedChecks > 0 && pendingChecks === 0 && (
             <p className="anki-failures">
               {failedChecks} clips couldn&apos;t be transcribed, so they&apos;re matched by order only.{" "}

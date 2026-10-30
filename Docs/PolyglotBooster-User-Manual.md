@@ -1,6 +1,6 @@
 # PolyglotBooster User Manual
 
-*Last updated: October 25, 2026*
+*Last updated: October 29, 2026*
 
 PolyglotBooster is a study companion for learning languages through other languages. You give it a word, a sentence, or a whole document in the language you're learning; it explains it through a language you already know, reads it aloud, and turns it into Anki flashcards — including rich notes, audio, and new cards for the example sentences and related words it finds along the way.
 
@@ -426,7 +426,7 @@ If your textbook comes with recordings, **Book audio** puts them on the chapter'
 1. Pick the **Language**, type the chapter's **tag** (e.g. *source::STT::24*) and choose where the clips go under **Put clips in**: **Audio 1** replaces the text-to-speech recording, while **Audio 2** keeps it and adds the book's clip as a second recording that plays after it (handy for listening notes). Then **Load notes**.
 2. **Add MP3 files…** and choose the chapter's recordings. If there are several, put them in book order with the ↑ ↓ buttons (they start sorted by file name).
 3. Each file is split into one clip per sentence at the longer pauses, and the clips are matched to the notes **in the order the notes were added** — the order *Make flashcards* listed them, which follows the book. Notes for single words (e.g. ถ้า, ก็) are left out by default, since recordings usually only have the sentences; untick **Leave out single-word notes** if yours include them.
-4. Each clip is transcribed with your OpenAI key (a fraction of a cent per chapter) and compared with its note: **✓ matches**, **≈ close** or **✗ doesn't match**. When a clip sounds like a different note, **Use that note** moves it there.
+4. Each clip is transcribed with your OpenAI key (a fraction of a cent per chapter) and compared with its note: **✓ matches**, **≈ close** or **✗ doesn't match**. Once every clip is transcribed, each one goes with the note it sounds like, still in book order — so a word note that isn't in the recordings, or a recording with no note, doesn't shift every row after it (the page says so when this changed the matches). A clip that can't be transcribed is tried twice more, then placed by order between its neighbours. When a clip still sounds like a different note, **Use that note** moves it there.
 5. Check the table: **▶ Book** plays the clip, **▶ Current** the note's audio now. Change a row's note with its menu, or untick **Use** to skip it. If the number of clips and notes differs, try a different **Pause between sentences**.
 6. **Replace audio on N notes** (or **Add as audio 2 on N notes**) writes the clips to Anki. Clips put in Audio 1 tag their notes `pb::book-audio::<language>`.
 

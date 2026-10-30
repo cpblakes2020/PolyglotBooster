@@ -39,5 +39,43 @@ export function matchQuality(score: number): MatchQuality {
 export function isWordNote(text: string, language: string) {
   const trimmed = text.trim();
   if (/\s/.test(trimmed)) return false;
-  return spacedLanguages.has(language) || comparable(trimmed).length <= 6;
+  // Letters only: Thai tone and vowel marks don't make a word longer
+  // (ด้วยกัน is five letters, not seven).
+  return spacedLanguages.has(language) || comparable(trimmed).replace(/\p{M}/gu, "").length <= 5;
+}
+
+// The target (index) for each clip, keeping book order: clips go to targets
+// in the same order, each target at most once, choosing the pairing whose
+// transcriptions match best overall. heard: what each clip said (undefined
+// if it couldn't be transcribed). A word note that isn't recorded, or a
+// recording with no note, then can't shift every clip after it.
+export function alignClips(heard: (string | undefined)[], targets: { text: string; isWord: boolean }[]) {
+  const score = (clip: number, target: number) => {
+    const text = heard[clip];
+    // Untranscribed clips fall in place between their neighbours, preferring sentences.
+    if (text === undefined) return targets[target].isWord ? 0.001 : 0.01;
+    return similarity(text, targets[target].text) + 0.001;
+  };
+  const rows = heard.length;
+  const columns = targets.length;
+  // best[i][j]: the best total for the first i clips and first j targets.
+  const best = Array.from({ length: rows + 1 }, () => new Array<number>(columns + 1).fill(0));
+  for (let i = 1; i <= rows; i++) {
+    for (let j = 1; j <= columns; j++) {
+      best[i][j] = Math.max(best[i][j - 1], best[i - 1][j], best[i - 1][j - 1] + score(i - 1, j - 1));
+    }
+  }
+  const result = new Array<number | null>(rows).fill(null);
+  for (let i = rows, j = columns; i > 0 && j > 0;) {
+    if (best[i][j] === best[i - 1][j - 1] + score(i - 1, j - 1)) {
+      result[i - 1] = j - 1;
+      i--;
+      j--;
+    } else if (best[i][j] === best[i][j - 1]) {
+      j--;
+    } else {
+      i--;
+    }
+  }
+  return result;
 }
