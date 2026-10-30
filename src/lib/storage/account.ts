@@ -135,12 +135,23 @@ export async function getAccountKeyStatus(userId: string): Promise<Record<LlmPro
 }
 
 export async function setAccountApiKey(userId: string, providerId: LlmProviderId, apiKey: string | null): Promise<void> {
+  recentKeys.delete(keyPathname(userId, providerId));
   await writeJsonBlob(keyPathname(userId, providerId), apiKey ? { encrypted: encrypt(apiKey) } : {});
 }
 
+// Keys read in the last minute, so a burst of requests (a chapter's clips
+// being transcribed) reads each key from Blob once, not once per request.
+const recentKeys = new Map<string, { key: string | undefined; at: number }>();
+const recentKeyMs = 60_000;
+
 export async function getAccountApiKey(userId: string, providerId: LlmProviderId): Promise<string | undefined> {
-  const stored = await readJsonBlob<StoredKey>(keyPathname(userId, providerId), {});
-  return stored.encrypted ? decrypt(stored.encrypted) : undefined;
+  const pathname = keyPathname(userId, providerId);
+  const recent = recentKeys.get(pathname);
+  if (recent && Date.now() - recent.at < recentKeyMs) return recent.key;
+  const stored = await readJsonBlob<StoredKey>(pathname, {});
+  const key = stored.encrypted ? decrypt(stored.encrypted) : undefined;
+  recentKeys.set(pathname, { key, at: Date.now() });
+  return key;
 }
 
 const providerLabels: Record<LlmProviderId, string> = { anthropic: "Anthropic", openai: "OpenAI" };

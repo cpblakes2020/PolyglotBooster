@@ -539,3 +539,5 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .book-audio-quality.good { color: var(--teal); }
 .book-audio-quality.close { color: #a07a1c; }
 .book-audio-quality.poor { color: #a54c3e; }
+.book-audio-left-out { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
+.book-audio-left-out select { border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 4px 6px; font: inherit; font-size: 13px; }

@@ -1,10 +1,20 @@
 import { get, put } from "@vercel/blob";
 
+// Blob sometimes refuses a read (403/429) when many requests come at once,
+// e.g. Book audio transcribing a chapter's clips, so a failed read is tried
+// twice more after a short pause.
 export async function readJsonBlob<T>(pathname: string, fallback: T): Promise<T> {
-  const result = await get(pathname, { access: "public", useCache: false });
-  if (!result || result.statusCode !== 200) return fallback;
-  const text = await new Response(result.stream).text();
-  return JSON.parse(text) as T;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const result = await get(pathname, { access: "public", useCache: false });
+      if (!result || result.statusCode !== 200) return fallback;
+      const text = await new Response(result.stream).text();
+      return JSON.parse(text) as T;
+    } catch (error) {
+      if (attempt >= 3) throw error;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 400));
+    }
+  }
 }
 
 // Public blobs are served through a CDN, and useCache: false only affects

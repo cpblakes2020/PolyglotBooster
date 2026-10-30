@@ -58,7 +58,9 @@ const seconds = (value: number) => value.toFixed(1);
 export function ClipMatcher({ language, targets, noun, disabled = false, unmatchedLabel, onChange }: ClipMatcherProps) {
   const [files, setFiles] = useState<BookFile[]>([]);
   const [gap, setGap] = useState(defaultSentenceGap);
-  const [skipWords, setSkipWords] = useState(true);
+  // Targets the recordings don't have (single words, to begin with), left
+  // out of the order; changed by hand when the guess is wrong.
+  const [leftOut, setLeftOut] = useState<Set<string>>(new Set());
   const [assigned, setAssigned] = useState<Record<string, string | null>>({});
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [heard, setHeard] = useState<Record<string, Heard>>({});
@@ -67,7 +69,19 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
   const asked = useRef(new Set<string>());
 
   // New targets start from book order again.
-  useEffect(() => setAssigned({}), [targets]);
+  useEffect(() => {
+    setAssigned({});
+    setLeftOut(new Set((targets || []).filter((target) => target.isWord).map((target) => target.id)));
+  }, [targets]);
+
+  function leaveOut(id: string, out: boolean) {
+    setLeftOut((current) => {
+      const next = new Set(current);
+      if (out) next.add(id); else next.delete(id);
+      return next;
+    });
+    setAssigned({});
+  }
 
   async function addFiles(list: FileList | null) {
     if (!list?.length) return;
@@ -100,8 +114,7 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
     data: toBase64(clipBytes(file.analysis, clip)),
   }))), [files, gap]);
 
-  const words = useMemo(() => (targets || []).filter((target) => target.isWord), [targets]);
-  const inOrder = useMemo(() => (targets || []).filter((target) => !(skipWords && target.isWord)), [targets, skipWords]);
+  const inOrder = useMemo(() => (targets || []).filter((target) => !leftOut.has(target.id)), [targets, leftOut]);
   const byId = useMemo(() => new Map((targets || []).map((target) => [target.id, target])), [targets]);
 
   // Once every clip has been through transcription, each goes with the
@@ -109,9 +122,9 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
   const transcribed = clips.length > 0 && clips.every((clip) => heard[clip.key]);
   const aligned = useMemo(() => {
     if (!transcribed || !targets) return null;
-    const matches = alignClips(clips.map((clip) => heard[clip.key]?.text), targets);
-    return new Map(clips.map((clip, index) => [clip.key, matches[index] === null ? null : targets[matches[index]!].id]));
-  }, [transcribed, clips, heard, targets]);
+    const matches = alignClips(clips.map((clip) => heard[clip.key]?.text), inOrder.map((target) => ({ text: target.text, isWord: false })));
+    return new Map(clips.map((clip, index) => [clip.key, matches[index] === null ? null : inOrder[matches[index]!].id]));
+  }, [transcribed, clips, heard, targets, inOrder]);
   const byOrder = (index: number) => inOrder[index]?.id ?? null;
   const reordered = aligned !== null && clips.some((clip, index) => aligned.get(clip.key) !== byOrder(index));
   // ...unless changed by hand.
@@ -219,12 +232,18 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
             <span>Pause between sentences (seconds)</span>
             <input type="number" min={0.4} max={4} step={0.1} value={gap} disabled={disabled} onChange={(event) => { setGap(Number(event.target.value) || defaultSentenceGap); setAssigned({}); }} />
           </label>
-          {words.length > 0 && (
-            <label className="anki-checkbox">
-              <input type="checkbox" checked={skipWords} disabled={disabled} onChange={(event) => { setSkipWords(event.target.checked); setAssigned({}); }} />
-              Leave out single-word {noun}s ({words.map((target) => target.text).join(", ")})
-            </label>
-          )}
+        </div>
+      )}
+      {files.length > 0 && targets && (
+        <div className="book-audio-left-out">
+          <span className="anki-note">Not in the recordings, so left out of the order{leftOut.size ? "" : ": none"}</span>
+          {targets.filter((target) => leftOut.has(target.id)).map((target) => (
+            <span key={target.id} className="tag-chip">{target.text}<button type="button" disabled={disabled} onClick={() => leaveOut(target.id, false)} aria-label={`Put ${target.text} back in the order`} title="Put back in the order">×</button></span>
+          ))}
+          <select value="" disabled={disabled} onChange={(event) => { if (event.target.value) leaveOut(event.target.value, true); }}>
+            <option value="">Leave out another {noun}…</option>
+            {inOrder.map((target) => <option key={target.id} value={target.id}>{target.text}</option>)}
+          </select>
         </div>
       )}
 
