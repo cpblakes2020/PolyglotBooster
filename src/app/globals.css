@@ -547,3 +547,8 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .book-audio-recent .anki-checkbox { margin-top: 0; }
 .audio-folder-path { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .audio-folder-path input { min-width: min(420px, 100%); border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 4px 8px; font: inherit; font-size: 12px; }
+.book-audio-file { cursor: grab; border-top: 2px solid transparent; border-bottom: 2px solid transparent; }
+.book-audio-file.dragging { opacity: 0.4; }
+.book-audio-file.drop-above { border-top-color: var(--teal); }
+.book-audio-file.drop-below { border-bottom-color: var(--teal); }
+.book-audio-file .drag-handle { color: var(--muted); padding-right: 2px; }

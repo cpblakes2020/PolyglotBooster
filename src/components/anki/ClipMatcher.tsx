@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { transcribe } from "@/components/anki/api";
 import type { AudioSource } from "@/components/anki/AudioFolders";
-import { alignClips, matchQuality, similarity } from "@/lib/anki/bookAudio";
+import { alignClips, inScript, matchQuality, similarity } from "@/lib/anki/bookAudio";
 import { anki } from "@/lib/anki/connect";
 import type { AnkiLanguage } from "@/lib/anki/vocab";
 import { allowFolder, recentMp3s, voiceOf } from "@/lib/audio/library";
@@ -60,6 +60,13 @@ export function playData(data: string) {
 
 const seconds = (value: number) => value.toFixed(1);
 
+// What a clip said, if it's worth comparing: a short word is sometimes
+// heard as another language (Thai ความเร็ว as Korean), which would only
+// mislead the matching.
+function usableText(result: Heard | undefined, language: AnkiLanguage) {
+  return result?.text !== undefined && inScript(result.text, language) ? result.text : undefined;
+}
+
 // A textbook's MP3s split into sentences at the longer pauses, matched to
 // the targets in order, checked by transcribing each clip, and shown as one
 // table to review and adjust.
@@ -78,6 +85,9 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
   // Add from Downloads: the recent MP3s there, and which are ticked.
   const [recent, setRecent] = useState<File[] | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  // Drag and drop in the list of recordings: the one being dragged, and where it would go.
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [dropAt, setDropAt] = useState<number | null>(null);
 
   // New targets start from book order again.
   useEffect(() => {
@@ -128,11 +138,13 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
     onSources?.(files.map((file) => ({ file: file.file, fromDownloads: file.fromDownloads })));
   }, [files, onSources]);
 
-  function moveFile(index: number, step: number) {
+  // Moves a recording to another place in the list (book order).
+  function moveFile(from: number, to: number) {
+    if (from === to) return;
     setFiles((current) => {
       const next = [...current];
-      const [file] = next.splice(index, 1);
-      next.splice(Math.max(0, Math.min(next.length, index + step)), 0, file);
+      const [file] = next.splice(from, 1);
+      next.splice(Math.max(0, Math.min(next.length, to)), 0, file);
       return next;
     });
     setAssigned({});
@@ -152,11 +164,12 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
   // Once every clip has been through transcription, each goes with the
   // target it sounds like, still in book order; until then, its place in order.
   const transcribed = clips.length > 0 && clips.every((clip) => heard[clip.key]);
+  const usable = (result: Heard | undefined) => usableText(result, language);
   const aligned = useMemo(() => {
     if (!transcribed || !targets) return null;
-    const matches = alignClips(clips.map((clip) => heard[clip.key]?.text), inOrder.map((target) => ({ text: target.text, isWord: false })));
+    const matches = alignClips(clips.map((clip) => usableText(heard[clip.key], language)), inOrder.map((target) => ({ text: target.text, isWord: false })));
     return new Map(clips.map((clip, index) => [clip.key, matches[index] === null ? null : inOrder[matches[index]!].id]));
-  }, [transcribed, clips, heard, targets, inOrder]);
+  }, [transcribed, clips, heard, targets, inOrder, language]);
   const byOrder = (index: number) => inOrder[index]?.id ?? null;
   const reordered = aligned !== null && clips.some((clip, index) => aligned.get(clip.key) !== byOrder(index));
   // ...unless changed by hand.
@@ -208,7 +221,7 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
   const rows = clips.map((clip, index) => {
     const targetId = targetFor(clip, index);
     const target = targetId === null ? undefined : byId.get(targetId);
-    const text = heard[clip.key]?.text;
+    const text = usable(heard[clip.key]);
     const score = target && text !== undefined ? similarity(text, target.text) : undefined;
     // A clearly better match among the other targets.
     const better = text && targets ? targets
@@ -266,16 +279,24 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
         {files.length > 0 && (
           <ol>
             {files.map((file, index) => (
-              <li key={`${file.name}-${index}`}>
-                {file.name} <span className="anki-note">· {findClips(file.analysis, gap).length} clips</span>
-                <button className="text-button" type="button" disabled={disabled || index === 0} onClick={() => moveFile(index, -1)} aria-label="Move up">↑</button>
-                <button className="text-button" type="button" disabled={disabled || index === files.length - 1} onClick={() => moveFile(index, 1)} aria-label="Move down">↓</button>
+              <li
+                key={`${file.name}-${index}`}
+                draggable={!disabled}
+                className={`book-audio-file${dragging === index ? " dragging" : ""}${dropAt === index && dragging !== null && dragging !== index ? (dragging < index ? " drop-below" : " drop-above") : ""}`}
+                onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; setDragging(index); }}
+                onDragOver={(event) => { if (dragging === null) return; event.preventDefault(); setDropAt(index); }}
+                onDrop={(event) => { event.preventDefault(); if (dragging !== null) moveFile(dragging, index); setDragging(null); setDropAt(null); }}
+                onDragEnd={() => { setDragging(null); setDropAt(null); }}
+              >
+                <span className="drag-handle" aria-hidden="true">⠿</span> {file.name} <span className="anki-note">· {findClips(file.analysis, gap).length} clips</span>
+                <button className="text-button" type="button" disabled={disabled || index === 0} onClick={() => moveFile(index, index - 1)} aria-label="Move up">↑</button>
+                <button className="text-button" type="button" disabled={disabled || index === files.length - 1} onClick={() => moveFile(index, index + 1)} aria-label="Move down">↓</button>
                 <button className="text-button" type="button" disabled={disabled} onClick={() => { setFiles((current) => current.filter((_, at) => at !== index)); setAssigned({}); }} aria-label="Remove">✕</button>
               </li>
             ))}
           </ol>
         )}
-        {files.length > 1 && <p className="anki-note">Put the files in book order: the clips are matched to the {noun}s in this order.</p>}
+        {files.length > 1 && <p className="anki-note">Put the files in book order (drag them, or use ↑ ↓): the clips are matched to the {noun}s in this order.</p>}
       </div>
 
       {files.length > 0 && (
@@ -289,6 +310,7 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
       {files.length > 0 && targets && (
         <div className="book-audio-left-out">
           <span className="anki-note">Not in the recordings, so left out of the order{leftOut.size ? "" : ": none"}</span>
+          {leftOut.size > 1 && <button className="text-button" type="button" disabled={disabled} onClick={() => { setLeftOut(new Set()); setAssigned({}); }} title="For recordings that read the words too: once every clip is transcribed, each goes with the note it sounds like, so words that aren't recorded are skipped">Put all back</button>}
           {targets.filter((target) => leftOut.has(target.id)).map((target) => (
             <span key={target.id} className="tag-chip">{target.text}<button type="button" disabled={disabled} onClick={() => leaveOut(target.id, false)} aria-label={`Put ${target.text} back in the order`} title="Put back in the order">×</button></span>
           ))}
@@ -340,7 +362,7 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
                       {target && duplicates.has(target.id) && use && <span className="anki-failures">This {noun} has another clip too.</span>}
                     </div></td>
                     <td><div className="book-audio-cell book-audio-heard">
-                      {heard[clip.key]?.error ? <span className="anki-failures">{heard[clip.key].error}</span> : heard[clip.key] ? <>{heard[clip.key].text || "(nothing)"}</> : <span className="anki-note">…</span>}
+                      {heard[clip.key]?.error ? <span className="anki-failures">{heard[clip.key].error}</span> : heard[clip.key] ? <>{heard[clip.key].text || "(nothing)"}{heard[clip.key].text && usable(heard[clip.key]) === undefined && <span className="anki-note">Heard as another language, so it&apos;s placed by order</span>}</> : <span className="anki-note">…</span>}
                       {score !== undefined && <span className={`book-audio-quality ${matchQuality(score)}`}>{qualityLabels[matchQuality(score)]}</span>}
                       {better && (
                         <span className="anki-note">

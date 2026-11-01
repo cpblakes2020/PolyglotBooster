@@ -20,6 +20,21 @@ function editDistance(a: string, b: string) {
   return previous[b.length];
 }
 
+const scripts: Record<string, RegExp> = {
+  Thai: /\p{Script=Thai}/u,
+  Japanese: /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u,
+  Mandarin: /\p{Script=Han}/u,
+};
+
+// Whether a transcription is written in the language's script (Latin for
+// Indonesian, Spanish and French).
+export function inScript(text: string, language: string) {
+  const letters = text.replace(/[^\p{L}]/gu, "");
+  if (!letters) return false;
+  const script = scripts[language] ?? /\p{Script=Latin}/u;
+  return [...letters].filter((letter) => script.test(letter)).length >= letters.length / 2;
+}
+
 // 0 (nothing alike) to 1 (the same text).
 export function similarity(a: string, b: string) {
   const x = comparable(a);
