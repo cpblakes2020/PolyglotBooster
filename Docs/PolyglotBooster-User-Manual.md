@@ -1,6 +1,6 @@
 # PolyglotBooster User Manual
 
-*Last updated: October 29, 2026*
+*Last updated: November 1, 2026*
 
 PolyglotBooster is a study companion for learning languages through other languages. You give it a word, a sentence, or a whole document in the language you're learning; it explains it through a language you already know, reads it aloud, and turns it into Anki flashcards — including rich notes, audio, and new cards for the example sentences and related words it finds along the way.
 
@@ -424,11 +424,22 @@ Bulk audio never touches notes whose audio came from a textbook (see *Book audio
 If your textbook comes with recordings, **Book audio** puts them on the chapter's notes in place of the text-to-speech audio. It's for notes already in Anki — for example a chapter you turned into cards with *Make flashcards*. (For a new chapter, add the recordings while sending the cards instead — see [Flashcards to Anki](#flashcards-to-anki).)
 
 1. Pick the **Language**, type the chapter's **tag** (e.g. *source::STT::24*) and choose where the clips go under **Put clips in**: **Audio 1** replaces the text-to-speech recording, while **Audio 2** keeps it and adds the book's clip as a second recording that plays after it (handy for listening notes). Then **Load notes**.
-2. **Add MP3 files…** and choose the chapter's recordings. If there are several, put them in book order with the ↑ ↓ buttons (they start sorted by file name).
+2. **Add MP3 files…** and choose the chapter's recordings — or, if you've set a Downloads folder (see *Your audio folder* below), **Add from Downloads…** lists the MP3s downloaded in the last 7 days: tick this chapter's and **Add**. If there are several, put them in book order with the ↑ ↓ buttons (they start sorted by file name).
 3. Each file is split into one clip per sentence at the longer pauses, and the clips are matched to the notes **in the order the notes were added** — the order *Make flashcards* listed them, which follows the book. Notes for single words (e.g. ถ้า, ก็) are left out of the order, since recordings usually only have the sentences. They're listed under **Not in the recordings**: click **×** on one to put it back in the order (if your recordings include it), or pick a note from **Leave out another note…** when a word or phrase was taken for a sentence — the clips are matched again straight away.
 4. Each clip is transcribed with your OpenAI key (a fraction of a cent per chapter) and compared with its note: **✓ matches**, **≈ close** or **✗ doesn't match**. Once every clip is transcribed, each one goes with the note it sounds like, still in book order — so a word note that isn't in the recordings, or a recording with no note, doesn't shift every row after it (the page says so when this changed the matches). A clip that can't be transcribed is tried twice more, then placed by order between its neighbours. When a clip still sounds like a different note, **Use that note** moves it there.
 5. Check the table: **▶ Book** plays the clip, **▶ Current** the note's audio now. Change a row's note with its menu, or untick **Use** to skip it. If the number of clips and notes differs, try a different **Pause between sentences**.
-6. **Replace audio on N notes** (or **Add as audio 2 on N notes**) writes the clips to Anki. Clips put in Audio 1 tag their notes `pb::book-audio::<language>`.
+6. **Replace audio on N notes** (or **Add as audio 2 on N notes**) writes the clips to Anki. Clips put in Audio 1 tag their notes `pb::book-audio::<language>`. If you've chosen an audio folder, the recordings and clips are saved there too (see below); **Save to … only** saves them without touching Anki.
+
+**Your audio folder.** Book audio can keep every chapter's recordings in a folder on your computer, so you can use them outside Anki (e.g. to make your own listening playlists). Under the tag, click **Choose folder…** next to **Audio folder** and pick a folder, e.g. *Documents\Thai audio*. It's remembered in this browser; **Change** picks another. When you replace a chapter's audio, the app saves:
+
+- the downloaded recordings in a folder named from the tag — *source::STT::27* becomes **STT-27** — with the chapter added to the front of each name (*STT-27-khwaam-male.mp3*), so there's nothing to rename beforehand;
+- the clips in **STT-27\clips**, numbered in book order and named after what's said, e.g. *STT-27-05 ความรักทำให้คนตาบอด.mp3*. Clips from a female recording end in *(female)*.
+
+The first time, and sometimes when you come back, Chrome asks to let PolyglotBooster edit the folder; choose **Allow** (or **Allow on every visit** if it's offered). This works in Chrome and Edge on a computer.
+
+**Optional: your Downloads folder.** Click **Choose…** next to **Downloads folder** and pick it, to get **Add from Downloads…** (no file picker). Tick **Remove recordings from Downloads once they're saved in the chapter folder** to have them moved rather than copied: they're deleted from Downloads only after they've been saved in the chapter folder.
+
+**Chapters done before you set the folder.** Load the chapter's notes, choose the recording (**Audio 1** or **Audio 2**), and click **Save this chapter's audio N clips from Anki**: the book clips already on those notes are saved to the chapter's **clips** folder, in the order the notes were added.
 
 Only MP3 files can be split. Notes that get book audio keep it: Bulk audio skips them, and editing their text doesn't re-record them. Recording or choosing new audio for one in *Review & analyze* removes the tag.
 
@@ -493,7 +504,7 @@ After **Make flashcards** or **Make flashcards (selective)** (Indonesian, Thai, 
 
 1. Optionally say where the cards are from, e.g. *Speak Thai Today, chapter 22* — it's added to each note as a *Seen in:* line.
 2. **Tag every card** fills in a tag from that name, nested under *source* (e.g. *source::STT::22*); change or add tags with the tag picker. Every note in the batch gets it, so you can study the set together later — see [Studying one chapter or set](#studying-one-chapter-or-set).
-3. **The book's audio (optional).** If the book comes with MP3 recordings, tick **Add the book's audio recordings (MP3) instead of text-to-speech** and add the chapter's files. They're split and matched to the cards in order, with the same checks and table as [Book audio](#63a-book-audio) — vocabulary cards are listed under **Not in the recordings** and left out of the order, and you can change that list the same way. The button then reads e.g. **Choose cards (13 with book audio)**.
+3. **The book's audio (optional).** If the book comes with MP3 recordings, tick **Add the book's audio recordings (MP3) instead of text-to-speech** and add the chapter's files. They're split and matched to the cards in order, with the same checks and table as [Book audio](#63a-book-audio) — vocabulary cards are listed under **Not in the recordings** and left out of the order, and you can change that list the same way. The button then reads e.g. **Choose cards (13 with book audio)**. With an audio folder chosen (the same settings as in [Book audio](#63a-book-audio)), **Choose cards** also saves the recordings and clips to the chapter's folder, named from the tag.
 4. **Choose cards** shows the list with each card's type (*Vocabulary* or *Sentence*), reading and meaning. Cards you already have in Anki are marked *In Anki* and unticked; **Also tag the unticked cards already in Anki** (on by default) gives them the batch tag too, so the set is complete. Use **Select all / none** and the checkboxes, then **Start branch**.
 5. Each card then opens in the same editor as branching: **Add note with brief explanations**, **Analyze fully** first, add its explanations to an existing card, or **Skip**. The card's topic tags are filled in for you and can be edited. New notes get audio straight away: the book's clip for cards marked *Book audio* in the list (tagged `pb::book-audio::<language>`, so Bulk audio leaves it alone), text-to-speech for the rest. Adding a book-audio card's explanations to a note already in Anki puts the clip on that note too.
 

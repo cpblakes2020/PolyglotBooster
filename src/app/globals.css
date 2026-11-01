@@ -541,3 +541,7 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .book-audio-quality.poor { color: #a54c3e; }
 .book-audio-left-out { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
 .book-audio-left-out select { border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 4px 6px; font: inherit; font-size: 13px; }
+.audio-folders { display: grid; gap: 6px; margin-top: 14px; font-size: 13px; }
+.audio-folders .anki-checkbox { display: flex; margin-top: 4px; }
+.book-audio-recent { display: grid; gap: 4px; margin-top: 10px; border: 1px solid var(--line); padding: 10px 12px; }
+.book-audio-recent .anki-checkbox { margin-top: 0; }

@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ClipMatcher, type ClipChoice, type ClipTarget } from "@/components/anki/ClipMatcher";
+import { AudioFolders, allowFolders, saveToFolder, useAudioFolders, type AudioSource } from "@/components/anki/AudioFolders";
+import { ClipMatcher, soundFilename, type ClipChoice, type ClipTarget } from "@/components/anki/ClipMatcher";
 import { isWordNote } from "@/lib/anki/bookAudio";
 import { anki, ankiSearchValue } from "@/lib/anki/connect";
 import { cleanField, htmlToText } from "@/lib/anki/fields";
 import { audio2Field, audioField, audioFilename, audioLanguages, pbTags, soundField, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { chapterName, type ClipToSave } from "@/lib/audio/library";
 
 // Which recording the clips go in: the first (replacing text-to-speech) or
 // the second, which plays after it.
@@ -43,6 +45,9 @@ export function BookAudio() {
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(0);
   const [confirming, setConfirming] = useState(false);
+  const [sources, setSources] = useState<AudioSource[]>([]);
+  const folders = useAudioFolders();
+  const chapter = chapterName(tag);
 
   useEffect(() => {
     void anki.getTags().then((tags) => setAllTags(tags.filter((item) => !item.startsWith("pb::")))).catch(() => {});
@@ -68,9 +73,58 @@ export function BookAudio() {
     }
   }
 
+  const clipsToSave = (): ClipToSave[] => choices.map((choice) => ({ order: choice.order, text: choice.text, data: choice.data, voice: choice.voice }));
+
+  // Saves the recordings and these clips to the chapter's folder.
+  async function saveFolder() {
+    if (!folders.library || !chapter) return;
+    if (!await allowFolders(folders, true)) {
+      setStatus(`PolyglotBooster wasn't allowed to write to ${folders.library.name}.`);
+      return;
+    }
+    setRunning(true);
+    try {
+      setStatus(await saveToFolder(folders, chapter, sources, clipsToSave()));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The files couldn't be saved.");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  // Saves the clips already on this chapter's notes in Anki (in the chosen
+  // recording) to the chapter's clips folder, in the order the notes were added.
+  async function saveFromAnki() {
+    if (!folders.library || !chapter || !notes) return;
+    if (!await allowFolders(folders, false)) {
+      setStatus(`PolyglotBooster wasn't allowed to write to ${folders.library.name}.`);
+      return;
+    }
+    setRunning(true);
+    setStatus("Reading the clips from Anki...");
+    try {
+      const withBook = notes.filter((note) => slot === 2 ? soundFilename(note.fields[audio2Field(language)] || "") : note.tags.includes(pbTags.bookAudio(language)));
+      const clips: ClipToSave[] = [];
+      for (const [index, note] of withBook.entries()) {
+        const filename = soundFilename(note.fields[slotField(slot, language)] || "");
+        const data = filename ? await anki.retrieveMedia(filename) : false;
+        if (data) clips.push({ order: index + 1, text: cleanField(note.fields[language] || "", language).text, data });
+      }
+      setStatus(clips.length
+        ? await saveToFolder(folders, chapter, [], clips)
+        : `None of these notes has a book clip in audio ${slot}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The clips couldn't be saved.");
+    } finally {
+      setRunning(false);
+    }
+  }
+
   async function replace() {
     if (!choices.length || !ready) return;
     setConfirming(false);
+    // Asked now, while the click still counts: the folder is written after Anki.
+    const toFolder = Boolean(folders.library && chapter) && await allowFolders(folders, true);
     setRunning(true);
     setDone(0);
     setStatus("Writing to Anki...");
@@ -88,9 +142,19 @@ export function BookAudio() {
         written.set(noteId, field);
         setDone((count) => count + 1);
       }
-      setStatus(slot === 1
+      let line = slot === 1
         ? `Replaced the audio on ${written.size} notes and tagged them ${pbTags.bookAudio(language)}, so Bulk audio leaves them alone.`
-        : `Put the clips on ${written.size} notes as their second recording.`);
+        : `Put the clips on ${written.size} notes as their second recording.`;
+      if (toFolder) {
+        try {
+          line += ` ${await saveToFolder(folders, chapter, sources, clipsToSave())}`;
+        } catch (error) {
+          line += ` The audio folder couldn't be written: ${error instanceof Error ? error.message : "unknown error"}.`;
+        }
+      } else if (folders.library && chapter) {
+        line += ` Not saved to ${folders.library.name}: PolyglotBooster wasn't allowed to write there.`;
+      }
+      setStatus(line);
     } catch (error) {
       setStatus(`${error instanceof Error ? error.message : "Writing to Anki failed."} ${written.size} of ${choices.length} notes were done.`);
     } finally {
@@ -128,9 +192,17 @@ export function BookAudio() {
         {notes && <span className="anki-note">{notes.length} notes</span>}
       </div>
 
+      <AudioFolders folders={folders} chapter={chapter} disabled={running} />
+      {notes && folders.library && chapter && (
+        <p className="anki-note">
+          <button className="text-button" type="button" disabled={running} onClick={() => void saveFromAnki()}>Save this chapter&apos;s audio {slot} clips from Anki</button>
+          {" "}— for a chapter done before the audio folder was set: writes the book clips already on these notes to {folders.library.name}\{chapter}\clips.
+        </p>
+      )}
+
       {status && <p className="example-status" role="status">{status}</p>}
 
-      <ClipMatcher key={language} language={language} targets={targets} noun="note" disabled={running} unmatchedLabel="No clip, so their audio stays as it is:" onChange={choose} />
+      <ClipMatcher key={language} language={language} targets={targets} noun="note" disabled={running} unmatchedLabel="No clip, so their audio stays as it is:" onChange={choose} downloads={folders.downloads} onSources={setSources} />
 
       {targets && choices.length > 0 && (
         <>
@@ -144,7 +216,9 @@ export function BookAudio() {
               </>
             )}
             {(running || done > 0) && <span className="anki-progress"><progress max={choices.length} value={done} /> {done} of {choices.length}</span>}
+            {!confirming && folders.library && chapter && <button className="text-button" type="button" disabled={running} onClick={() => void saveFolder()}>Save to {folders.library.name}\{chapter} only</button>}
           </div>
+          {folders.library && chapter && <p className="anki-note">Replacing also saves the recordings and these clips to {folders.library.name}\{chapter}.</p>}
           <p className="anki-note">If one of these notes is open in Anki&apos;s Browse window, move off it first — Anki ignores changes to the note being edited.</p>
         </>
       )}

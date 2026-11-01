@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
+import { AudioFolders, allowFolders, saveToFolder, useAudioFolders, type AudioSource } from "@/components/anki/AudioFolders";
 import { ClipMatcher, type ClipChoice, type ClipTarget } from "@/components/anki/ClipMatcher";
 import { TagInput, parseTags } from "@/components/anki/selection";
 import { anki } from "@/lib/anki/connect";
@@ -10,6 +11,7 @@ import { classifyItem } from "@/lib/anki/classify";
 import type { BranchItem } from "@/lib/anki/prompts";
 import { isAnkiLanguage, type AnkiLanguage } from "@/lib/anki/vocab";
 import type { Flashcard } from "@/lib/flashcards";
+import { chapterName } from "@/lib/audio/library";
 import type { Language } from "@/lib/types";
 
 type FlashcardsToAnkiProps = {
@@ -64,6 +66,9 @@ export function FlashcardsToAnki({ cards, sourceLanguage, options }: FlashcardsT
   const [withAudio, setWithAudio] = useState(false);
   const [clips, setClips] = useState<ClipChoice[]>([]);
   const [clipsReady, setClipsReady] = useState(true);
+  const [sources, setSources] = useState<AudioSource[]>([]);
+  const [folderStatus, setFolderStatus] = useState("");
+  const folders = useAudioFolders();
   const language = sourceLanguage as AnkiLanguage;
 
   const batchTags = parseTags(batchTag);
@@ -78,7 +83,23 @@ export function FlashcardsToAnki({ cards, sourceLanguage, options }: FlashcardsT
     setClipsReady(ready);
   }, []);
 
+  async function saveClips(chapter: string) {
+    // Asked first, while the click still counts.
+    if (!await allowFolders(folders, true)) {
+      setFolderStatus(`Not saved to ${folders.library?.name}: PolyglotBooster wasn't allowed to write there.`);
+      return;
+    }
+    try {
+      setFolderStatus(await saveToFolder(folders, chapter, sources, clips.map((clip) => ({ order: clip.order, text: clip.text, data: clip.data, voice: clip.voice }))));
+    } catch (error) {
+      setFolderStatus(`The audio folder couldn't be written: ${error instanceof Error ? error.message : "unknown error"}.`);
+    }
+  }
+
   function start() {
+    const chapter = chapterName(batchTags[0] || "");
+    setFolderStatus("");
+    if (withAudio && clips.length && folders.library && chapter) void saveClips(chapter);
     const audio = new Map(withAudio ? clips.map((clip) => [Number(clip.targetId), clip.data]) : []);
     setItems(cards.map((card, index) => {
       const item = { ...toItem(card, language), ...(audio.has(index) ? { audio: audio.get(index) } : {}) };
@@ -117,7 +138,11 @@ export function FlashcardsToAnki({ cards, sourceLanguage, options }: FlashcardsT
         {withAudio && (
           <div className="book-audio">
             <p className="anki-note">Each file is split into sentences at the longer pauses and matched to the cards in order; each clip is transcribed (with your OpenAI key) to check the match. Cards without a clip get text-to-speech as usual.</p>
-            <ClipMatcher language={language} targets={targets} noun="card" unmatchedLabel="No clip, so these get text-to-speech:" onChange={chooseClips} />
+            <AudioFolders folders={folders} chapter={chapterName(batchTags[0] || "")} />
+            <ClipMatcher language={language} targets={targets} noun="card" unmatchedLabel="No clip, so these get text-to-speech:" onChange={chooseClips} downloads={folders.downloads} onSources={setSources} />
+            {folders.library && (batchTags[0]
+              ? <p className="anki-note">Choose cards also saves the recordings and these clips to {folders.library.name}\{chapterName(batchTags[0])}.</p>
+              : <p className="anki-note">Add a tag above to save the recordings and clips to a chapter folder in {folders.library.name}.</p>)}
           </div>
         )}
         <div className="result-actions">
@@ -129,19 +154,22 @@ export function FlashcardsToAnki({ cards, sourceLanguage, options }: FlashcardsT
   }
 
   return (
-    <BranchQueue
-      language={language}
-      parentText={source.trim()}
-      parentEnglish=""
-      analysis=""
-      options={options}
-      items={items}
-      pick
-      doneLabel="Done"
-      batchTags={batchTags}
-      depth={1}
-      tagSuggestions={tagSuggestions}
-      onFinish={() => setStage("closed")}
-    />
+    <>
+      {folderStatus && <p className="example-status" role="status">{folderStatus}</p>}
+      <BranchQueue
+        language={language}
+        parentText={source.trim()}
+        parentEnglish=""
+        analysis=""
+        options={options}
+        items={items}
+        pick
+        doneLabel="Done"
+        batchTags={batchTags}
+        depth={1}
+        tagSuggestions={tagSuggestions}
+        onFinish={() => setStage("closed")}
+      />
+    </>
   );
 }

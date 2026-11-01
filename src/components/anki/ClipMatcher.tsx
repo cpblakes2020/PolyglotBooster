@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { transcribe } from "@/components/anki/api";
+import type { AudioSource } from "@/components/anki/AudioFolders";
 import { alignClips, matchQuality, similarity } from "@/lib/anki/bookAudio";
 import { anki } from "@/lib/anki/connect";
 import type { AnkiLanguage } from "@/lib/anki/vocab";
+import { allowFolder, recentMp3s, voiceOf } from "@/lib/audio/library";
 import { analyzeMp3, clipBytes, defaultSentenceGap, findClips, toBase64, type Mp3Analysis } from "@/lib/audio/mp3Split";
 
 // What a clip can go with: a note already in Anki (Book audio) or a card
@@ -20,8 +22,10 @@ export type ClipTarget = {
   bookAudio?: boolean;
 };
 
-// The clip (base64 MP3) chosen for a target.
-export type ClipChoice = { targetId: string; data: string };
+// The clip (base64 MP3) chosen for a target, with what's needed to save it
+// to the audio folder: its place in book order, the target's text, and the
+// recording's voice (male/female, from the file name).
+export type ClipChoice = { targetId: string; data: string; order: number; text: string; voice: string };
 
 type ClipMatcherProps = {
   language: AnkiLanguage;
@@ -33,9 +37,13 @@ type ClipMatcherProps = {
   unmatchedLabel: string;
   // The chosen clips; ready is false while two clips share a target.
   onChange: (choices: ClipChoice[], ready: boolean) => void;
+  // The Downloads folder, if chosen: offers Add from Downloads.
+  downloads?: FileSystemDirectoryHandle | null;
+  // The recordings added, for saving to the audio folder.
+  onSources?: (sources: AudioSource[]) => void;
 };
 
-type BookFile = { name: string; analysis: Mp3Analysis };
+type BookFile = { name: string; analysis: Mp3Analysis; file: File; fromDownloads: boolean };
 type BookClip = { key: string; file: string; start: number; end: number; data: string };
 type Heard = { text?: string; error?: string };
 
@@ -55,7 +63,7 @@ const seconds = (value: number) => value.toFixed(1);
 // A textbook's MP3s split into sentences at the longer pauses, matched to
 // the targets in order, checked by transcribing each clip, and shown as one
 // table to review and adjust.
-export function ClipMatcher({ language, targets, noun, disabled = false, unmatchedLabel, onChange }: ClipMatcherProps) {
+export function ClipMatcher({ language, targets, noun, disabled = false, unmatchedLabel, onChange, downloads, onSources }: ClipMatcherProps) {
   const [files, setFiles] = useState<BookFile[]>([]);
   const [gap, setGap] = useState(defaultSentenceGap);
   // Targets the recordings don't have (single words, to begin with), left
@@ -67,6 +75,9 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
   const [status, setStatus] = useState("");
   const [retries, setRetries] = useState(0);
   const asked = useRef(new Set<string>());
+  // Add from Downloads: the recent MP3s there, and which are ticked.
+  const [recent, setRecent] = useState<File[] | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
 
   // New targets start from book order again.
   useEffect(() => {
@@ -83,18 +94,39 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
     setAssigned({});
   }
 
-  async function addFiles(list: FileList | null) {
-    if (!list?.length) return;
+  async function addFiles(list: File[], fromDownloads = false) {
+    const fresh = list.filter((file) => !files.some((existing) => existing.name === file.name));
+    if (!fresh.length) return;
     setStatus("Reading the audio...");
     try {
       const added: BookFile[] = [];
-      for (const file of [...list]) added.push({ name: file.name, analysis: await analyzeMp3(file) });
+      for (const file of fresh) added.push({ name: file.name, analysis: await analyzeMp3(file), file, fromDownloads });
       setFiles((current) => [...current, ...added].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })));
       setStatus("");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "The audio couldn't be read.");
     }
   }
+
+  async function listDownloads() {
+    if (!downloads) return;
+    try {
+      if (!await allowFolder(downloads)) {
+        setStatus(`PolyglotBooster wasn't allowed to open ${downloads.name}.`);
+        return;
+      }
+      const found = await recentMp3s(downloads);
+      setRecent(found);
+      setPicked(new Set(found.filter((file) => !files.some((existing) => existing.name === file.name)).map((file) => file.name)));
+      setStatus(found.length ? "" : `No MP3s in ${downloads.name} from the last 7 days.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : `${downloads.name} couldn't be read.`);
+    }
+  }
+
+  useEffect(() => {
+    onSources?.(files.map((file) => ({ file: file.file, fromDownloads: file.fromDownloads })));
+  }, [files, onSources]);
 
   function moveFile(index: number, step: number) {
     setFiles((current) => {
@@ -199,7 +231,7 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
   const latest = useRef(chosen);
   latest.current = chosen;
   useEffect(() => {
-    onChangeRef.current(latest.current.map((row) => ({ targetId: row.target!.id, data: row.clip.data })), duplicates.size === 0);
+    onChangeRef.current(latest.current.map((row) => ({ targetId: row.target!.id, data: row.clip.data, order: row.index + 1, text: row.target!.text, voice: voiceOf(row.clip.file) })), duplicates.size === 0);
     // choiceKey stands for chosen and duplicates.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [choiceKey]);
@@ -209,8 +241,28 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
       <div className="book-audio-files">
         <label className="preview-prompt-button">
           Add MP3 files…
-          <input type="file" accept=".mp3,audio/mpeg" multiple hidden disabled={disabled} onChange={(event) => { void addFiles(event.target.files); event.target.value = ""; }} />
+          <input type="file" accept=".mp3,audio/mpeg" multiple hidden disabled={disabled} onChange={(event) => { void addFiles([...event.target.files ?? []]); event.target.value = ""; }} />
         </label>
+        {downloads && <button className="preview-prompt-button" type="button" disabled={disabled} onClick={() => void listDownloads()}>Add from {downloads.name}…</button>}
+        {recent && recent.length > 0 && (
+          <div className="book-audio-recent">
+            <p className="anki-note">MP3s in {downloads?.name} from the last 7 days, newest first. Tick this chapter&apos;s:</p>
+            {recent.map((file) => (
+              <label key={file.name} className="anki-checkbox">
+                <input type="checkbox" checked={picked.has(file.name)} disabled={disabled} onChange={(event) => setPicked((current) => {
+                  const next = new Set(current);
+                  if (event.target.checked) next.add(file.name); else next.delete(file.name);
+                  return next;
+                })} />
+                {file.name} <span className="anki-note">· {new Date(file.lastModified).toLocaleString()}</span>
+              </label>
+            ))}
+            <div className="input-action-row">
+              <button className="save-input-button" type="button" disabled={disabled || !picked.size} onClick={() => { void addFiles(recent.filter((file) => picked.has(file.name)), true); setRecent(null); }}>Add {picked.size} files</button>
+              <button className="text-button" type="button" onClick={() => setRecent(null)}>Cancel</button>
+            </div>
+          </div>
+        )}
         {files.length > 0 && (
           <ol>
             {files.map((file, index) => (
