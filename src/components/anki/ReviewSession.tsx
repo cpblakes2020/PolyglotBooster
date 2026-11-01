@@ -13,7 +13,7 @@ import { classifyItem, type Classification, type ItemKind } from "@/lib/anki/cla
 import { anki, ankiSearchValue, reviewFlag } from "@/lib/anki/connect";
 import { blockHtml, cleanField, escapeHtml, existingAnalysis, existingReading, fieldNeedsCleanup, handwrittenRubyReading, hasReading, htmlToText, joinNotesBlocks, markdownToAnkiHtml, notesMiddle, readingHtml, splitNotesBlocks, type NotesBlock } from "@/lib/anki/fields";
 import type { BranchItem, FollowUpExchange } from "@/lib/anki/prompts";
-import { analysisLanguage, ankiLanguages, audioField, audioFilename, notesField, pbTags, readingLabel, readingLanguages, sentenceTemplateId, soundField, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { analysisLanguage, ankiLanguages, audio2Field, audioField, audioFilename, notesField, pbTags, readingLabel, readingLanguages, sentenceTemplateId, soundField, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import { lookUpDictItems } from "@/lib/dictionary/client";
 import { dictItemsHtml, mergeDictItems, parseDictHtml, type DictNoteItem } from "@/lib/dictionary/notesBlock";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
@@ -652,6 +652,7 @@ export function ReviewSession() {
               <p className="result-label">{language}</p>
               <p className="anki-front" ref={selectionMenu.areaRef} onContextMenu={selectionMenu.onContextMenu}>{draft.cleanedText}
                 {soundFilename(note.fields[audioField(language)] || "") && <button className="text-button" type="button" aria-label={`Play ${language} audio`} onClick={() => void playAnkiSound(note.fields[audioField(language)])}>▶</button>}
+                {soundFilename(note.fields[audio2Field(language)] || "") && <button className="text-button" type="button" aria-label={`Play the second ${language} recording`} title="Audio 2: the second recording" onClick={() => void playAnkiSound(note.fields[audio2Field(language)])}>▶ 2</button>}
               </p>
             </div>
             <div>
@@ -717,6 +718,7 @@ export function ReviewSession() {
             <div className="anki-tool-head">
               <p className="result-label">Audio{newAudio && <span className="anki-changed">{newAudio.from ? "new file" : "new recording"}</span>}</p>
               {soundFilename(note.fields[audioField(language)] || "") && <button className="text-button" type="button" onClick={() => void playAnkiSound(note.fields[audioField(language)])}>▶ Current</button>}
+              {soundFilename(note.fields[audio2Field(language)] || "") && <button className="text-button" type="button" title="The second recording, which plays after the first" onClick={() => void playAnkiSound(note.fields[audio2Field(language)])}>▶ Audio 2</button>}
               {newAudio && <button className="text-button" type="button" onClick={() => void new Audio(`data:${audioTypes[newAudio.extension]};base64,${newAudio.data}`).play()}>▶ New</button>}
               <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void recordAudio()}>{newAudio && !newAudio.from ? "Record again" : soundFilename(note.fields[audioField(language)] || "") ? "Re-record" : "Record"}</button>
               <label className={`preview-prompt-button anki-file-button${busy ? " disabled" : ""}`}>
@@ -729,6 +731,7 @@ export function ReviewSession() {
               {newAudio
                 ? <>On save: <code>[sound:{audioFilename(note.noteId, language, soundFilename(note.fields[audioField(language)] || "") ? "…" : undefined, newAudio.extension)}]</code>{newAudio.from ? <> from <b>{newAudio.from}</b></> : " (new recording)"}{soundFilename(note.fields[audioField(language)] || "") && <> · now <code>[sound:{soundFilename(note.fields[audioField(language)] || "")}]</code></>}</>
                 : soundFilename(note.fields[audioField(language)] || "") ? <code>[sound:{soundFilename(note.fields[audioField(language)] || "")}]</code> : <span className="anki-note">No audio yet.</span>}
+              {soundFilename(note.fields[audio2Field(language)] || "") && <> · Audio 2: <code>[sound:{soundFilename(note.fields[audio2Field(language)] || "")}]</code></>}
               <span className="anki-audio-drop">{draggingAudio ? "Drop the audio file to use it" : "or drop an audio file here"}</span>
             </p>
           </section>
