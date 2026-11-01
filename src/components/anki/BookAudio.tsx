@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AudioFolders, allowFolders, saveToFolder, useAudioFolders, type AudioSource } from "@/components/anki/AudioFolders";
+import { AudioFolders, allowFolders, folderLabel, saveToFolder, useAudioFolders, type AudioSource } from "@/components/anki/AudioFolders";
 import { ClipMatcher, soundFilename, type ClipChoice, type ClipTarget } from "@/components/anki/ClipMatcher";
 import { isWordNote } from "@/lib/anki/bookAudio";
 import { anki, ankiSearchValue } from "@/lib/anki/connect";
@@ -79,7 +79,7 @@ export function BookAudio() {
   async function saveFolder() {
     if (!folders.library || !chapter) return;
     if (!await allowFolders(folders, true)) {
-      setStatus(`PolyglotBooster wasn't allowed to write to ${folders.library.name}.`);
+      setStatus(`PolyglotBooster wasn't allowed to write to ${folderLabel(folders, "library")}.`);
       return;
     }
     setRunning(true);
@@ -97,7 +97,7 @@ export function BookAudio() {
   async function saveFromAnki() {
     if (!folders.library || !chapter || !notes) return;
     if (!await allowFolders(folders, false)) {
-      setStatus(`PolyglotBooster wasn't allowed to write to ${folders.library.name}.`);
+      setStatus(`PolyglotBooster wasn't allowed to write to ${folderLabel(folders, "library")}.`);
       return;
     }
     setRunning(true);
@@ -152,7 +152,7 @@ export function BookAudio() {
           line += ` The audio folder couldn't be written: ${error instanceof Error ? error.message : "unknown error"}.`;
         }
       } else if (folders.library && chapter) {
-        line += ` Not saved to ${folders.library.name}: PolyglotBooster wasn't allowed to write there.`;
+        line += ` Not saved to ${folderLabel(folders, "library")}: PolyglotBooster wasn't allowed to write there.`;
       }
       setStatus(line);
     } catch (error) {
@@ -196,7 +196,7 @@ export function BookAudio() {
       {notes && folders.library && chapter && (
         <p className="anki-note">
           <button className="text-button" type="button" disabled={running} onClick={() => void saveFromAnki()}>Save this chapter&apos;s audio {slot} clips from Anki</button>
-          {" "}— for a chapter done before the audio folder was set: writes the book clips already on these notes to {folders.library.name}\{chapter}\clips.
+          {" "}— for a chapter done before the audio folder was set: writes the book clips already on these notes to {folderLabel(folders, "library")}\{chapter}\clips.
         </p>
       )}
 
@@ -216,9 +216,9 @@ export function BookAudio() {
               </>
             )}
             {(running || done > 0) && <span className="anki-progress"><progress max={choices.length} value={done} /> {done} of {choices.length}</span>}
-            {!confirming && folders.library && chapter && <button className="text-button" type="button" disabled={running} onClick={() => void saveFolder()}>Save to {folders.library.name}\{chapter} only</button>}
+            {!confirming && folders.library && chapter && <button className="text-button" type="button" disabled={running} onClick={() => void saveFolder()}>Save to {folderLabel(folders, "library")}\{chapter} only</button>}
           </div>
-          {folders.library && chapter && <p className="anki-note">Replacing also saves the recordings and these clips to {folders.library.name}\{chapter}.</p>}
+          {folders.library && chapter && <p className="anki-note">Replacing also saves the recordings and these clips to {folderLabel(folders, "library")}\{chapter}.</p>}
           <p className="anki-note">If one of these notes is open in Anki&apos;s Browse window, move off it first — Anki ignores changes to the note being edited.</p>
         </>
       )}

@@ -243,7 +243,7 @@ export function ClipMatcher({ language, targets, noun, disabled = false, unmatch
           Add MP3 files…
           <input type="file" accept=".mp3,audio/mpeg" multiple hidden disabled={disabled} onChange={(event) => { void addFiles([...event.target.files ?? []]); event.target.value = ""; }} />
         </label>
-        {downloads && <button className="preview-prompt-button" type="button" disabled={disabled} onClick={() => void listDownloads()}>Add from {downloads.name}…</button>}
+        {downloads && <button className="preview-prompt-button" type="button" disabled={disabled} onClick={() => void listDownloads()}>Add from {downloads.name} folder…</button>}
         {recent && recent.length > 0 && (
           <div className="book-audio-recent">
             <p className="anki-note">MP3s in {downloads?.name} from the last 7 days, newest first. Tick this chapter&apos;s:</p>

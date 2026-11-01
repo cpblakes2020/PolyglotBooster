@@ -545,3 +545,5 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .audio-folders .anki-checkbox { display: flex; margin-top: 4px; }
 .book-audio-recent { display: grid; gap: 4px; margin-top: 10px; border: 1px solid var(--line); padding: 10px 12px; }
 .book-audio-recent .anki-checkbox { margin-top: 0; }
+.audio-folder-path { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.audio-folder-path input { min-width: min(420px, 100%); border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 4px 8px; font: inherit; font-size: 12px; }

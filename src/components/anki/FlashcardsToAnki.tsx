@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
-import { AudioFolders, allowFolders, saveToFolder, useAudioFolders, type AudioSource } from "@/components/anki/AudioFolders";
+import { AudioFolders, allowFolders, folderLabel, saveToFolder, useAudioFolders, type AudioSource } from "@/components/anki/AudioFolders";
 import { ClipMatcher, type ClipChoice, type ClipTarget } from "@/components/anki/ClipMatcher";
 import { TagInput, parseTags } from "@/components/anki/selection";
 import { anki } from "@/lib/anki/connect";
@@ -86,7 +86,7 @@ export function FlashcardsToAnki({ cards, sourceLanguage, options }: FlashcardsT
   async function saveClips(chapter: string) {
     // Asked first, while the click still counts.
     if (!await allowFolders(folders, true)) {
-      setFolderStatus(`Not saved to ${folders.library?.name}: PolyglotBooster wasn't allowed to write there.`);
+      setFolderStatus(`Not saved to ${folderLabel(folders, "library")}: PolyglotBooster wasn't allowed to write there.`);
       return;
     }
     try {
@@ -141,8 +141,8 @@ export function FlashcardsToAnki({ cards, sourceLanguage, options }: FlashcardsT
             <AudioFolders folders={folders} chapter={chapterName(batchTags[0] || "")} />
             <ClipMatcher language={language} targets={targets} noun="card" unmatchedLabel="No clip, so these get text-to-speech:" onChange={chooseClips} downloads={folders.downloads} onSources={setSources} />
             {folders.library && (batchTags[0]
-              ? <p className="anki-note">Choose cards also saves the recordings and these clips to {folders.library.name}\{chapterName(batchTags[0])}.</p>
-              : <p className="anki-note">Add a tag above to save the recordings and clips to a chapter folder in {folders.library.name}.</p>)}
+              ? <p className="anki-note">Choose cards also saves the recordings and these clips to {folderLabel(folders, "library")}\{chapterName(batchTags[0])}.</p>
+              : <p className="anki-note">Add a tag above to save the recordings and clips to a chapter folder in {folderLabel(folders, "library")}.</p>)}
           </div>
         )}
         <div className="result-actions">
