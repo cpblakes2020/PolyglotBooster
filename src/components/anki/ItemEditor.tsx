@@ -38,6 +38,9 @@ type ItemEditorProps = {
   autoDictionary?: boolean;
 };
 
+// The one-line fields wrap as textareas, but a pasted line break becomes a space.
+const oneLine = (value: string) => value.replace(/\s*\n\s*/g, " ");
+
 // Adds one item found in an analysis to Anki: as a new note with its brief
 // comment, as a new note with a fresh full analysis, or — when the item is
 // already in Anki — as a comment appended to that note. New notes get
@@ -164,23 +167,23 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
 
       <div className="anki-item-fields">
         <label className="anki-field-edit">{language}
-          <input value={text} disabled={target === "existing"} onChange={(event) => setText(event.target.value)} onContextMenu={japanese ? selectionMenu.onContextMenu : undefined} />
+          <textarea className="anki-short-input" rows={1} value={text} disabled={target === "existing"} onChange={(event) => setText(oneLine(event.target.value))} onContextMenu={japanese ? selectionMenu.onContextMenu : undefined} />
         </label>
         {target === "new" && (
           <label className="anki-field-edit">English
-            <input value={english} onChange={(event) => setEnglish(event.target.value)} />
+            <textarea className="anki-short-input" rows={1} value={english} onChange={(event) => setEnglish(oneLine(event.target.value))} />
           </label>
         )}
         {target === "new" && usesReading && (
           <label className="anki-field-edit">{readingLabel(language)}
-            <input value={reading} onChange={(event) => setReading(event.target.value)} />
+            <textarea className="anki-short-input" rows={1} value={reading} onChange={(event) => setReading(oneLine(event.target.value))} />
           </label>
         )}
         <label className="anki-field-edit">Brief explanation in {language} (goes in {notesField(language)})
-          <textarea rows={2} value={explanation} onChange={(event) => setExplanation(event.target.value)} />
+          <textarea className="anki-short-input" rows={2} value={explanation} onChange={(event) => setExplanation(event.target.value)} />
         </label>
         <label className="anki-field-edit">Brief explanation in English (goes in the English note)
-          <textarea rows={2} value={comment} onChange={(event) => setComment(event.target.value)} />
+          <textarea className="anki-short-input" rows={2} value={comment} onChange={(event) => setComment(event.target.value)} />
         </label>
       </div>
       {item.audio && (

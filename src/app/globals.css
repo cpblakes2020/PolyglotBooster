@@ -341,6 +341,7 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-field-edit { display: grid; gap: 6px; margin-bottom: 14px; color: var(--muted); font-size: 11px; }
 .anki-field-edit textarea { width: 100%; min-height: 220px; resize: vertical; border: 1px solid var(--line); background: #f3f1e7; padding: 10px; color: var(--ink); font-family: var(--font-geist-mono), monospace; font-size: 12px; line-height: 1.5; }
 .anki-draft .result-label { padding-left: 0; }
+.anki-field-edit textarea.anki-short-input { box-sizing: border-box; min-height: 0; max-height: 12em; field-sizing: content; padding: 7px 8px; font-family: inherit; font-size: 13px; overflow-wrap: anywhere; }
 .anki-card-preview { border: 1px dashed var(--line); padding: 12px 14px; color: var(--ink); font-size: 14px; line-height: 1.6; }
 .anki-card-preview .pb-reading { margin-bottom: 8px; color: var(--teal); font-size: 15px; }
 .anki-card-preview ul, .anki-card-preview ol { margin: 4px 0 8px; padding-left: 22px; }
