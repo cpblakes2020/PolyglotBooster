@@ -296,7 +296,7 @@ On each card, the audio plays automatically (both recordings, one after the othe
 
 ## 6. The Anki page
 
-The Anki page works on a **computer with Anki open**. At the top it shows the connection status; once connected it has five tabs: **Review & analyze**, **Bulk audio**, **Book audio**, **Listening** and **Tags**.
+The Anki page works on a **computer with Anki open**. At the top it shows the connection status; once connected it has six tabs: **Review & analyze**, **Bulk audio**, **Book audio**, **Phrase clips**, **Listening** and **Tags**.
 
 ### 6.1 Review & analyze
 
@@ -469,6 +469,18 @@ A listening note only makes the listening card, not the usual language-direction
 A note with audio in two learning languages (e.g. Indonesian and Thai) gets a listening card for each; the list marks these notes with *(also …)*. To take a note's listening card away again, clear its *Listening* field in Anki and run **Tools → Empty Cards**.
 
 See [Listening practice](#listening-practice) for studying them by hand or hands-free.
+
+### 6.3c Phrase clips
+
+**Phrase clips** makes sentence cards from a short recording where a teacher says each phrase more than once, for example fast at a natural pace and then slowly. You don't need a transcript, so it suits audio captured from a video. The first saying goes in the card's first recording and the first clearly slower one in its second, which plays straight after it.
+
+1. Pick the **Language** and click **Choose a recording…** to choose an MP3, M4A or MP4 file of up to 15 minutes. It's cut at its pauses on your computer; you'll see how many pieces it made and what transcribing them costs (with your OpenAI key, about a cent for a two-minute clip).
+2. Click **Find the phrases**. Each piece is transcribed, and any text heard more than once becomes a phrase. Things said only once, like "Number one" or the English translation, are left out.
+3. Check each row. Press **▶ Play** on **Audio 1** and **Audio 2**, and choose another piece from the list if one is wrong: the fast and slow sayings are told apart only by their length. You can also correct the text or untick a phrase. **All pieces** shows what was heard in each one, and **New phrase** makes a phrase from a piece the search missed.
+4. Optionally, say where it's from and add a tag, then click **Prepare N cards**. The AI writes each card's romanization or reading, English and short notes.
+5. Choose the cards to add, as with [Flashcards to Anki](#flashcards-to-anki): work through them one at a time, or **Add all**.
+
+If pieces run together or a phrase is split in the wrong place, change **Pause between pieces** and click **Find the phrases** again. The default of 0.5 seconds suits a teacher repeating phrases; other kinds of audio, such as interviews or film scenes, may not split well. Cards made this way keep their recordings: Bulk audio leaves them alone.
 
 ### Send to Anki from the study desk
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AudioBatch } from "@/components/anki/AudioBatch";
 import { BookAudio } from "@/components/anki/BookAudio";
 import { ListeningNotes } from "@/components/anki/ListeningNotes";
+import { PhraseClips } from "@/components/anki/PhraseClips";
 import { ReviewSession } from "@/components/anki/ReviewSession";
 import { TagManager } from "@/components/anki/TagManager";
 import { anki } from "@/lib/anki/connect";
@@ -13,7 +14,7 @@ import { ankiNoteType } from "@/lib/anki/vocab";
 // missing: languages the note type has no fields for; listening: whether
 // its listening cards are missing or need updating.
 type Connection = { state: "checking" } | { state: "ready"; missing: string[]; listening: "missing" | "outdated" | "current" } | { state: "setup"; message?: string } | { state: "error"; message: string };
-type Tab = "review" | "audio" | "book" | "listening" | "tags";
+type Tab = "review" | "audio" | "book" | "phrases" | "listening" | "tags";
 
 export function AnkiDesk() {
   const [connection, setConnection] = useState<Connection>({ state: "checking" });
@@ -119,12 +120,13 @@ export function AnkiDesk() {
             <button className={`mode-tab${tab === "review" ? " active" : ""}`} role="tab" aria-selected={tab === "review"} type="button" onClick={() => setTab("review")}>Review &amp; analyze</button>
             <button className={`mode-tab${tab === "audio" ? " active" : ""}`} role="tab" aria-selected={tab === "audio"} type="button" onClick={() => setTab("audio")}>Bulk audio</button>
             <button className={`mode-tab${tab === "book" ? " active" : ""}`} role="tab" aria-selected={tab === "book"} type="button" onClick={() => setTab("book")}>Book audio</button>
+            <button className={`mode-tab${tab === "phrases" ? " active" : ""}`} role="tab" aria-selected={tab === "phrases"} type="button" onClick={() => setTab("phrases")}>Phrase clips</button>
             <button className={`mode-tab${tab === "listening" ? " active" : ""}`} role="tab" aria-selected={tab === "listening"} type="button" onClick={() => setTab("listening")}>Listening</button>
             <button className={`mode-tab${tab === "tags" ? " active" : ""}`} role="tab" aria-selected={tab === "tags"} type="button" onClick={() => setTab("tags")}>Tags</button>
           </div>
         )}
       </div>
-      {connection.state === "ready" && (tab === "review" ? <ReviewSession /> : tab === "audio" ? <AudioBatch /> : tab === "book" ? <BookAudio /> : tab === "listening" ? <ListeningNotes ready={connection.listening !== "missing"} /> : <TagManager />)}
+      {connection.state === "ready" && (tab === "review" ? <ReviewSession /> : tab === "audio" ? <AudioBatch /> : tab === "book" ? <BookAudio /> : tab === "phrases" ? <PhraseClips /> : tab === "listening" ? <ListeningNotes ready={connection.listening !== "missing"} /> : <TagManager />)}
     </section>
   );
 }

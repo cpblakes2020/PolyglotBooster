@@ -70,7 +70,7 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
   const usesReading = readingLanguages.has(language);
   const matchEnglish = match ? cleanField(match.fields.English || "", "English").text : "";
 
-  const draft: ItemDraft = { language, text, english, reading, comment, explanation, seenIn, match, target, analysis, kind, tags: parseTags(newTags), dict, audio: item.audio };
+  const draft: ItemDraft = { language, text, english, reading, comment, explanation, seenIn, match, target, analysis, kind, tags: parseTags(newTags), dict, audio: item.audio, audio2: item.audio2 };
 
   async function addDictionary(mode: "word" | "sentence") {
     setBusy(true);
@@ -187,7 +187,7 @@ export function ItemEditor({ item, language, seenIn, match, options, depth, tagS
         </label>
       </div>
       {item.audio && (
-        <p className="anki-note">Audio: the book&apos;s recording, not text-to-speech{target === "existing" ? " (it replaces the existing note's audio)" : ""}. <button className="text-button" type="button" onClick={() => playData(item.audio!)}>▶ Play</button></p>
+        <p className="anki-note">Audio: the source&apos;s own recording, not text-to-speech{target === "existing" ? " (it replaces the existing note's audio)" : ""}. <button className="text-button" type="button" onClick={() => playData(item.audio!)}>▶ Play</button>{item.audio2 && <> <button className="text-button" type="button" onClick={() => playData(item.audio2!)}>▶ Audio 2</button></>}</p>
       )}
 
       {japanese && (

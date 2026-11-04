@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
 
-  const body = await request.json().catch(() => null) as { data?: unknown; language?: unknown } | null;
+  const body = await request.json().catch(() => null) as { data?: unknown; language?: unknown; alsoEnglish?: unknown } | null;
   const data = body?.data;
   const language = body?.language;
   if (typeof data !== "string" || !data || data.length > maxBase64Length) {
@@ -25,7 +25,8 @@ export async function POST(request: Request) {
 
   try {
     const apiKey = await requireAccountApiKey(session.user.id, "openai");
-    const text = await transcribeSpeech(Buffer.from(data, "base64"), language, apiKey);
+    const languages = body?.alsoEnglish === true && language !== "English" ? [language, "English" as const] : [language];
+    const text = await transcribeSpeech(Buffer.from(data, "base64"), languages, apiKey);
     return NextResponse.json({ text });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "The clip could not be transcribed." }, { status: 503 });

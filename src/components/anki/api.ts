@@ -33,8 +33,9 @@ export async function speak(text: string, language: AnkiLanguage, reading?: stri
 }
 
 // What an MP3 clip (base64) says, for checking textbook audio against notes.
-export async function transcribe(data: string, language: AnkiLanguage) {
-  const { text } = await postJson<{ text: string }>("/api/anki/transcribe", { data, language });
+// alsoEnglish: the recording may mix the language with English.
+export async function transcribe(data: string, language: AnkiLanguage, alsoEnglish = false) {
+  const { text } = await postJson<{ text: string }>("/api/anki/transcribe", { data, language, alsoEnglish });
   return text;
 }
 

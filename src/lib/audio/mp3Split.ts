@@ -90,6 +90,21 @@ function joinFrames(bytes: Uint8Array, frames: Frame[]) {
   return out;
 }
 
+// One flag per window of the decoded audio: true when it's quiet.
+export function quietWindows(audio: AudioBuffer) {
+  const size = Math.round(audio.sampleRate * windowSeconds);
+  const channels = Array.from({ length: audio.numberOfChannels }, (_, index) => audio.getChannelData(index));
+  const quiet: boolean[] = [];
+  for (let start = 0; start < audio.length; start += size) {
+    let peak = 0;
+    for (const data of channels) {
+      for (let i = start; i < Math.min(start + size, audio.length); i++) peak = Math.max(peak, Math.abs(data[i]));
+    }
+    quiet.push(peak < quietPeak);
+  }
+  return quiet;
+}
+
 export async function analyzeMp3(file: File): Promise<Mp3Analysis> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const frames = parseFrames(bytes);
@@ -97,26 +112,17 @@ export async function analyzeMp3(file: File): Promise<Mp3Analysis> {
   const context = new AudioContext();
   try {
     const audio = await context.decodeAudioData(joinFrames(bytes, frames).buffer);
-    const size = Math.round(audio.sampleRate * windowSeconds);
-    const channels = Array.from({ length: audio.numberOfChannels }, (_, index) => audio.getChannelData(index));
-    const quiet: boolean[] = [];
-    for (let start = 0; start < audio.length; start += size) {
-      let peak = 0;
-      for (const data of channels) {
-        for (let i = start; i < Math.min(start + size, audio.length); i++) peak = Math.max(peak, Math.abs(data[i]));
-      }
-      quiet.push(peak < quietPeak);
-    }
     const last = frames[frames.length - 1];
-    return { bytes, frames, duration: last.start + last.duration, quiet };
+    return { bytes, frames, duration: last.start + last.duration, quiet: quietWindows(audio) };
   } finally {
     void context.close();
   }
 }
 
 // The sentences in a recording: the sounds between gaps of at least
-// sentenceGap seconds, with a little room on each side.
-export function findClips(analysis: Mp3Analysis, sentenceGap = defaultSentenceGap): Clip[] {
+// sentenceGap seconds, with a little room on each side (but no more than half
+// the gap, so with short gaps a clip doesn't catch the start of the next one).
+export function findClips(analysis: Pick<Mp3Analysis, "quiet" | "duration">, sentenceGap = defaultSentenceGap): Clip[] {
   const sounds: Clip[] = [];
   let soundStart = -1;
   let quietRun = 0;
@@ -136,7 +142,11 @@ export function findClips(analysis: Mp3Analysis, sentenceGap = defaultSentenceGa
   if (soundStart >= 0) sounds.push({ start: soundStart * windowSeconds, end: (analysis.quiet.length - quietRun) * windowSeconds });
   return sounds
     .filter((sound) => sound.end - sound.start >= shortestSound)
-    .map((sound) => ({ start: Math.max(0, sound.start - leadSeconds), end: Math.min(analysis.duration, sound.end + tailSeconds) }));
+    .map((sound, index, kept) => {
+      const before = index > 0 ? (sound.start - kept[index - 1].end) / 2 : leadSeconds;
+      const after = index < kept.length - 1 ? (kept[index + 1].start - sound.end) / 2 : tailSeconds;
+      return { start: Math.max(0, sound.start - Math.min(leadSeconds, before)), end: Math.min(analysis.duration, sound.end + Math.min(tailSeconds, after)) };
+    });
 }
 
 // The clip as MP3 bytes: the original frames that overlap it.

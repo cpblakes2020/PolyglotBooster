@@ -6,7 +6,7 @@ import type { ItemKind } from "@/lib/anki/classify";
 import { anki } from "@/lib/anki/connect";
 import { appendToField, branchNoteBlock, composeNotesField, escapeHtml, markdownToAnkiHtml, readingHtml, withDictBlock } from "@/lib/anki/fields";
 import { dictItemsHtml, type DictNoteItem } from "@/lib/dictionary/notesBlock";
-import { audioField, audioFilename, notesField, pbTags, readingLanguages, sentenceTemplateId, soundField, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
+import { audio2Field, audioField, audioFilename, notesField, pbTags, readingLanguages, sentenceTemplateId, soundField, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
 export type ItemOutcome = { kind: "added"; note: VocabNote } | { kind: "commented" } | { kind: "skipped" };
 
@@ -34,7 +34,15 @@ export type ItemDraft = {
   // The textbook's recording (base64 MP3), used instead of text-to-speech;
   // for an item already in Anki it replaces the note's audio.
   audio?: string;
+  // A second recording (base64 MP3), played after the first.
+  audio2?: string;
 };
+
+// Writes a second recording to the note, which plays after the first.
+async function saveSecondAudio(noteId: number, language: AnkiLanguage, audio: string, version?: string) {
+  const filename = await anki.storeMedia(audioFilename(noteId, language, version ? `book2-${version}` : "book2"), audio);
+  await anki.updateFields(noteId, { [audio2Field(language)]: soundField(filename) });
+}
 
 // Writes a textbook recording to the note's audio field, tagged so Bulk
 // audio leaves it alone. version: for replacing audio the note already has.
@@ -76,6 +84,7 @@ export async function saveItem(draft: ItemDraft, onProgress: (message: string) =
     await anki.updateFields(match.noteId, { [notesField(language)]: notes, ...(draft.comment.trim() ? { [notesField("English")]: englishNote } : {}) });
     if (extraTags.length) await anki.addTags([match.noteId], extraTags);
     if (draft.audio) await saveBookAudio(match.noteId, language, draft.audio, Date.now().toString(36));
+    if (draft.audio2) await saveSecondAudio(match.noteId, language, draft.audio2, Date.now().toString(36));
     return { outcome: { kind: "commented" }, audioFailed: false };
   }
 
@@ -88,6 +97,7 @@ export async function saveItem(draft: ItemDraft, onProgress: (message: string) =
   // (a duplicate note); Bulk audio fills in anything missed.
   let audioFailed = false;
   try {
+    if (draft.audio2) await saveSecondAudio(noteId, language, draft.audio2);
     if (draft.audio) {
       onProgress(`Saving the book's ${language} audio...`);
       await saveBookAudio(noteId, language, draft.audio);
