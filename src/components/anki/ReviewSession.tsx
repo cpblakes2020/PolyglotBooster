@@ -162,6 +162,11 @@ export function ReviewSession() {
   const laterItems = useLaterItems();
   const laterCount = laterItems?.filter((item) => item.language === language).length || 0;
   const [showLater, setShowLater] = useState(false);
+  // Saved phrases in the other languages, so they can be found from here too.
+  const otherLater = studyLanguages.flatMap((item) => {
+    const count = item === language ? 0 : laterItems?.filter((saved) => saved.language === item).length || 0;
+    return count ? [{ language: item, count }] : [];
+  });
   // A new recording (base64 MP3) waiting to replace the note's audio on save.
   const [newAudio, setNewAudio] = useState<NewAudio | null>(null);
   const [draggingAudio, setDraggingAudio] = useState(false);
@@ -600,6 +605,12 @@ export function ReviewSession() {
         {laterCount > 0 && <button className="preview-prompt-button" type="button" disabled={busy || showLater} onClick={() => { setShowLater(true); setBranch(null); }} title={`${language} phrases you saved for Anki later, on any device`}>Saved for later ({laterCount})</button>}
         {readingLanguages.has(language) && <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void loadQueue("reading")} title={`${language} notes with no ${readingLabel(language).split(" ")[0].toLowerCase()} yet, newest first`}>Missing {language === "Thai" ? "romanization" : "reading"}</button>}
       </div>
+      {otherLater.length > 0 && (
+        <p className="anki-note">
+          Saved for later in other languages:
+          {otherLater.map((item) => <span key={item.language}>{" "}<button className="text-button" type="button" disabled={busy} onClick={() => { setLanguage(item.language); setQueue(null); setDraft(null); setBranch(null); setShowLater(true); }}>{item.language} ({item.count})</button></span>)}
+        </p>
+      )}
       <form className="anki-find" onSubmit={(event) => { event.preventDefault(); void loadQueue("search"); }}>
         <label htmlFor="anki-find">Or find a note to edit (analyzed or not)</label>
         <input id="anki-find" value={search} placeholder={`${language} or English text`} onChange={(event) => setSearch(event.target.value)} />

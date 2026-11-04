@@ -66,7 +66,7 @@ export function LaterListPanel() {
   return (
     <details className="settings-panel anki-later-panel" id="saved-for-later" open>
       <summary>Saved for Anki later ({items.length})</summary>
-      <p className="anki-note">Add them to Anki from the <a href="/anki">Anki page</a> on the computer running Anki (<b>Saved for later</b>). Delete any you no longer want here.</p>
+      <p className="anki-note">Add them to Anki from the <a href="/anki">Anki page</a> on the computer running Anki: on <b>Review &amp; analyze</b>, pick the language, then click <b>Saved for later</b>. Delete any you no longer want here.</p>
       <ul className="anki-later-list">
         {items.map((item) => (
           <li key={item.id}>

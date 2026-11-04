@@ -1,6 +1,6 @@
 # PolyglotBooster User Manual
 
-*Last updated: November 1, 2026*
+*Last updated: November 4, 2026*
 
 PolyglotBooster is a study companion for learning languages through other languages. You give it a word, a sentence, or a whole document in the language you're learning; it explains it through a language you already know, reads it aloud, and turns it into Anki flashcards — including rich notes, audio, and new cards for the example sentences and related words it finds along the way.
 
@@ -496,7 +496,7 @@ Save phrases while you study and add them to Anki later — without interrupting
 - **Saving:** on the study desk (a result, a follow-up answer or an expanded saved review) or on the Anki page (the analysis preview or a follow-up answer), select a phrase, right-click and choose **Save "…" for Anki later**. On an iPhone or iPad, just select the text: a **Save "…" for Anki later** bar appears at the bottom of the screen; tap it. A message confirms how many are waiting. The list is kept in your PolyglotBooster account, so it's the same on every device and stays until you deal with it.
 - **From any app:** copy it, then on the study desk's **Utilities** tab tap **Save clipboard for Anki later** — see [Utilities](#utilities).
 - **Seeing the list:** **Saved for Anki later (N)** on the **Utilities** tab lists every saved phrase with its language, where it came from and the date; **Delete** removes one. This works on any device.
-- **Adding to Anki** (on the computer running Anki): on the Anki page, pick the language and click **Saved for later (N)**. Each phrase is looked up in the context you saved it from — reading, English and brief explanations — and the usual list opens: **Start branch** to go one at a time, or **Add all N with brief explanations**. For each phrase: add it (it then leaves the list), **Skip, keep for later** (it stays), or **Delete from list**. In the list, **Delete the N unticked from the list** clears phrases you've decided against (e.g. ones already in Anki); unticked phrases otherwise stay saved.
+- **Adding to Anki** (on the computer running Anki): on the Anki page's **Review & analyze** tab, pick the language and click **Saved for later (N)**. The button appears only when that language has saved phrases; phrases in other languages are listed under the buttons, and clicking one switches to that language and opens its list. Each phrase is looked up in the context you saved it from — reading, English and brief explanations — and the usual list opens: **Start branch** to go one at a time, or **Add all N with brief explanations**. For each phrase: add it (it then leaves the list), **Skip, keep for later** (it stays), or **Delete from list**. In the list, **Delete the N unticked from the list** clears phrases you've decided against (e.g. ones already in Anki); unticked phrases otherwise stay saved.
 
 ### Flashcards to Anki
 
