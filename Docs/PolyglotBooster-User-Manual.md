@@ -595,6 +595,7 @@ After re-recording audio, old clips remain in Anki's media folder. **Tools → C
 | AnkiConnect config won't save | The list needs commas between items (but not after the last one). |
 | Browser asks about "local network" | Click **Allow** — it's how the page reaches Anki on your computer. |
 | "Add your … API key" | Add a key for the selected provider in **Settings**, or switch provider. Audio always needs an OpenAI key. |
+| **"Your credit balance is too low"** | The AI provider's prepaid credit has run out: add credit in its billing page (see [API keys](#api-keys)), or switch **Provider** on the study desk. Credits also expire a year after purchase. |
 | **Open in Anki** does nothing | The Anki window probably opened behind your browser — check the taskbar/dock. |
 | A card has no audio | Run **Bulk audio**; it records anything missing. |
 | A romanization or suggestion looks wrong | Edit it before saving — every generated text is editable. |

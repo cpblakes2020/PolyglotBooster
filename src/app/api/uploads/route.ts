@@ -17,6 +17,19 @@ const docxMimeType = "application/vnd.openxmlformats-officedocument.wordprocessi
 const supportedTypes = new Set(["text/html", "text/plain", "text/xml", "application/xml", "application/pdf", docxMimeType, "image/jpeg", "image/png"]);
 const supportedExtensions = new Set([".html", ".htm", ".txt", ".xml", ".pdf", ".docx", ".jpg", ".jpeg", ".png"]);
 
+// The AI provider refused or failed (out of credits, a bad key, an outage):
+// the file itself is fine, so its reason is shown rather than blaming the file.
+class AiReaderError extends Error {}
+
+async function readWithAi(read: () => Promise<string>, providerLabel: string) {
+  try {
+    return await read();
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "It didn't respond.";
+    throw new AiReaderError(reason.includes("API key") ? reason : `${providerLabel} couldn't read this file: ${reason}`);
+  }
+}
+
 function getDocumentType(file: File) {
   const extension = path.extname(file.name).toLowerCase();
   if (supportedTypes.has(file.type)) return file.type;
@@ -39,6 +52,7 @@ export async function POST(request: Request) {
   try {
     const providerId = getRequestProvider(request);
     const provider = getLlmProvider(providerId);
+    const providerLabel = providerId === "anthropic" ? "Anthropic" : "OpenAI";
     const formData = await request.formData();
     const file = formData.get("file");
     // The language being studied, as a hint for the AI reader.
@@ -62,7 +76,7 @@ export async function POST(request: Request) {
     if (documentType === "image/jpeg" || documentType === "image/png") {
       if (!provider.extractText) return NextResponse.json({ error: "Image extraction is unavailable for the selected provider." }, { status: 400 });
       const apiKey = await requireAccountApiKey(session.user.id, providerId);
-      extracted.text = await provider.extractText(source, documentType, apiKey, language);
+      extracted.text = await readWithAi(() => provider.extractText!(source, documentType, apiKey, language), providerLabel);
     } else {
       try {
         extracted = await extractDocumentText(storedDocument.storagePath, documentType);
@@ -72,7 +86,7 @@ export async function POST(request: Request) {
       if (!extracted.text && documentType === "application/pdf") {
         if (providerId !== "anthropic" || !provider.extractText) return NextResponse.json({ error: "Scanned-PDF extraction currently requires an Anthropic API key." }, { status: 400 });
         const apiKey = await requireAccountApiKey(session.user.id, providerId);
-        extracted.text = await provider.extractText(source, documentType, apiKey, language);
+        extracted.text = await readWithAi(() => provider.extractText!(source, documentType, apiKey, language), providerLabel);
       }
     }
     if (!extracted.text) {
@@ -89,6 +103,8 @@ export async function POST(request: Request) {
       text: extracted.text,
     });
   } catch (error) {
+    console.error("Upload failed:", error);
+    if (error instanceof AiReaderError) return NextResponse.json({ error: error.message }, { status: 502 });
     if (error instanceof Error && error.message.includes("API key")) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
