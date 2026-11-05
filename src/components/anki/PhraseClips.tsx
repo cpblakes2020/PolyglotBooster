@@ -369,7 +369,7 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
     return (
       <>
         {failures.length > 0 && <ul className="anki-failures">{failures.map((failure) => <li key={failure}>{failure}</li>)}</ul>}
-        {listeningDraft && <ListeningCardPanel draft={listeningDraft} />}
+        {listeningDraft && <ListeningCardPanel draft={listeningDraft} tagSuggestions={tagSuggestions} />}
         {items.length > 0 ? (
           <BranchQueue
             language={language}
