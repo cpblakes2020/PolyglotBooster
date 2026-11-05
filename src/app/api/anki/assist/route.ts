@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { describeSelectionPrompt, extractItemsPrompt, followUpPrompt, glossPrompt, readingPrompt, translatePrompt, type FollowUpExchange } from "@/lib/anki/prompts";
+import { describeSelectionPrompt, extractItemsPrompt, followUpPrompt, glossPrompt, readingPrompt, sentenceGroupsPrompt, translatePrompt, type FollowUpExchange } from "@/lib/anki/prompts";
 import { isAnkiLanguage, readingLanguages } from "@/lib/anki/vocab";
 import { japaneseChineseLine, mandarinVariantLines } from "@/lib/chineseScripts";
 import { unambiguousReading } from "@/lib/dictionary/japanese";
@@ -8,7 +8,7 @@ import { isJapaneseTerm, japaneseDictionary } from "@/lib/dictionary/server";
 import { getLlmProvider, getRequestProvider } from "@/lib/llm/provider";
 import { requireAccountApiKey } from "@/lib/storage/account";
 
-const kinds = new Set(["reading", "gloss", "extract", "describe", "translate", "followup"]);
+const kinds = new Set(["reading", "gloss", "extract", "describe", "translate", "followup", "sentences"]);
 
 // The earlier questions and answers of a follow-up thread, as sent by the page.
 function parseThread(value: unknown): FollowUpExchange[] {
@@ -38,6 +38,7 @@ function parseJsonReply(reply: string): unknown {
 // - extract: the learnable items in an analysis (text = analysis, context = the analyzed item)
 // - describe: one item the learner selected (text = selection, context = the analysis)
 // - translate: the item in another language (text = its filled fields, language = the target)
+// - sentences: which pieces of a recording make up each sentence (text = the numbered pieces)
 // - followup: answers a question about a note (text = the question, context =
 //   the analysis, plus item, english, thread, learnerLevel and outputStyle)
 export async function POST(request: Request) {
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
   if (typeof kind !== "string" || !kinds.has(kind)) {
     return NextResponse.json({ error: "Unsupported request." }, { status: 400 });
   }
-  const maxLength = kind === "extract" ? 20000 : 2000;
+  const maxLength = kind === "extract" || kind === "sentences" ? 20000 : 2000;
   if (typeof text !== "string" || !text.trim() || text.length > maxLength) {
     return NextResponse.json({ error: `Send between 1 and ${maxLength.toLocaleString()} characters of text.` }, { status: 400 });
   }
@@ -84,6 +85,7 @@ export async function POST(request: Request) {
       : kind === "gloss" ? glossPrompt(trimmed, language)
       : kind === "extract" ? extractItemsPrompt(trimmed, context, language)
       : kind === "translate" ? translatePrompt(trimmed, language)
+      : kind === "sentences" ? sentenceGroupsPrompt(trimmed, language)
       : kind === "followup" ? followUpPrompt({
         question: trimmed,
         item: typeof body?.item === "string" ? body.item.slice(0, 2000) : "",
@@ -97,7 +99,7 @@ export async function POST(request: Request) {
       : describeSelectionPrompt(trimmed, context, language);
     const reply = (await provider.runRawPrompt(prompt, apiKey)).trim();
     if (kind === "followup") return NextResponse.json({ result: reply });
-    if (kind === "extract" || kind === "describe") return NextResponse.json({ result: parseJsonReply(reply) });
+    if (kind === "extract" || kind === "describe" || kind === "sentences") return NextResponse.json({ result: parseJsonReply(reply) });
     if (kind === "reading") {
       const reading = reply.replace(/^["“]|["”]$/g, "");
       const extra = language === "Mandarin" ? mandarinVariantLines(trimmed) : language === "Japanese" && context === "chinese" ? [japaneseChineseLine(trimmed)] : [];

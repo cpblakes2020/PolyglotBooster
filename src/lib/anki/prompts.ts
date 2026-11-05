@@ -153,6 +153,20 @@ export function followUpPrompt(input: {
   ].join("\n\n");
 }
 
+// pieces: one numbered line per piece of the recording. The reply is only
+// numbers, so the model can't change what was said.
+export function sentenceGroupsPrompt(pieces: string, language: AnkiLanguage) {
+  return [
+    `A recording of spoken ${language} was cut wherever the speaker paused, and each piece was transcribed separately. The numbered pieces below are in order. A piece may be a whole sentence, part of one, or a short remark.`,
+    `Group neighbouring pieces so that each group is short enough to learn on one flashcard: a single thought, usually one or two pieces and never more than three.`,
+    `Keep a piece on its own whenever it works alone, even if it relies on what came before. Join pieces only when one is grammatically unfinished without the other (such as "if someone asks" without what they ask), or when the speaker stops and restarts the same thought. Each item in a list of reasons or examples is its own group, and so is each line of a greeting or sign-off. Don't join pieces just because they're on the same topic.`,
+    `${language === "Thai" ? "Thai doesn't mark the end of a sentence with punctuation, so decide from the grammar and meaning. " : ""}A transcription may contain small errors: don't let those change the grouping.`,
+    `Reply with JSON only, in this exact shape: {"groups":[[1,2],[3],[4,5,6]]}. Use every number exactly once, in order. Don't return any of the text.`,
+    "Pieces:",
+    pieces,
+  ].join("\n\n");
+}
+
 export function describeSelectionPrompt(selection: string, analysis: string, language: AnkiLanguage) {
   return [
     `A learner selected this ${language} text in the language-learning analysis below: "${selection}".`,

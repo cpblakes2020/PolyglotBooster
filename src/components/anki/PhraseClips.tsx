@@ -1,25 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { describeSelection, transcribe, type AnalysisOptions } from "@/components/anki/api";
+import { useEffect, useRef, useState } from "react";
+import { describeSelection, groupSentences, speak, transcribe, type AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { playData } from "@/components/anki/ClipMatcher";
 import { sourceTag } from "@/components/anki/FlashcardsToAnki";
 import { TagInput, parseTags } from "@/components/anki/selection";
 import { anki } from "@/lib/anki/connect";
-import { findPhrases, phraseText } from "@/lib/anki/phraseClips";
+import { findPhrases, joinPieces, phraseText, readSentenceGroups } from "@/lib/anki/phraseClips";
 import type { BranchItem } from "@/lib/anki/prompts";
 import { audioLanguages, type AnkiLanguage } from "@/lib/anki/vocab";
 import { decodeRecording, encodeClip, type DecodedRecording } from "@/lib/audio/clipAudio";
 import { findClips } from "@/lib/audio/mp3Split";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
 
+// "repeated": a teacher says each phrase several times. "monologue": someone
+// talks, and each sentence is said once.
+type Mode = "repeated" | "monologue";
 type Piece = { key: string; start: number; end: number; data: string };
 type Phrase = { id: string; text: string; audio1: string; audio2: string; include: boolean };
+// A sentence of a monologue: the neighbouring pieces it's made of.
+type Sentence = { id: string; keys: string[]; text: string; include: boolean };
+type CardSource = { text: string; audio?: string; audio2?: string };
 
 const concurrency = 3;
-// Teachers repeat a phrase after shorter pauses than a textbook leaves between sentences.
-const defaultGap = 0.5;
+// Teachers repeat a phrase after clear pauses; someone talking only breathes
+// between clauses, so a monologue is cut finely and then put back together.
+const defaultGaps: Record<Mode, number> = { repeated: 0.5, monologue: 0.3 };
 // This is for short clips; a long file is slow to decode and costly to split up.
 const longestMinutes = 15;
 // gpt-transcribe's price per minute, in cents.
@@ -35,20 +42,24 @@ async function inParallel<T>(items: T[], work: (item: T, index: number) => Promi
 
 const seconds = (value: number) => `${value.toFixed(1)} s`;
 
-// Sentence cards from a clip where a teacher says each phrase fast and then
-// more slowly (e.g. a captured video): the file is split at its pauses, each
-// piece is transcribed, and text heard more than once becomes a phrase, with
-// the first saying as Audio 1 and the first clearly slower one as Audio 2.
-// Everything is shown for review before the cards go through the usual queue.
+// Sentence cards from a short recording, with its own audio, reviewed before
+// the cards go through the usual queue. The file is split at its pauses and
+// each piece is transcribed. Then, in "repeated" mode, text heard more than
+// once becomes a phrase, with the first saying as Audio 1 and the first clearly
+// slower one as Audio 2; in "monologue" mode, the AI says which neighbouring
+// pieces make up each sentence, and those pieces' audio becomes its Audio 1.
 export function PhraseClips() {
+  const [mode, setMode] = useState<Mode>("repeated");
   const [language, setLanguage] = useState<AnkiLanguage>("Thai");
-  const [gap, setGap] = useState(defaultGap);
+  const [gap, setGap] = useState(defaultGaps.repeated);
   const [filename, setFilename] = useState("");
   const [recording, setRecording] = useState<DecodedRecording | null>(null);
   const [pieces, setPieces] = useState<Piece[] | null>(null);
   const [heard, setHeard] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState(0);
   const [phrases, setPhrases] = useState<Phrase[] | null>(null);
+  const [sentences, setSentences] = useState<Sentence[] | null>(null);
+  const [withSpeech, setWithSpeech] = useState(false);
   const [source, setSource] = useState("");
   const [batchTag, setBatchTag] = useState("");
   const [tagEdited, setTagEdited] = useState(false);
@@ -58,17 +69,25 @@ export function PhraseClips() {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [failures, setFailures] = useState<string[]>([]);
+  // Sentences' audio, encoded when first needed.
+  const sentenceAudio = useRef(new Map<string, string>());
 
   useEffect(() => {
     void anki.getTags().then((tags) => setTagSuggestions(tags.filter((tag) => !tag.startsWith("pb::")).sort())).catch(() => {});
   }, []);
 
-  // New pieces whenever the recording or the pause length changes.
-  useEffect(() => {
-    setPieces(null);
+  function clearResults() {
     setHeard({});
     setFailed(0);
     setPhrases(null);
+    setSentences(null);
+  }
+
+  // New pieces whenever the recording or the pause length changes.
+  useEffect(() => {
+    setPieces(null);
+    clearResults();
+    sentenceAudio.current.clear();
     if (!recording) return;
     let cancelled = false;
     void (async () => {
@@ -93,6 +112,13 @@ export function PhraseClips() {
     return () => { cancelled = true; };
   }, [recording, gap]);
 
+  function chooseMode(next: Mode) {
+    setMode(next);
+    clearResults();
+    setStatus("");
+    setGap(defaultGaps[next]);
+  }
+
   async function chooseFile(file: File) {
     setFilename(file.name);
     setRecording(null);
@@ -113,8 +139,16 @@ export function PhraseClips() {
     }
   }
 
-  // Transcribes the pieces not yet heard, a few at a time, then suggests the phrases.
-  async function findThePhrases() {
+  const sentenceFrom = (keys: string[], results: Record<string, string>): Sentence => ({
+    id: keys.join("-"),
+    keys,
+    text: joinPieces(keys.map((key) => results[key] || "").filter(Boolean), language),
+    include: true,
+  });
+
+  // Transcribes the pieces not yet heard, a few at a time, then suggests the
+  // phrases or sentences.
+  async function findTheCards() {
     if (!pieces) return;
     setBusy(true);
     setFailures([]);
@@ -143,48 +177,125 @@ export function PhraseClips() {
     });
     setHeard(results);
     setFailed(failedNow);
-    const heardPieces = pieces.filter((piece) => results[piece.key] !== undefined).map((piece) => ({ key: piece.key, start: piece.start, end: piece.end, text: results[piece.key] }));
-    const found = findPhrases(heardPieces, language);
-    setPhrases(found.map((phrase) => ({ id: phrase.audio1, text: phrase.text, audio1: phrase.audio1, audio2: phrase.audio2, include: true })));
-    setStatus(found.length ? "" : `No ${language} phrase was heard more than once. Try a different pause length, or make phrases from the pieces below.`);
+
+    if (mode === "repeated") {
+      const heardPieces = pieces.filter((piece) => results[piece.key] !== undefined).map((piece) => ({ key: piece.key, start: piece.start, end: piece.end, text: results[piece.key] }));
+      const found = findPhrases(heardPieces, language);
+      setPhrases(found.map((phrase) => ({ id: phrase.audio1, text: phrase.text, audio1: phrase.audio1, audio2: phrase.audio2, include: true })));
+      setStatus(found.length ? "" : `No ${language} phrase was heard more than once. For someone talking without repeating, choose Monologue above. Otherwise, try a different pause length or make phrases from the pieces below.`);
+    } else {
+      // Pieces with nothing in them (a cough, background sound) don't need a sentence.
+      const spoken = pieces.filter((piece) => results[piece.key]).map((piece) => ({ key: piece.key, text: results[piece.key] }));
+      const keys = spoken.map((piece) => piece.key);
+      setStatus("Finding the sentences...");
+      let groups: string[][] | null = null;
+      try {
+        groups = spoken.length ? readSentenceGroups(await groupSentences(spoken, language, providerId), keys) : [];
+      } catch {
+        groups = null;
+      }
+      const grouped = (groups ?? keys.map((key) => [key])).map((group) => sentenceFrom(group, results));
+      // A joined sentence is transcribed again as a whole: short pieces give
+      // the model little to go on, so it hears the whole more accurately.
+      const joined = grouped.filter((sentence) => sentence.keys.length > 1);
+      setStatus("Checking the joined sentences...");
+      await inParallel(joined, async (sentence) => {
+        try {
+          const data = await audioOf(sentence);
+          const text = data ? await transcribe(data, language, true) : "";
+          if (text) sentence.text = text;
+        } catch {
+          // The pieces' text, joined, is still a good start for the review.
+        }
+      });
+      setSentences(grouped);
+      setStatus(groups ? "" : "The AI couldn't group these into sentences, so each piece has its own row. Use Join with next to put them together.");
+    }
     setBusy(false);
   }
 
   const dataOf = (key: string) => pieces?.find((piece) => piece.key === key)?.data;
-  const chosen = (phrases || []).filter((phrase) => phrase.include && phrase.text.trim());
+
+  // A sentence's audio runs from its first piece to its last, pauses included.
+  async function audioOf(sentence: Sentence) {
+    if (sentence.keys.length === 1) return dataOf(sentence.keys[0]);
+    const first = pieces?.find((piece) => piece.key === sentence.keys[0]);
+    const last = pieces?.find((piece) => piece.key === sentence.keys[sentence.keys.length - 1]);
+    if (!recording || !first || !last) return undefined;
+    const known = sentenceAudio.current.get(sentence.id);
+    if (known) return known;
+    const data = await encodeClip(recording, { start: first.start, end: last.end });
+    sentenceAudio.current.set(sentence.id, data);
+    return data;
+  }
+
+  const sentenceLength = (sentence: Sentence) => {
+    const first = pieces?.find((piece) => piece.key === sentence.keys[0]);
+    const last = pieces?.find((piece) => piece.key === sentence.keys[sentence.keys.length - 1]);
+    return first && last ? last.end - first.start : 0;
+  };
+
+  const chosenPhrases = (phrases || []).filter((phrase) => phrase.include && phrase.text.trim());
+  const chosenSentences = (sentences || []).filter((sentence) => sentence.include && sentence.text.trim());
+  const chosenCount = mode === "repeated" ? chosenPhrases.length : chosenSentences.length;
   const totalSeconds = (pieces || []).reduce((total, piece) => total + piece.end - piece.start, 0);
   const update = (id: string, changes: Partial<Phrase>) =>
     setPhrases((current) => current && current.map((phrase) => phrase.id === id ? { ...phrase, ...changes } : phrase));
+  const updateSentence = (id: string, changes: Partial<Sentence>) =>
+    setSentences((current) => current && current.map((sentence) => sentence.id === id ? { ...sentence, ...changes } : sentence));
 
   function addPhrase(piece: Piece) {
     setPhrases((current) => [...(current || []), { id: `${piece.key}-${Date.now()}`, text: phraseText(heard[piece.key] || "", language), audio1: piece.key, audio2: "", include: true }]
       .sort((a, b) => Number(a.audio1) - Number(b.audio1)));
   }
 
-  // The reading, English and notes for each phrase, then on to the usual queue.
+  function joinWithNext(index: number) {
+    setSentences((current) => {
+      if (!current || index >= current.length - 1) return current;
+      const [one, two] = [current[index], current[index + 1]];
+      const keys = [...one.keys, ...two.keys];
+      const joined = { id: keys.join("-"), keys, text: joinPieces([one.text.trim(), two.text.trim()].filter(Boolean), language), include: one.include || two.include };
+      return [...current.slice(0, index), joined, ...current.slice(index + 2)];
+    });
+  }
+
+  function splitSentence(index: number) {
+    setSentences((current) => current && [...current.slice(0, index), ...current[index].keys.map((key) => sentenceFrom([key], heard)), ...current.slice(index + 1)]);
+  }
+
+  // The reading, English and notes for each card, then on to the usual queue.
   async function prepareCards() {
-    if (!chosen.length) return;
+    if (!chosenCount) return;
     setBusy(true);
     setFailures([]);
-    setStatus(`Writing the cards' English and notes... 0 of ${chosen.length}`);
+    setStatus(`Writing the cards' English and notes... 0 of ${chosenCount}`);
     const transcript = (pieces || []).map((piece) => heard[piece.key]).filter(Boolean).join("\n");
     const tags = parseTags(batchTag);
+    const sources: CardSource[] = mode === "repeated"
+      ? chosenPhrases.map((phrase) => ({ text: phrase.text.trim(), audio: dataOf(phrase.audio1), audio2: phrase.audio2 ? dataOf(phrase.audio2) : undefined }))
+      : await Promise.all(chosenSentences.map(async (sentence) => ({ text: sentence.text.trim(), audio: await audioOf(sentence) })));
     const prepared: BranchItem[] = [];
     let done = 0;
-    await inParallel(chosen, async (phrase, index) => {
-      const text = phrase.text.trim();
-      const audio = { audio: dataOf(phrase.audio1), audio2: phrase.audio2 ? dataOf(phrase.audio2) : undefined };
+    await inParallel(sources, async (card, index) => {
       let described: Pick<BranchItem, "reading" | "english" | "comment" | "explanation"> = { reading: "", english: "", comment: "", explanation: "" };
       try {
-        const item = await describeSelection(text, transcript, language, providerId);
+        const item = await describeSelection(card.text, transcript, language, providerId);
         described = { reading: item.reading, english: item.english, comment: item.comment, explanation: item.explanation };
       } catch (error) {
-        setFailures((current) => [...current, `${text}: ${error instanceof Error ? error.message : "its notes couldn't be written"}. Fill them in when you add it.`]);
+        setFailures((current) => [...current, `${card.text}: ${error instanceof Error ? error.message : "its notes couldn't be written"}. Fill them in when you add it.`]);
       }
-      // The clip's text, as reviewed, whatever the model made of it.
-      prepared[index] = { text, ...described, kind: "sentence", tags, ...audio };
+      let audio2 = card.audio2;
+      if (mode === "monologue" && withSpeech) {
+        try {
+          audio2 = await speak(card.text, language, described.reading);
+        } catch (error) {
+          setFailures((current) => [...current, `${card.text}: ${error instanceof Error ? error.message : "the text-to-speech couldn't be recorded"}. It has no Audio 2.`]);
+        }
+      }
+      // The text as reviewed, whatever the model made of it.
+      prepared[index] = { text: card.text, ...described, kind: "sentence", tags, audio: card.audio, audio2 };
       done += 1;
-      setStatus(`Writing the cards' English and notes... ${done} of ${chosen.length}`);
+      setStatus(`Writing the cards' English and notes... ${done} of ${chosenCount}`);
     });
     setItems(prepared);
     setStatus("");
@@ -201,7 +312,7 @@ export function PhraseClips() {
         options={{ providerId, learnerLevel: "Intermediate", outputStyle: "Concise" } satisfies AnalysisOptions}
         items={items}
         pick
-        doneLabel="Back to the phrases"
+        doneLabel={mode === "repeated" ? "Back to the phrases" : "Back to the sentences"}
         title="Phrase clips to Anki"
         batchTags={parseTags(batchTag)}
         depth={1}
@@ -214,16 +325,30 @@ export function PhraseClips() {
   const pieceOptions = (pieces || []).map((piece) => (
     <option key={piece.key} value={piece.key}>{piece.key} · {seconds(piece.end - piece.start)} · {(heard[piece.key] || "").slice(0, 30)}</option>
   ));
+  const showCards = mode === "repeated" ? Boolean(phrases?.length) : Boolean(sentences?.length);
+  const found = mode === "repeated" ? phrases : sentences;
 
   return (
     <div className="settings-panel anki-panel book-audio phrase-clips">
-      <p>Makes sentence cards from a short recording where a teacher says each phrase more than once, such as fast and then slowly. The first saying goes in <b>Audio 1</b> and the first clearly slower one in <b>Audio 2</b>, which plays after it. Choose an MP3, M4A or MP4 file: it&apos;s cut at its pauses on this computer, and each piece is transcribed with your OpenAI key. Nothing goes to Anki until you&apos;ve reviewed it.</p>
+      <p>Makes sentence cards from a short recording, with the recording&apos;s own audio. Choose an MP3, M4A or MP4 file: it&apos;s cut at its pauses on this computer, and each piece is transcribed with your OpenAI key. Nothing goes to Anki until you&apos;ve reviewed it.</p>
+
+      <fieldset className="phrase-clips-mode" disabled={busy}>
+        <legend>What kind of recording is it?</legend>
+        <label><input type="radio" name="phrase-clips-mode" checked={mode === "repeated"} onChange={() => chooseMode("repeated")} /> Repeated phrases <small>a teacher says each phrase more than once, such as fast and then slowly: the first saying goes in Audio 1, the first clearly slower one in Audio 2</small></label>
+        <label><input type="radio" name="phrase-clips-mode" checked={mode === "monologue"} onChange={() => chooseMode("monologue")} /> Monologue <small>one person talking: the AI finds the sentences, and each one&apos;s audio goes in Audio 1</small></label>
+      </fieldset>
 
       <div className="book-audio-pick">
         <label>
           <span>Language</span>
-          <select value={language} disabled={busy} onChange={(event) => { setLanguage(event.target.value as AnkiLanguage); setHeard({}); setPhrases(null); }}>
+          <select value={language} disabled={busy} onChange={(event) => { setLanguage(event.target.value as AnkiLanguage); clearResults(); }}>
             {audioLanguages.map((item) => <option key={item}>{item}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Write {mode === "monologue" ? "sentences and notes" : "notes"} with</span>
+          <select value={providerId} disabled={busy} onChange={(event) => setProviderId(event.target.value as LlmProviderId)}>
+            {llmProviderOptions.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}
           </select>
         </label>
         <label className="preview-prompt-button">
@@ -233,7 +358,7 @@ export function PhraseClips() {
         {recording && (
           <label>
             <span>Pause between pieces (seconds)</span>
-            <input type="number" min={0.3} max={4} step={0.1} value={gap} disabled={busy} onChange={(event) => setGap(Number(event.target.value) || defaultGap)} />
+            <input type="number" min={0.2} max={4} step={0.1} value={gap} disabled={busy} onChange={(event) => setGap(Number(event.target.value) || defaultGaps[mode])} />
           </label>
         )}
       </div>
@@ -242,13 +367,13 @@ export function PhraseClips() {
 
       {pieces && pieces.length > 0 && (
         <div className="input-action-row">
-          <span className="anki-note">{filename}: {pieces.length} pieces, {seconds(totalSeconds)} of speech. Transcribing costs about {Math.max(1, Math.ceil(totalSeconds / 60 * centsPerMinute))}¢.</span>
-          {(!phrases || failed > 0) && <button className="save-input-button" type="button" disabled={busy} onClick={() => void findThePhrases()}>{failed > 0 ? `Transcribe the ${failed} that failed again` : "Find the phrases"}</button>}
+          <span className="anki-note">{filename}: {pieces.length} pieces, {seconds(totalSeconds)} of speech. Transcribing costs about {Math.max(1, Math.ceil(totalSeconds / 60 * centsPerMinute))}¢{mode === "monologue" ? ", and finding the sentences a little more" : ""}.</span>
+          {(!found || failed > 0) && <button className="save-input-button" type="button" disabled={busy} onClick={() => void findTheCards()}>{failed > 0 ? `Transcribe the ${failed} that failed again` : mode === "repeated" ? "Find the phrases" : "Find the sentences"}</button>}
         </div>
       )}
-      {failed > 0 && !busy && <p className="anki-failures">{failed} pieces couldn&apos;t be transcribed, so they aren&apos;t in the phrases below.</p>}
+      {failed > 0 && !busy && <p className="anki-failures">{failed} pieces couldn&apos;t be transcribed, so they aren&apos;t in the {mode === "repeated" ? "phrases" : "sentences"} below.</p>}
 
-      {phrases && phrases.length > 0 && (
+      {mode === "repeated" && phrases && phrases.length > 0 && (
         <>
           <div className="book-audio-table phrase-clips-table">
             <table>
@@ -277,26 +402,56 @@ export function PhraseClips() {
             </table>
           </div>
           <p className="anki-note">Listen to each one and change any that are wrong: the fast and slow sayings are told apart only by their length.</p>
+        </>
+      )}
+
+      {mode === "monologue" && sentences && sentences.length > 0 && (
+        <>
+          <div className="book-audio-table phrase-clips-table">
+            <table>
+              <thead><tr><th>Add</th><th>{language}</th><th>Audio</th><th>Pieces</th></tr></thead>
+              <tbody>
+                {sentences.map((sentence, index) => (
+                  <tr key={sentence.id} className={sentence.include ? "" : "unused"}>
+                    <td><input type="checkbox" aria-label={`Add ${sentence.text}`} checked={sentence.include} disabled={busy} onChange={(event) => updateSentence(sentence.id, { include: event.target.checked })} /></td>
+                    <td><textarea className="phrase-clips-text" aria-label="Sentence text" rows={2} value={sentence.text} disabled={busy} onChange={(event) => updateSentence(sentence.id, { text: event.target.value })} /></td>
+                    <td><div className="book-audio-cell">
+                      <button className="text-button" type="button" onClick={() => void audioOf(sentence).then((data) => { if (data) playData(data); })}>▶ Play</button>
+                      <span className="anki-note">{seconds(sentenceLength(sentence))}</span>
+                    </div></td>
+                    <td><div className="book-audio-cell">
+                      {index < sentences.length - 1 && <button className="text-button" type="button" disabled={busy} onClick={() => joinWithNext(index)}>Join with next</button>}
+                      {sentence.keys.length > 1 && <button className="text-button" type="button" disabled={busy} onClick={() => splitSentence(index)}>Split into {sentence.keys.length}</button>}
+                    </div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="anki-note">Listen to each one. Correct the text, join or split sentences, and untick anything you don&apos;t want, such as a greeting or sign-off. Splitting goes back to what was heard in each piece, so it undoes any corrections to that sentence.</p>
+          <label className="anki-checkbox">
+            <input type="checkbox" checked={withSpeech} disabled={busy} onChange={(event) => setWithSpeech(event.target.checked)} />
+            Add text-to-speech as Audio 2, a clearer version that plays after the speaker (with your OpenAI key and the voice in Settings)
+          </label>
+        </>
+      )}
+
+      {showCards && (
+        <>
           <div className="book-audio-pick">
             <label className="phrase-clips-source">
               <span>Where is this from? (optional — shown on each note as &ldquo;Seen in&rdquo;)</span>
               <input value={source} disabled={busy} placeholder="e.g. My Thai for Beginner, YouTube" onChange={(event) => { setSource(event.target.value); if (!tagEdited) setBatchTag(sourceTag(event.target.value)); }} />
             </label>
-            <label>
-              <span>Write notes with</span>
-              <select value={providerId} disabled={busy} onChange={(event) => setProviderId(event.target.value as LlmProviderId)}>
-                {llmProviderOptions.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}
-              </select>
-            </label>
           </div>
           <TagInput id="phrase-clips-tags" value={batchTag} onChange={(value) => { setBatchTag(value); setTagEdited(true); }} suggestions={tagSuggestions} label="Tag every card (optional)" />
           <div className="input-action-row">
-            <button className="save-input-button" type="button" disabled={busy || !chosen.length} onClick={() => void prepareCards()}>Prepare {chosen.length} {chosen.length === 1 ? "card" : "cards"}</button>
+            <button className="save-input-button" type="button" disabled={busy || !chosenCount} onClick={() => void prepareCards()}>Prepare {chosenCount} {chosenCount === 1 ? "card" : "cards"}</button>
           </div>
         </>
       )}
 
-      {phrases && pieces && (
+      {found && pieces && (
         <details className="phrase-clips-pieces">
           <summary>All {pieces.length} pieces, and what was heard in each</summary>
           <div className="book-audio-table">
@@ -308,7 +463,7 @@ export function PhraseClips() {
                     <td><button className="text-button" type="button" onClick={() => playData(piece.data)}>▶ Play</button></td>
                     <td>{seconds(piece.end - piece.start)}</td>
                     <td>{heard[piece.key] === undefined ? <span className="anki-failures">Not transcribed</span> : heard[piece.key] || "(nothing)"}</td>
-                    <td><button className="text-button" type="button" disabled={busy} onClick={() => addPhrase(piece)}>New phrase</button></td>
+                    {mode === "repeated" && <td><button className="text-button" type="button" disabled={busy} onClick={() => addPhrase(piece)}>New phrase</button></td>}
                   </tr>
                 ))}
               </tbody>

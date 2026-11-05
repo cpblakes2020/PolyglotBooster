@@ -11,6 +11,25 @@ const encoderBlock = 1152;
 
 export type DecodedRecording = { samples: Float32Array; duration: number; quiet: boolean[] };
 
+// What counts as a pause depends on the recording: some have room echo or
+// background sound between phrases that a fixed level would take for speech.
+// So it's this far below the speech, taken as the level that only the loudest
+// 10% of the recording reaches (in 50 ms steps).
+const pauseBelowSpeech = 10 ** (-12 / 20);
+const levelStep = 0.05;
+
+function pauseLevel(samples: Float32Array) {
+  const size = Math.round(sampleRate * levelStep);
+  const levels: number[] = [];
+  for (let start = 0; start + size <= samples.length; start += size) {
+    let total = 0;
+    for (let i = start; i < start + size; i++) total += samples[i] * samples[i];
+    levels.push(Math.sqrt(total / size));
+  }
+  levels.sort((a, b) => a - b);
+  return (levels[Math.floor(levels.length * 0.9)] ?? 0) * pauseBelowSpeech;
+}
+
 export async function decodeRecording(file: File): Promise<DecodedRecording> {
   // An offline context, because it decodes at the rate asked for, not the sound card's.
   const context = new OfflineAudioContext(1, 1, sampleRate);
@@ -25,7 +44,7 @@ export async function decodeRecording(file: File): Promise<DecodedRecording> {
     const data = audio.getChannelData(channel);
     for (let i = 0; i < audio.length; i++) samples[i] += data[i] / audio.numberOfChannels;
   }
-  return { samples, duration: audio.duration, quiet: quietWindows(audio) };
+  return { samples, duration: audio.duration, quiet: quietWindows(audio, pauseLevel(samples)) };
 }
 
 // The clip as an MP3, base64-encoded.

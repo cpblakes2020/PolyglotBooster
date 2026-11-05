@@ -531,7 +531,11 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .book-audio-table table { width: 100%; }
 .book-audio-table td { vertical-align: top; }
 .book-audio-table tr.unused td { opacity: 0.5; }
+.phrase-clips-mode { display: grid; gap: 6px; margin: 14px 0 0; border: 0; padding: 0; font-size: 14px; }
+.phrase-clips-mode legend { padding: 0; margin-bottom: 6px; color: var(--muted); font-size: 11px; }
+.phrase-clips-mode small { display: block; margin-left: 22px; color: var(--muted); font-size: 12px; }
 .phrase-clips-table { margin-top: 14px; }
+textarea.phrase-clips-text { display: block; min-width: 16rem; resize: vertical; field-sizing: content; }
 .phrase-clips-table select { max-width: 15rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 4px 6px; font: inherit; font-size: 13px; }
 .phrase-clips-text { width: 100%; min-width: 11rem; box-sizing: border-box; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 6px 8px; font: inherit; }
 .book-audio-pick .phrase-clips-source { flex: 1 1 18rem; }

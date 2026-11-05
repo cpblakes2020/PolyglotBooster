@@ -144,6 +144,13 @@ export async function extractItems(analysis: string, parentText: string, languag
   return items.filter((item, index) => items.findIndex((other) => other.text === item.text) === index);
 }
 
+// Which pieces of a recording make up each sentence, by their numbers.
+export async function groupSentences(pieces: { key: string; text: string }[], language: AnkiLanguage, providerId: LlmProviderId) {
+  const text = pieces.map((piece) => `${piece.key}. ${piece.text}`).join("\n");
+  const { result } = await postJson<{ result: unknown }>("/api/anki/assist", { kind: "sentences", text, language }, { "x-polyglot-provider": providerId });
+  return result;
+}
+
 // One item the learner selected in an analysis.
 export async function describeSelection(selection: string, analysis: string, language: AnkiLanguage, providerId: LlmProviderId) {
   const text = selectedItemText(selection, language);

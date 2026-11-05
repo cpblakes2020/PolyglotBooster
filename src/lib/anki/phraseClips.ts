@@ -24,6 +24,21 @@ export function phraseText(text: string, language: string) {
   return language === "Thai" ? trimmed.replace(/[?.!]+$/, "") : trimmed;
 }
 
+// Pieces of one sentence put back together. Japanese and Mandarin are written
+// without spaces; Thai has them between clauses, where a speaker would pause.
+export function joinPieces(texts: string[], language: string) {
+  return texts.join(language === "Japanese" || language === "Mandarin" ? "" : " ");
+}
+
+// The model's sentence groups, if they use every piece exactly once and in
+// order. Anything else would put the wrong audio with a sentence, so it's null.
+export function readSentenceGroups(reply: unknown, keys: string[]): string[][] | null {
+  const groups = (reply as { groups?: unknown } | null)?.groups;
+  if (!Array.isArray(groups) || !groups.every((group) => Array.isArray(group) && group.length > 0)) return null;
+  const named = (groups as unknown[][]).map((group) => group.map(String));
+  return named.flat().join(",") === keys.join(",") ? named : null;
+}
+
 function length(clip: HeardClip) {
   return clip.end - clip.start;
 }

@@ -91,7 +91,7 @@ function joinFrames(bytes: Uint8Array, frames: Frame[]) {
 }
 
 // One flag per window of the decoded audio: true when it's quiet.
-export function quietWindows(audio: AudioBuffer) {
+export function quietWindows(audio: AudioBuffer, quietLevel = quietPeak) {
   const size = Math.round(audio.sampleRate * windowSeconds);
   const channels = Array.from({ length: audio.numberOfChannels }, (_, index) => audio.getChannelData(index));
   const quiet: boolean[] = [];
@@ -100,7 +100,7 @@ export function quietWindows(audio: AudioBuffer) {
     for (const data of channels) {
       for (let i = start; i < Math.min(start + size, audio.length); i++) peak = Math.max(peak, Math.abs(data[i]));
     }
-    quiet.push(peak < quietPeak);
+    quiet.push(peak < quietLevel);
   }
   return quiet;
 }
