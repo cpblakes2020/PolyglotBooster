@@ -47,6 +47,19 @@ export async function decodeRecording(file: File): Promise<DecodedRecording> {
   return { samples, duration: audio.duration, quiet: quietWindows(audio, pauseLevel(samples)) };
 }
 
+// Base64 MP3s, one after the other, as one: an MP3 is a run of frames, so
+// they can simply be put end to end.
+export function joinMp3s(parts: string[]) {
+  const decoded = parts.map((part) => Uint8Array.from(atob(part), (char) => char.charCodeAt(0)));
+  const bytes = new Uint8Array(decoded.reduce((total, part) => total + part.length, 0));
+  let at = 0;
+  for (const part of decoded) {
+    bytes.set(part, at);
+    at += part.length;
+  }
+  return toBase64(bytes);
+}
+
 // The clip as an MP3, base64-encoded.
 export async function encodeClip(recording: DecodedRecording, clip: Clip) {
   const { Mp3Encoder } = await import("@breezystack/lamejs");

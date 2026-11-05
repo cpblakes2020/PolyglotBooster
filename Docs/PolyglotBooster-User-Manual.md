@@ -491,7 +491,10 @@ See [Listening practice](#listening-practice) for studying them by hand or hands
 2. Click **Find the sentences**. Each piece is transcribed, the AI decides which neighbouring pieces belong together, and any joined sentence is transcribed again as a whole, which is usually more accurate.
 3. Check each row. Press **▶ Play**, correct the text if needed, and untick anything you don't want, such as a greeting or sign-off. **Join with next** puts two rows together, and **Split** breaks a joined sentence back into its pieces (and goes back to what was heard in each, undoing any corrections to it).
 4. Optionally, tick **Add text-to-speech as Audio 2** for a clearer version that plays after the speaker. It's recorded with your OpenAI key and the voice in Settings.
-5. Continue from step 4 above: **Prepare N cards**, then choose the cards to add.
+5. Optionally, tick **Also make one listening card from the whole recording**. See below.
+6. Continue from step 4 above: **Prepare N cards**, then choose the cards to add.
+
+**One listening card for the whole recording.** If you ticked the box, a **Listening card** panel appears above the cards to choose. Its first recording is the whole clip, from the first words to the last, and its second is text-to-speech of the whole text. On the back of the card, the text has one sentence per line, and **more** shows the English the same way. Every sentence is included, even ones you unticked for sentence cards, because they're all in the audio. Play the recordings, edit the text and English if you like (keeping one sentence per line), and click **Add listening card**. Add it before leaving that screen. It goes into **Polyglot::Listening::***Language* and makes only the listening card, separately from the sentence cards.
 
 **If it doesn't split well.** Change **Pause between pieces** and click the find button again. The default is 0.5 seconds for repeated phrases and 0.3 for a monologue. A pause is worked out from how loud each recording's speech is, so light background sound shouldn't get in the way, but loud music or several people talking may not split well. Very short sentences are the likeliest to be misheard, so listen as you check the text. Cards made this way keep their recordings: Bulk audio leaves them alone.
 

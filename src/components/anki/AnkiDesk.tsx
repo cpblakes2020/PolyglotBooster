@@ -126,7 +126,7 @@ export function AnkiDesk() {
           </div>
         )}
       </div>
-      {connection.state === "ready" && (tab === "review" ? <ReviewSession /> : tab === "audio" ? <AudioBatch /> : tab === "book" ? <BookAudio /> : tab === "phrases" ? <PhraseClips /> : tab === "listening" ? <ListeningNotes ready={connection.listening !== "missing"} /> : <TagManager />)}
+      {connection.state === "ready" && (tab === "review" ? <ReviewSession /> : tab === "audio" ? <AudioBatch /> : tab === "book" ? <BookAudio /> : tab === "phrases" ? <PhraseClips listeningReady={connection.listening !== "missing"} /> : tab === "listening" ? <ListeningNotes ready={connection.listening !== "missing"} /> : <TagManager />)}
     </section>
   );
 }

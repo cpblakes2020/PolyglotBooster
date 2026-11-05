@@ -540,6 +540,7 @@ textarea.phrase-clips-text { display: block; min-width: 16rem; resize: vertical;
 .phrase-clips-text { width: 100%; min-width: 11rem; box-sizing: border-box; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 6px 8px; font: inherit; }
 .book-audio-pick .phrase-clips-source { flex: 1 1 18rem; }
 .phrase-clips-pieces { margin-top: 14px; font-size: 13px; }
+.listening-card-panel { margin-bottom: 18px; }
 .book-audio-cell { display: grid; gap: 3px; }
 .book-audio-cell > .text-button, .book-audio-note .text-button { justify-self: start; padding: 0; font-size: 13px; }
 .book-audio-files li .text-button { margin-left: 6px; }

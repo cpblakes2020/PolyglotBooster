@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { describeSelection, groupSentences, speak, transcribe, type AnalysisOptions } from "@/components/anki/api";
+import { assist, describeSelection, groupSentences, speak, transcribe, type AnalysisOptions } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { playData } from "@/components/anki/ClipMatcher";
 import { sourceTag } from "@/components/anki/FlashcardsToAnki";
+import { ListeningCardPanel } from "@/components/anki/ListeningCardPanel";
+import type { ListeningCardDraft } from "@/components/anki/saveItem";
 import { TagInput, parseTags } from "@/components/anki/selection";
 import { anki } from "@/lib/anki/connect";
 import { findPhrases, joinPieces, phraseText, readSentenceGroups } from "@/lib/anki/phraseClips";
 import type { BranchItem } from "@/lib/anki/prompts";
 import { audioLanguages, type AnkiLanguage } from "@/lib/anki/vocab";
-import { decodeRecording, encodeClip, type DecodedRecording } from "@/lib/audio/clipAudio";
+import { decodeRecording, encodeClip, joinMp3s, type DecodedRecording } from "@/lib/audio/clipAudio";
 import { findClips } from "@/lib/audio/mp3Split";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
 
@@ -48,7 +50,8 @@ const seconds = (value: number) => `${value.toFixed(1)} s`;
 // once becomes a phrase, with the first saying as Audio 1 and the first clearly
 // slower one as Audio 2; in "monologue" mode, the AI says which neighbouring
 // pieces make up each sentence, and those pieces' audio becomes its Audio 1.
-export function PhraseClips() {
+// listeningReady: the note type has listening cards.
+export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
   const [mode, setMode] = useState<Mode>("repeated");
   const [language, setLanguage] = useState<AnkiLanguage>("Thai");
   const [gap, setGap] = useState(defaultGaps.repeated);
@@ -60,6 +63,8 @@ export function PhraseClips() {
   const [phrases, setPhrases] = useState<Phrase[] | null>(null);
   const [sentences, setSentences] = useState<Sentence[] | null>(null);
   const [withSpeech, setWithSpeech] = useState(false);
+  const [makeListening, setMakeListening] = useState(false);
+  const [listeningDraft, setListeningDraft] = useState<ListeningCardDraft | null>(null);
   const [source, setSource] = useState("");
   const [batchTag, setBatchTag] = useState("");
   const [tagEdited, setTagEdited] = useState(false);
@@ -238,6 +243,7 @@ export function PhraseClips() {
   const chosenPhrases = (phrases || []).filter((phrase) => phrase.include && phrase.text.trim());
   const chosenSentences = (sentences || []).filter((sentence) => sentence.include && sentence.text.trim());
   const chosenCount = mode === "repeated" ? chosenPhrases.length : chosenSentences.length;
+  const wantsListening = mode === "monologue" && makeListening && listeningReady;
   const totalSeconds = (pieces || []).reduce((total, piece) => total + piece.end - piece.start, 0);
   const update = (id: string, changes: Partial<Phrase>) =>
     setPhrases((current) => current && current.map((phrase) => phrase.id === id ? { ...phrase, ...changes } : phrase));
@@ -263,11 +269,57 @@ export function PhraseClips() {
     setSentences((current) => current && [...current.slice(0, index), ...current[index].keys.map((key) => sentenceFrom([key], heard)), ...current.slice(index + 1)]);
   }
 
+  // One listening card for the whole recording. Every sentence is on it, even
+  // those without a sentence card, because they're all in the audio. Audio 2
+  // is recorded a sentence at a time: Thai is only respelled for the speech
+  // model when it's short, so a whole passage at once would be misread.
+  async function buildListeningCard(known: Map<string, { english: string; reading: string; speech?: string }>): Promise<ListeningCardDraft | null> {
+    const rows = (sentences || []).filter((sentence) => sentence.text.trim());
+    if (!rows.length) return null;
+    const lines = rows.map((sentence) => sentence.text.trim().replace(/\s*\n\s*/g, " "));
+    const english: string[] = [];
+    const speech: string[] = [];
+    let speechFailed = false;
+    let done = 0;
+    await inParallel(lines, async (line, index) => {
+      const card = known.get(line);
+      english[index] = card?.english || "";
+      if (!english[index]) {
+        try {
+          english[index] = (await assist("gloss", line, language, providerId)).replace(/\s*\n\s*/g, " ");
+        } catch (error) {
+          setFailures((current) => [...current, `${line}: ${error instanceof Error ? error.message : "it couldn't be translated"}. Fill in its English on the listening card.`]);
+        }
+      }
+      try {
+        speech[index] = card?.speech ?? await speak(line, language, card?.reading);
+      } catch {
+        speechFailed = true;
+      }
+      done += 1;
+      setStatus(`Making the listening card... ${done} of ${lines.length}`);
+    });
+    const whole = rows.flatMap((sentence) => sentence.keys);
+    const audio = await audioOf({ id: `${whole[0]}-${whole[whole.length - 1]}`, keys: [whole[0], whole[whole.length - 1]], text: "", include: true });
+    if (!audio) return null;
+    if (speechFailed) setFailures((current) => [...current, "Some of the listening card's text-to-speech couldn't be recorded, so it has no Audio 2."]);
+    return {
+      language,
+      text: lines.join("\n"),
+      english: english.map((line) => line || "").join("\n"),
+      audio,
+      audio2: speechFailed ? undefined : joinMp3s(speech),
+      tags: parseTags(batchTag),
+      seenIn: source,
+    };
+  }
+
   // The reading, English and notes for each card, then on to the usual queue.
   async function prepareCards() {
-    if (!chosenCount) return;
+    if (!chosenCount && !wantsListening) return;
     setBusy(true);
     setFailures([]);
+    setListeningDraft(null);
     setStatus(`Writing the cards' English and notes... 0 of ${chosenCount}`);
     const transcript = (pieces || []).map((piece) => heard[piece.key]).filter(Boolean).join("\n");
     const tags = parseTags(batchTag);
@@ -275,6 +327,7 @@ export function PhraseClips() {
       ? chosenPhrases.map((phrase) => ({ text: phrase.text.trim(), audio: dataOf(phrase.audio1), audio2: phrase.audio2 ? dataOf(phrase.audio2) : undefined }))
       : await Promise.all(chosenSentences.map(async (sentence) => ({ text: sentence.text.trim(), audio: await audioOf(sentence) })));
     const prepared: BranchItem[] = [];
+    const known = new Map<string, { english: string; reading: string; speech?: string }>();
     let done = 0;
     await inParallel(sources, async (card, index) => {
       let described: Pick<BranchItem, "reading" | "english" | "comment" | "explanation"> = { reading: "", english: "", comment: "", explanation: "" };
@@ -294,31 +347,49 @@ export function PhraseClips() {
       }
       // The text as reviewed, whatever the model made of it.
       prepared[index] = { text: card.text, ...described, kind: "sentence", tags, audio: card.audio, audio2 };
+      known.set(card.text.replace(/\s*\n\s*/g, " "), { english: described.english, reading: described.reading, speech: mode === "monologue" ? audio2 : undefined });
       done += 1;
       setStatus(`Writing the cards' English and notes... ${done} of ${chosenCount}`);
     });
+    if (wantsListening) {
+      setStatus("Making the listening card...");
+      try {
+        setListeningDraft(await buildListeningCard(known));
+      } catch (error) {
+        setFailures((current) => [...current, `The listening card couldn't be made: ${error instanceof Error ? error.message : "unknown error"}.`]);
+      }
+    }
     setItems(prepared);
     setStatus("");
     setBusy(false);
   }
 
   if (items) {
+    const leave = () => { setItems(null); setListeningDraft(null); };
     return (
-      <BranchQueue
-        language={language}
-        parentText={source.trim()}
-        parentEnglish=""
-        analysis=""
-        options={{ providerId, learnerLevel: "Intermediate", outputStyle: "Concise" } satisfies AnalysisOptions}
-        items={items}
-        pick
-        doneLabel={mode === "repeated" ? "Back to the phrases" : "Back to the sentences"}
-        title="Phrase clips to Anki"
-        batchTags={parseTags(batchTag)}
-        depth={1}
-        tagSuggestions={tagSuggestions}
-        onFinish={() => setItems(null)}
-      />
+      <>
+        {failures.length > 0 && <ul className="anki-failures">{failures.map((failure) => <li key={failure}>{failure}</li>)}</ul>}
+        {listeningDraft && <ListeningCardPanel draft={listeningDraft} />}
+        {items.length > 0 ? (
+          <BranchQueue
+            language={language}
+            parentText={source.trim()}
+            parentEnglish=""
+            analysis=""
+            options={{ providerId, learnerLevel: "Intermediate", outputStyle: "Concise" } satisfies AnalysisOptions}
+            items={items}
+            pick
+            doneLabel={mode === "repeated" ? "Back to the phrases" : "Back to the sentences"}
+            title="Phrase clips to Anki"
+            batchTags={parseTags(batchTag)}
+            depth={1}
+            tagSuggestions={tagSuggestions}
+            onFinish={leave}
+          />
+        ) : (
+          <div className="input-action-row"><button className="text-button" type="button" onClick={leave}>Back to the sentences</button></div>
+        )}
+      </>
     );
   }
 
@@ -433,6 +504,11 @@ export function PhraseClips() {
             <input type="checkbox" checked={withSpeech} disabled={busy} onChange={(event) => setWithSpeech(event.target.checked)} />
             Add text-to-speech as Audio 2, a clearer version that plays after the speaker (with your OpenAI key and the voice in Settings)
           </label>
+          <label className="anki-checkbox">
+            <input type="checkbox" checked={makeListening && listeningReady} disabled={busy || !listeningReady} onChange={(event) => setMakeListening(event.target.checked)} />
+            Also make one listening card from the whole recording, with every sentence above on its own line and text-to-speech as its Audio 2 (the unticked sentences too, because they&apos;re in the audio)
+          </label>
+          {!listeningReady && <p className="anki-note">Listening cards need adding to your note type first: use <b>Add listening cards</b> above.</p>}
         </>
       )}
 
@@ -446,7 +522,7 @@ export function PhraseClips() {
           </div>
           <TagInput id="phrase-clips-tags" value={batchTag} onChange={(value) => { setBatchTag(value); setTagEdited(true); }} suggestions={tagSuggestions} label="Tag every card (optional)" />
           <div className="input-action-row">
-            <button className="save-input-button" type="button" disabled={busy || !chosenCount} onClick={() => void prepareCards()}>Prepare {chosenCount} {chosenCount === 1 ? "card" : "cards"}</button>
+            <button className="save-input-button" type="button" disabled={busy || (!chosenCount && !wantsListening)} onClick={() => void prepareCards()}>Prepare {chosenCount} {chosenCount === 1 ? "card" : "cards"}{wantsListening ? " and the listening card" : ""}</button>
           </div>
         </>
       )}

@@ -6,6 +6,7 @@ import type { ItemKind } from "@/lib/anki/classify";
 import { anki } from "@/lib/anki/connect";
 import { appendToField, branchNoteBlock, composeNotesField, escapeHtml, markdownToAnkiHtml, readingHtml, withDictBlock } from "@/lib/anki/fields";
 import { dictItemsHtml, type DictNoteItem } from "@/lib/dictionary/notesBlock";
+import { listeningField, listeningOnlyField } from "@/lib/anki/noteType";
 import { audio2Field, audioField, audioFilename, notesField, pbTags, readingLanguages, sentenceTemplateId, soundField, wordTemplateId, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 
 export type ItemOutcome = { kind: "added"; note: VocabNote } | { kind: "commented" } | { kind: "skipped" };
@@ -37,6 +38,39 @@ export type ItemDraft = {
   // A second recording (base64 MP3), played after the first.
   audio2?: string;
 };
+
+// One line per sentence, as a field shows them.
+export function fieldLines(text: string) {
+  return text.split("\n").map((line) => line.trim()).filter(Boolean).map(escapeHtml).join("<br>");
+}
+
+export type ListeningCardDraft = {
+  language: AnkiLanguage;
+  // One sentence per line.
+  text: string;
+  english: string;
+  // The whole recording, and optionally text-to-speech of it (base64 MP3s).
+  audio: string;
+  audio2?: string;
+  tags: string[];
+  seenIn: string;
+};
+
+// A listening-only note for a whole recording. Its first recording is the
+// source's own, so it's tagged for Bulk audio to leave alone.
+export async function saveListeningCard({ language, text, english, audio, audio2, tags, seenIn }: ListeningCardDraft) {
+  const noteId = await anki.addNote(language, {
+    [language]: fieldLines(text),
+    English: fieldLines(english),
+    [listeningField]: "yes",
+    [listeningOnlyField]: "yes",
+    Origin: language,
+    ...(seenIn.trim() ? { [notesField(language)]: branchNoteBlock("", seenIn) } : {}),
+  }, [pbTags.listening, pbTags.audio(language), pbTags.bookAudio(language), ...tags]);
+  const fields: Record<string, string> = { [audioField(language)]: soundField(await anki.storeMedia(audioFilename(noteId, language, "book"), audio)) };
+  if (audio2) fields[audio2Field(language)] = soundField(await anki.storeMedia(audioFilename(noteId, language, "2"), audio2));
+  await anki.updateFields(noteId, fields);
+}
 
 // Writes a second recording to the note, which plays after the first.
 async function saveSecondAudio(noteId: number, language: AnkiLanguage, audio: string, version?: string) {
