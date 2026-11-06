@@ -418,6 +418,7 @@ Records audio for every note that doesn't have it yet.
 
 1. Tick the languages (Indonesian, Thai, Japanese, Spanish, French, Mandarin). English isn't recorded — it's the prompt side, and Anki would otherwise read it aloud in every review.
 2. Each ticked language shows the voice it will use. To use another for this run, choose it from its **Voice** list; **Preview** plays a short sample (a tiny charge on your OpenAI key), and **How it's read** holds the instructions the voice follows. Add to those rather than replacing them, because they also set the accent. These choices last until you leave the tab. **Save as default** keeps them for that language and recording.
+   For a smaller run, type or pick a tag under **Only notes with this tag**, e.g. `source::STT::24`. It includes tags under it, so `source::STT` covers every chapter. Leave it empty for all notes.
 3. Click **Find notes needing audio**. You'll see how many clips are needed, with an estimated length and cost (roughly $0.015 per minute of audio — a thousand short clips cost about a dollar).
 4. Click **Generate**. Keep the tab open; **Stop** at any time. Finished notes are tagged `pb::audio::<language>`, so the next run picks up where you left off.
 

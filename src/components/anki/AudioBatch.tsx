@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { speak } from "@/components/anki/api";
 import { soundFilename } from "@/components/anki/ClipMatcher";
 import { ReadingStyle, VoicePick, useVoiceDefaults } from "@/components/anki/VoiceControls";
 import { previewText } from "@/components/settings/VoiceSettings";
-import { anki } from "@/lib/anki/connect";
+import { anki, ankiSearchValue } from "@/lib/anki/connect";
 import { audioReading, cleanField } from "@/lib/anki/fields";
 import { audio2Field, audioField, audioFilename, audioLanguages, notesField, pbTags, soundField, type AnkiLanguage } from "@/lib/anki/vocab";
 import type { TtsVoice, VoiceSetting } from "@/lib/voices";
@@ -41,7 +41,15 @@ export function AudioBatch({ audio2Ready }: { audio2Ready: boolean }) {
   const [done, setDone] = useState(0);
   const [failures, setFailures] = useState<Failure[]>([]);
   const [replace, setReplace] = useState(false);
+  // Only notes with this tag (or a tag under it), for a smaller run.
+  const [tag, setTag] = useState("");
+  const [allTags, setAllTags] = useState<string[]>([]);
   const { defaultFor, saveDefault } = useVoiceDefaults();
+
+  useEffect(() => {
+    void anki.getTags().then((tags) => setAllTags(tags.filter((item) => !item.startsWith("pb::")))).catch(() => {});
+  }, []);
+
   // Choices for this tab, per recording and language, which don't touch Settings.
   const [voicePicks, setVoicePicks] = useState<Record<1 | 2, Partial<Record<AnkiLanguage, TtsVoice>>>>({ 1: {}, 2: {} });
   const [stylePicks, setStylePicks] = useState<Record<1 | 2, Partial<Record<AnkiLanguage, string>>>>({ 1: {}, 2: {} });
@@ -97,14 +105,16 @@ export function AudioBatch({ audio2Ready }: { audio2Ready: boolean }) {
         const query = slot === 1
           ? `${language}:_* ${replace ? "" : `${audioField(language)}:`} -tag:${pbTags.skip(language)} -tag:${pbTags.bookAudio(language)}`
           : `${language}:_* ${audioField(language)}:_* ${replace ? "" : `${audio2Field(language)}:`} -tag:${pbTags.skip(language)}`;
-        for (const note of await anki.notesMatching(query)) {
+        const tagged = tag.trim() ? ` "tag:${ankiSearchValue(tag.trim())}"` : "";
+        for (const note of await anki.notesMatching(`${query}${tagged}`)) {
           if (slot === 2 && /-book/.test(soundFilename(note.fields[audio2Field(language)] || "") || "")) continue;
           const text = cleanField(note.fields[language] || "", language).text;
           if (text) found.push({ noteId: note.noteId, language, text, reading: audioReading(note.fields[notesField(language)] || "") });
         }
       }
       setJobs(found);
-      setStatus(found.length ? "" : replace ? `No notes${slot === 2 ? " with Audio 1" : ""} have the selected languages filled in.` : slot === 2 ? "Every note with Audio 1 in the selected languages already has Audio 2." : "Every selected language already has audio.");
+      const among = tag.trim() ? ` among notes tagged ${tag.trim()}` : "";
+      setStatus(found.length ? "" : replace ? `No notes${slot === 2 ? " with Audio 1" : ""} have the selected languages filled in${among}.` : slot === 2 ? `Every note with Audio 1 in the selected languages already has Audio 2${among}, or there are none.` : `Every selected language already has audio${among}, or there are no notes.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Notes could not be loaded from Anki.");
     }
@@ -194,6 +204,13 @@ export function AudioBatch({ audio2Ready }: { audio2Ready: boolean }) {
         {!selected.size && <p className="anki-note">No languages selected.</p>}
       </div>
       <p className="anki-voices">These choices last until you leave this tab. <b>Save as default</b> keeps them, or <Link href="/settings">change the defaults in Settings</Link>.</p>
+      <div className="book-audio-pick">
+        <label className="book-audio-tag">
+          <span>Only notes with this tag (optional, includes tags under it)</span>
+          <input list="bulk-audio-tags" value={tag} placeholder="source::STT::24" disabled={running} onChange={(event) => { setTag(event.target.value); setJobs(null); setStatus(""); }} onKeyDown={(event) => { if (event.key === "Enter" && selected.size) void scan(); }} />
+          <datalist id="bulk-audio-tags">{allTags.map((item) => <option key={item} value={item} />)}</datalist>
+        </label>
+      </div>
       <label className="anki-checkbox">
         <input type="checkbox" checked={replace} disabled={running} onChange={(event) => { setReplace(event.target.checked); setJobs(null); }} />
         Replace existing {slot === 2 ? "Audio 2" : "audio"} too (e.g. after choosing a new voice)
