@@ -18,6 +18,8 @@ import { lookUpDictItems } from "@/lib/dictionary/client";
 import { dictItemsHtml, mergeDictItems, parseDictHtml, type DictNoteItem } from "@/lib/dictionary/notesBlock";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
 import type { LearnerLevel, OutputStyle } from "@/lib/types";
+import { ReadingStyle, VoicePick, useVoiceDefaults } from "@/components/anki/VoiceControls";
+import type { TtsVoice, VoiceSetting } from "@/lib/voices";
 
 const studyLanguages = ankiLanguages.filter((language) => language !== "English");
 const learnerLevels: LearnerLevel[] = ["Beginner", "Intermediate", "Advanced"];
@@ -98,7 +100,8 @@ const audioExtension = (filename: string) => filename.split(".").pop()?.toLowerC
 const audioMime = (filename: string) => audioTypes[audioExtension(filename)] || "audio/mpeg";
 
 // A recording or audio file waiting to replace the note's audio on save.
-type NewAudio = { data: string; extension: string; from: string };
+// voice: the one it was recorded in, for a recording rather than a file.
+type NewAudio = { data: string; extension: string; from: string; voice?: string };
 
 function readAudioFile(file: File): Promise<NewAudio> {
   return new Promise((resolve, reject) => {
@@ -170,6 +173,34 @@ export function ReviewSession() {
   // A new recording (base64 MP3) waiting to replace the note's audio on save.
   const [newAudio, setNewAudio] = useState<NewAudio | null>(null);
   const [draggingAudio, setDraggingAudio] = useState(false);
+  // The same for the second recording, which plays after the first.
+  const [newAudio2, setNewAudio2] = useState<NewAudio | null>(null);
+  const [draggingAudio2, setDraggingAudio2] = useState(false);
+  // Exchange the note's two recordings on save.
+  const [swapAudio, setSwapAudio] = useState(false);
+  const { defaultFor, saveDefault } = useVoiceDefaults();
+  // Choices for recordings made here, one set per recording, which stay until
+  // the language changes and don't touch Settings. Null means the default.
+  const [voiceChoice, setVoiceChoice] = useState<Record<1 | 2, TtsVoice | null>>({ 1: null, 2: null });
+  const [styleChoice, setStyleChoice] = useState<Record<1 | 2, string | null>>({ 1: null, 2: null });
+  const settingFor = (slot: 1 | 2): VoiceSetting => {
+    const usual = defaultFor(language, slot);
+    return { voice: voiceChoice[slot] ?? usual.voice, instructions: styleChoice[slot] ?? usual.instructions };
+  };
+
+  async function keepAsDefault(slot: 1 | 2) {
+    try {
+      await saveDefault(language, slot, settingFor(slot));
+      setStatus(`Saved as your ${language} Audio ${slot} default.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The default couldn't be saved.");
+    }
+  }
+
+  useEffect(() => {
+    setVoiceChoice({ 1: null, 2: null });
+    setStyleChoice({ 1: null, 2: null });
+  }, [language]);
   // The Markdown editor for the analysis opens on request (the preview
   // shows the analysis either way).
   const [editingAnalysis, setEditingAnalysis] = useState(false);
@@ -181,6 +212,11 @@ export function ReviewSession() {
   }, []);
 
   const note = queue?.[index];
+  // The note's recordings as they'll be once saved, if they're being swapped.
+  const savedAudio1 = note?.fields[audioField(language)] || "";
+  const savedAudio2 = note?.fields[audio2Field(language)] || "";
+  const audio1Now = swapAudio ? savedAudio2 : savedAudio1;
+  const audio2Now = swapAudio ? savedAudio1 : savedAudio2;
   // Japanese furigana written by hand in the notes (and no reading of
   // PolyglotBooster's own) is kept as it is, so there's no reading to edit.
   const handwrittenReading = language === "Japanese" && !existingReading(note?.fields[notesField(language)] || "") ? handwrittenRubyReading(note?.fields[notesField(language)] || "") : "";
@@ -198,6 +234,8 @@ export function ReviewSession() {
     setAskingFollowUp(false);
     setFollowUpStatus("");
     setNewAudio(null);
+    setNewAudio2(null);
+    setSwapAudio(false);
     setEditingAnalysis(false);
     setStatus(next ? "" : "That's every note in this set.");
   }
@@ -422,8 +460,16 @@ export function ReviewSession() {
       if (blocksDirty) labels.push("notes");
     }
     if (newAudio) labels.push("audio");
+    if (newAudio2) labels.push("audio 2");
+    if (swapAudio) {
+      fields[audioField(language)] = savedAudio2;
+      fields[audio2Field(language)] = savedAudio1;
+      labels.push("audio 1 and 2 swapped");
+    }
     const tags = parseTags(newTags);
     if (tags.length) labels.push("tags");
+    // A textbook or video clip moved into Audio 1 needs protecting from Bulk audio.
+    if (swapAudio && /-book/.test(soundFilename(savedAudio2) || "")) tags.push(pbTags.bookAudio(language));
     // A saved analysis marks the note as analyzed, with its template.
     if (analysisDirty && draft.analysis.trim()) tags.push(pbTags.analyzed(language, draft.kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language)));
     // So do dictionary entries saved without one (it's done with for now).
@@ -431,7 +477,7 @@ export function ReviewSession() {
     return { fields, labels, tags };
     // englishNoteChange reads note and draft, which are dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note, draft, language, readingDirty, analysisDirty, blocksDirty, dictDirty, assembledNotes, newAudio, newTags]);
+  }, [note, draft, language, readingDirty, analysisDirty, blocksDirty, dictDirty, assembledNotes, newAudio, newAudio2, swapAudio, savedAudio1, savedAudio2, newTags]);
 
   // Writes only what changed. With advance false it stays on the note (e.g.
   // to keep branching from the analysis), now matching what Anki holds.
@@ -449,6 +495,11 @@ export function ReviewSession() {
         fields[audioField(language)] = soundField(filename);
         tags.push(pbTags.audio(language));
       }
+      if (newAudio2) {
+        const version = note.fields[audio2Field(language)]?.trim() ? `2-${Date.now().toString(36)}` : "2";
+        const filename = await anki.storeMedia(audioFilename(note.noteId, language, version, newAudio2.extension), newAudio2.data);
+        fields[audio2Field(language)] = soundField(filename);
+      }
       if (Object.keys(fields).length) await anki.updateFields(note.noteId, fields);
       if (tags.length) await anki.addTags([note.noteId], tags);
       // New audio replaces any textbook recording, so bulk audio may record it again.
@@ -464,6 +515,8 @@ export function ReviewSession() {
       setQueue((current) => current && current.map((item) => item.noteId === note.noteId ? updated : item));
       setDraft({ ...newDraft(updated, language), kind: draft.kind });
       setNewAudio(null);
+      setNewAudio2(null);
+      setSwapAudio(false);
       setNewTags("");
       setStatus(`Saved to Anki: ${pending.labels.join(", ")}`);
     } catch (error) {
@@ -474,14 +527,16 @@ export function ReviewSession() {
   }
 
   // Records a new take of the note's audio (Thai respelled for the voice)
-  // and plays it; it replaces the old one only when you save.
-  async function recordAudio() {
+  // and plays it; it replaces the old one only when you save. Audio 2 starts
+  // in another voice, so the two recordings differ.
+  async function recordAudio(second = false) {
     if (!draft) return;
+    const setting = settingFor(second ? 2 : 1);
     setBusy(true);
-    setStatus("Recording...");
+    setStatus(`Recording in ${setting.voice}...`);
     try {
-      const data = await speak(draft.fieldText.trim() || draft.cleanedText, language, draft.reading || handwrittenReading);
-      setNewAudio({ data, extension: "mp3", from: "" });
+      const data = await speak(draft.fieldText.trim() || draft.cleanedText, language, draft.reading || handwrittenReading, setting);
+      (second ? setNewAudio2 : setNewAudio)({ data, extension: "mp3", from: "", voice: setting.voice });
       setStatus("");
       await new Audio(`data:audio/mpeg;base64,${data}`).play();
     } catch (error) {
@@ -493,10 +548,14 @@ export function ReviewSession() {
 
   // An audio file chosen or dropped (e.g. a textbook recording): it
   // replaces the note's audio when you save, keeping its format.
-  async function takeAudioFile(file: File) {
+  async function takeAudioFile(file: File, second = false) {
+    if (swapAudio) {
+      setStatus("Undo the swap first, or save it, before adding a recording.");
+      return;
+    }
     try {
       const audio = await readAudioFile(file);
-      setNewAudio(audio);
+      (second ? setNewAudio2 : setNewAudio)(audio);
       setStatus("");
       await new Audio(`data:${audioTypes[audio.extension]};base64,${audio.data}`).play().catch(() => {});
     } catch (error) {
@@ -558,6 +617,8 @@ export function ReviewSession() {
     if (fields[notesField(language)] !== undefined) update({ reading: fresh.reading, origReading: fresh.origReading, analysis: fresh.analysis, origAnalysis: fresh.origAnalysis, dict: null, blocks: fresh.blocks, origBlocks: fresh.origBlocks });
     if (fields[notesField("English")] !== undefined) update({ englishNote: fresh.englishNote });
     if (fields[audioField(language)] !== undefined) setNewAudio(null);
+    if (fields[audio2Field(language)] !== undefined) setNewAudio2(null);
+    if (fields[audioField(language)] !== undefined || fields[audio2Field(language)] !== undefined) setSwapAudio(false);
     setEditingFields(false);
     setStatus("Fields saved to Anki");
     void clearFlagIfFlagged(note.noteId);
@@ -727,24 +788,54 @@ export function ReviewSession() {
             onDrop={(event) => { event.preventDefault(); setDraggingAudio(false); const file = event.dataTransfer.files[0]; if (file) void takeAudioFile(file); }}
           >
             <div className="anki-tool-head">
-              <p className="result-label">Audio{newAudio && <span className="anki-changed">{newAudio.from ? "new file" : "new recording"}</span>}</p>
-              {soundFilename(note.fields[audioField(language)] || "") && <button className="text-button" type="button" onClick={() => void playAnkiSound(note.fields[audioField(language)])}>▶ Current</button>}
-              {soundFilename(note.fields[audio2Field(language)] || "") && <button className="text-button" type="button" title="The second recording, which plays after the first" onClick={() => void playAnkiSound(note.fields[audio2Field(language)])}>▶ Audio 2</button>}
+              <p className="result-label">Audio{newAudio && <span className="anki-changed">{newAudio.from ? "new file" : "new recording"}</span>}{swapAudio && <span className="anki-changed">swapped</span>}</p>
+              {soundFilename(audio1Now) && <button className="text-button" type="button" onClick={() => void playAnkiSound(audio1Now)}>▶ Current</button>}
               {newAudio && <button className="text-button" type="button" onClick={() => void new Audio(`data:${audioTypes[newAudio.extension]};base64,${newAudio.data}`).play()}>▶ New</button>}
-              <button className="preview-prompt-button" type="button" disabled={busy} onClick={() => void recordAudio()}>{newAudio && !newAudio.from ? "Record again" : soundFilename(note.fields[audioField(language)] || "") ? "Re-record" : "Record"}</button>
-              <label className={`preview-prompt-button anki-file-button${busy ? " disabled" : ""}`}>
+              <VoicePick setting={settingFor(1)} usual={defaultFor(language, 1)} slot={1} disabled={busy || swapAudio} onVoice={(voice) => setVoiceChoice((current) => ({ ...current, 1: voice }))} onSave={() => void keepAsDefault(1)} />
+              <button className="preview-prompt-button" type="button" disabled={busy || swapAudio} onClick={() => void recordAudio()}>{newAudio && !newAudio.from ? "Record again" : soundFilename(note.fields[audioField(language)] || "") ? "Re-record" : "Record"}</button>
+              <label className={`preview-prompt-button anki-file-button${busy || swapAudio ? " disabled" : ""}`}>
                 Choose file…
-                <input type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void takeAudioFile(file); }} />
+                <input type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac" disabled={busy || swapAudio} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void takeAudioFile(file); }} />
               </label>
               {newAudio && <button className="text-button" type="button" disabled={busy} onClick={() => setNewAudio(null)}>Keep the {soundFilename(note.fields[audioField(language)] || "") ? "old one" : "note without audio"}</button>}
+              {soundFilename(savedAudio1) && soundFilename(savedAudio2) && (
+                <button className="text-button" type="button" disabled={busy || Boolean(newAudio || newAudio2)} title={newAudio || newAudio2 ? "Save or drop the new recording first" : "Exchange the two recordings when you save"} onClick={() => setSwapAudio(!swapAudio)}>{swapAudio ? "Undo swap" : "Swap Audio 1 and 2"}</button>
+              )}
             </div>
             <p className="anki-audio-file" title="The Audio field in Anki">
               {newAudio
-                ? <>On save: <code>[sound:{audioFilename(note.noteId, language, soundFilename(note.fields[audioField(language)] || "") ? "…" : undefined, newAudio.extension)}]</code>{newAudio.from ? <> from <b>{newAudio.from}</b></> : " (new recording)"}{soundFilename(note.fields[audioField(language)] || "") && <> · now <code>[sound:{soundFilename(note.fields[audioField(language)] || "")}]</code></>}</>
-                : soundFilename(note.fields[audioField(language)] || "") ? <code>[sound:{soundFilename(note.fields[audioField(language)] || "")}]</code> : <span className="anki-note">No audio yet.</span>}
-              {soundFilename(note.fields[audio2Field(language)] || "") && <> · Audio 2: <code>[sound:{soundFilename(note.fields[audio2Field(language)] || "")}]</code></>}
+                ? <>On save: <code>[sound:{audioFilename(note.noteId, language, soundFilename(note.fields[audioField(language)] || "") ? "…" : undefined, newAudio.extension)}]</code>{newAudio.from ? <> from <b>{newAudio.from}</b></> : <> (new recording in <b>{newAudio.voice}</b>)</>}{soundFilename(note.fields[audioField(language)] || "") && <> · now <code>[sound:{soundFilename(note.fields[audioField(language)] || "")}]</code></>}</>
+                : soundFilename(audio1Now) ? <code>[sound:{soundFilename(audio1Now)}]</code> : <span className="anki-note">No audio yet.</span>}
               <span className="anki-audio-drop">{draggingAudio ? "Drop the audio file to use it" : "or drop an audio file here"}</span>
             </p>
+            <ReadingStyle value={settingFor(1).instructions} usual={defaultFor(language, 1).instructions} disabled={busy} onChange={(value) => setStyleChoice((current) => ({ ...current, 1: value }))} onReset={() => setStyleChoice((current) => ({ ...current, 1: null }))} />
+            <div
+              className={`anki-audio-second${draggingAudio2 ? " dragging" : ""}`}
+              onDragOver={(event) => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); event.stopPropagation(); setDraggingAudio(false); setDraggingAudio2(true); } }}
+              onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDraggingAudio2(false); }}
+              onDrop={(event) => { event.preventDefault(); event.stopPropagation(); setDraggingAudio2(false); const file = event.dataTransfer.files[0]; if (file) void takeAudioFile(file, true); }}
+            >
+              <div className="anki-tool-head">
+                <p className="result-label">Audio 2{newAudio2 && <span className="anki-changed">{newAudio2.from ? "new file" : "new recording"}</span>}</p>
+                {soundFilename(audio2Now) && <button className="text-button" type="button" title="The second recording, which plays after the first" onClick={() => void playAnkiSound(audio2Now)}>▶ Current</button>}
+                {newAudio2 && <button className="text-button" type="button" onClick={() => void new Audio(`data:${audioTypes[newAudio2.extension]};base64,${newAudio2.data}`).play()}>▶ New</button>}
+                <VoicePick setting={settingFor(2)} usual={defaultFor(language, 2)} slot={2} disabled={busy || swapAudio} onVoice={(voice) => setVoiceChoice((current) => ({ ...current, 2: voice }))} onSave={() => void keepAsDefault(2)} />
+                <button className="preview-prompt-button" type="button" disabled={busy || swapAudio} onClick={() => void recordAudio(true)}>{newAudio2 && !newAudio2.from ? "Record again" : soundFilename(savedAudio2) ? "Re-record" : "Record"}</button>
+                <label className={`preview-prompt-button anki-file-button${busy || swapAudio ? " disabled" : ""}`}>
+                  Choose file…
+                  <input type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac" disabled={busy || swapAudio} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void takeAudioFile(file, true); }} />
+                </label>
+                {newAudio2 && <button className="text-button" type="button" disabled={busy} onClick={() => setNewAudio2(null)}>Keep the {soundFilename(savedAudio2) ? "old one" : "note without it"}</button>}
+              </div>
+              <p className="anki-audio-file" title="The Audio 2 field in Anki">
+                {newAudio2
+                  ? <>On save: {newAudio2.from ? <>from <b>{newAudio2.from}</b></> : <>new recording in <b>{newAudio2.voice}</b></>}{soundFilename(savedAudio2) && <> · now <code>[sound:{soundFilename(savedAudio2)}]</code></>}</>
+                  : soundFilename(audio2Now) ? <code>[sound:{soundFilename(audio2Now)}]</code> : <span className="anki-note">No second recording yet.</span>}
+                <span className="anki-audio-drop">{draggingAudio2 ? "Drop the audio file to use it" : "or drop an audio file here"}</span>
+              </p>
+              <ReadingStyle value={settingFor(2).instructions} usual={defaultFor(language, 2).instructions} disabled={busy} onChange={(value) => setStyleChoice((current) => ({ ...current, 2: value }))} onReset={() => setStyleChoice((current) => ({ ...current, 2: null }))} />
+            </div>
+            <p className="anki-note">Voices and instructions chosen here carry over from note to note until you change language or leave this tab. <b>Save as default</b> keeps them.</p>
           </section>
 
           <section className="anki-tool">

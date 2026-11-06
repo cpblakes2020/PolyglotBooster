@@ -35,3 +35,9 @@ export function resolveVoiceSetting(language: Language | undefined, saved?: Part
 export function secondVoice(setting: VoiceSetting): VoiceSetting {
   return { ...setting, voice: setting.voice === "marin" ? "cedar" : "marin" };
 }
+
+// The default for a language's second recording (Audio 2): the one saved for
+// it, or else a clearly different voice from its first.
+export function audio2Default(language: Language, voices: Record<Language, VoiceSetting>, voices2?: Partial<Record<Language, VoiceSetting>>): VoiceSetting {
+  return voices2?.[language] ?? secondVoice(voices[language]);
+}

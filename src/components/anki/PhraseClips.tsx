@@ -7,6 +7,7 @@ import { playData } from "@/components/anki/ClipMatcher";
 import { sourceTag } from "@/components/anki/FlashcardsToAnki";
 import { ListeningCardPanel } from "@/components/anki/ListeningCardPanel";
 import type { ListeningCardDraft } from "@/components/anki/saveItem";
+import { useVoiceDefaults } from "@/components/anki/VoiceControls";
 import { TagInput, parseTags } from "@/components/anki/selection";
 import { anki } from "@/lib/anki/connect";
 import { findPhrases, joinPieces, phraseText, readSentenceGroups } from "@/lib/anki/phraseClips";
@@ -52,6 +53,7 @@ const seconds = (value: number) => `${value.toFixed(1)} s`;
 // pieces make up each sentence, and those pieces' audio becomes its Audio 1.
 // listeningReady: the note type has listening cards.
 export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
+  const { defaultFor } = useVoiceDefaults();
   const [mode, setMode] = useState<Mode>("repeated");
   const [language, setLanguage] = useState<AnkiLanguage>("Thai");
   const [gap, setGap] = useState(defaultGaps.repeated);
@@ -292,7 +294,7 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
         }
       }
       try {
-        speech[index] = card?.speech ?? await speak(line, language, card?.reading);
+        speech[index] = card?.speech ?? await speak(line, language, card?.reading, defaultFor(language, 2));
       } catch {
         speechFailed = true;
       }
@@ -340,7 +342,7 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
       let audio2 = card.audio2;
       if (mode === "monologue" && withSpeech) {
         try {
-          audio2 = await speak(card.text, language, described.reading);
+          audio2 = await speak(card.text, language, described.reading, defaultFor(language, 2));
         } catch (error) {
           setFailures((current) => [...current, `${card.text}: ${error instanceof Error ? error.message : "the text-to-speech couldn't be recorded"}. It has no Audio 2.`]);
         }
@@ -502,7 +504,7 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
           <p className="anki-note">Listen to each one. Correct the text, join or split sentences, and untick anything you don&apos;t want, such as a greeting or sign-off. Splitting goes back to what was heard in each piece, so it undoes any corrections to that sentence.</p>
           <label className="anki-checkbox">
             <input type="checkbox" checked={withSpeech} disabled={busy} onChange={(event) => setWithSpeech(event.target.checked)} />
-            Add text-to-speech as Audio 2, a clearer version that plays after the speaker (with your OpenAI key and the voice in Settings)
+            Add text-to-speech as Audio 2, a clearer version that plays after the speaker (with your OpenAI key and your Audio 2 voice in Settings)
           </label>
           <label className="anki-checkbox">
             <input type="checkbox" checked={makeListening && listeningReady} disabled={busy || !listeningReady} onChange={(event) => setMakeListening(event.target.checked)} />

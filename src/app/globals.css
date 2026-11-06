@@ -168,6 +168,8 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .voice-setting + .voice-setting { margin-top: 15px; }
 .voice-setting-row { display: flex; align-items: center; gap: 14px; }
 .voice-setting-row select { max-width: 180px; }
+.voice-setting-second { margin-top: 10px; font-size: 12px; }
+.voice-setting-second summary { margin-bottom: 7px; color: var(--muted); cursor: pointer; }
 .voice-setting textarea { display: block; width: 100%; min-height: 54px; margin-top: 8px; resize: vertical; border: 1px solid var(--line); background: #f3f1e7; padding: 8px; color: var(--ink); font-size: 12px; line-height: 1.45; }
 .template-section { padding: 54px 0 50px; }
 .template-heading { align-items: end; margin-bottom: 20px; }
@@ -500,7 +502,16 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-audio-file { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0; border: 1px dashed var(--line); background: #f3f1e7; padding: 6px 10px; color: var(--ink); font-size: 12px; overflow-wrap: anywhere; }
 .anki-audio-file code { font-size: 12px; }
 .anki-audio-drop { margin-left: auto; color: var(--muted); font-size: 11px; }
-.anki-audio-tool.dragging .anki-audio-file { border-color: var(--teal); background: #e3efe9; }
+.anki-audio-tool.dragging > .anki-audio-file, .anki-audio-second.dragging .anki-audio-file { border-color: var(--teal); background: #e3efe9; }
+.anki-audio-second { margin-top: 12px; }
+.anki-voice-pick { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
+.anki-voice-pick select { border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 4px 6px; color: var(--ink); font: inherit; }
+.anki-bulk-voices { display: grid; gap: 8px; margin-top: 14px; }
+.anki-bulk-voice { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 13px; }
+.anki-bulk-language { min-width: 6.5rem; font-weight: 600; }
+.anki-bulk-voice .anki-reading-style { flex: 1 1 100%; margin-top: 0; }
+.anki-reading-style { margin-top: 10px; font-size: 13px; }
+.anki-reading-style summary { cursor: pointer; color: var(--muted); }
 @media (pointer: coarse) { .anki-audio-drop { display: none; } }
 
 /* Book audio: textbook recordings matched to notes */

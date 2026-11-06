@@ -7,8 +7,7 @@ import { cleanField, escapeHtml, htmlToText } from "@/lib/anki/fields";
 import { listeningField, listeningOnlyField } from "@/lib/anki/noteType";
 import { audio2Field, audioField, audioFilename, audioLanguages, pbTags, soundField, withPlayerSource, type AnkiLanguage, type VocabNote } from "@/lib/anki/vocab";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
-import type { Language } from "@/lib/types";
-import { defaultVoiceSettings, secondVoice, type VoiceSetting } from "@/lib/voices";
+import { useVoiceDefaults } from "@/components/anki/VoiceControls";
 
 type Paragraph = { text: string; english: string; include: boolean; existing: boolean };
 type Second = "voice" | "none";
@@ -42,7 +41,7 @@ export function ListeningNotes({ ready }: { ready: boolean }) {
   const [source, setSource] = useState("");
   const [second, setSecond] = useState<Second>("voice");
   const [providerId, setProviderId] = useState<LlmProviderId>("anthropic");
-  const [voices, setVoices] = useState<Record<Language, VoiceSetting>>(defaultVoiceSettings);
+  const { defaultFor } = useVoiceDefaults();
   const [paragraphs, setParagraphs] = useState<Paragraph[] | null>(null);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -56,15 +55,6 @@ export function ListeningNotes({ ready }: { ready: boolean }) {
   useEffect(() => {
     void listeningList().then(setSaved).catch(() => setSaved([]));
     void anki.getTags().then((tags) => setAllTags(tags.filter((item) => !item.startsWith("pb::")))).catch(() => {});
-    void (async () => {
-      try {
-        const response = await fetch("/api/account/settings");
-        const data = await response.json() as { settings?: { voices?: Partial<Record<Language, VoiceSetting>> } };
-        if (response.ok) setVoices({ ...defaultVoiceSettings, ...data.settings?.voices });
-      } catch {
-        // Fall back to showing the defaults.
-      }
-    })();
   }, []);
 
   async function prepare() {
@@ -116,7 +106,7 @@ export function ListeningNotes({ ready }: { ready: boolean }) {
         }, tags);
         const [first, other] = await Promise.all([
           speak(paragraph.text, language),
-          second === "voice" ? speak(paragraph.text, language, undefined, secondVoice(voices[language])) : Promise.resolve(""),
+          second === "voice" ? speak(paragraph.text, language, undefined, defaultFor(language, 2)) : Promise.resolve(""),
         ]);
         const fields: Record<string, string> = { [audioField(language)]: soundField(await anki.storeMedia(audioFilename(noteId, language), first)) };
         if (other) fields[audio2Field(language)] = soundField(await anki.storeMedia(audioFilename(noteId, language, "2"), other));
@@ -192,7 +182,7 @@ export function ListeningNotes({ ready }: { ready: boolean }) {
         <label>
           <span>Second recording</span>
           <select value={second} disabled={busy} onChange={(event) => setSecond(event.target.value as Second)}>
-            <option value="voice">Another voice ({secondVoice(voices[language]).voice})</option>
+            <option value="voice">Another voice ({defaultFor(language, 2).voice})</option>
             <option value="none">None (add book audio later)</option>
           </select>
         </label>

@@ -9,6 +9,8 @@ import type { VoiceSetting } from "@/lib/voices";
 type StoredKey = { encrypted?: string };
 
 export type AccountSettings = {
+  // Second-recording (Audio 2) defaults, for languages that have their own.
+  voices2?: Partial<Record<Language, VoiceSetting>>;
   voices?: Partial<Record<Language, VoiceSetting>>;
 };
 
