@@ -27,13 +27,13 @@ export function SaveForListeningButton({ textarea, text, language }: { textarea:
     setBusy(true);
     try {
       const items = await saveForListening(chosen, language, "");
-      setMessage(`Saved ${selected ? "the selection" : "the text"} for listening · ${items.length} waiting on the Anki page's Listening tab`);
+      setMessage(`✓ Saved ${selected ? "the selection" : "the text"} (${items.length} saved so far). It's kept in your account: on your computer, open it from the Anki page's Listening tab.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "It couldn't be saved.");
     } finally {
       setBusy(false);
       window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => setMessage(""), 5000);
+      timer.current = window.setTimeout(() => setMessage(""), 8000);
     }
   }
 
