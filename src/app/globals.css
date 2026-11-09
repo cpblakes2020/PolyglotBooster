@@ -574,3 +574,6 @@ textarea.phrase-clips-text { display: block; min-width: 16rem; resize: vertical;
 .book-audio-file.drop-above { border-top-color: var(--teal); }
 .book-audio-file.drop-below { border-bottom-color: var(--teal); }
 .book-audio-file .drag-handle { color: var(--muted); padding-right: 2px; }
+.phrase-clips-table td { border-bottom: 1px solid var(--line); padding-top: 8px; padding-bottom: 8px; }
+.phrase-clips-actions { display: grid; justify-items: start; gap: 4px; white-space: nowrap; font-size: 13px; }
+.phrase-clips-actions .text-button { padding: 0; font-size: 13px; }

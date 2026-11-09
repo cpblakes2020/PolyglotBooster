@@ -47,6 +47,27 @@ export async function decodeRecording(file: File): Promise<DecodedRecording> {
   return { samples, duration: audio.duration, quiet: quietWindows(audio, pauseLevel(samples)) };
 }
 
+// The quietest moment between two times (in seconds): the middle of the
+// quietest 50 ms there, checked every 10 ms. Where speech runs on without a
+// pause, that's still the likeliest gap between words.
+export function quietestPoint(recording: DecodedRecording, from: number, to: number) {
+  const size = Math.round(sampleRate * 0.05);
+  const step = Math.round(sampleRate * 0.01);
+  const first = Math.max(0, Math.floor(from * sampleRate));
+  const last = Math.min(recording.samples.length - size, Math.floor(to * sampleRate) - size);
+  let best = first;
+  let lowest = Infinity;
+  for (let start = first; start <= last; start += step) {
+    let total = 0;
+    for (let i = start; i < start + size; i++) total += recording.samples[i] * recording.samples[i];
+    if (total < lowest) {
+      lowest = total;
+      best = start;
+    }
+  }
+  return (best + size / 2) / sampleRate;
+}
+
 // Base64 MP3s, one after the other, as one: an MP3 is a run of frames, so
 // they can simply be put end to end.
 export function joinMp3s(parts: string[]) {

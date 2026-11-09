@@ -120,7 +120,7 @@ export function AnkiDesk() {
             <button className={`mode-tab${tab === "review" ? " active" : ""}`} role="tab" aria-selected={tab === "review"} type="button" onClick={() => setTab("review")}>Review &amp; analyze</button>
             <button className={`mode-tab${tab === "audio" ? " active" : ""}`} role="tab" aria-selected={tab === "audio"} type="button" onClick={() => setTab("audio")}>Bulk audio</button>
             <button className={`mode-tab${tab === "book" ? " active" : ""}`} role="tab" aria-selected={tab === "book"} type="button" onClick={() => setTab("book")}>Book audio</button>
-            <button className={`mode-tab${tab === "phrases" ? " active" : ""}`} role="tab" aria-selected={tab === "phrases"} type="button" onClick={() => setTab("phrases")}>Phrase clips</button>
+            <button className={`mode-tab${tab === "phrases" ? " active" : ""}`} role="tab" aria-selected={tab === "phrases"} type="button" onClick={() => setTab("phrases")}>Phrase clip transcripts</button>
             <button className={`mode-tab${tab === "listening" ? " active" : ""}`} role="tab" aria-selected={tab === "listening"} type="button" onClick={() => setTab("listening")}>Listening</button>
             <button className={`mode-tab${tab === "tags" ? " active" : ""}`} role="tab" aria-selected={tab === "tags"} type="button" onClick={() => setTab("tags")}>Tags</button>
           </div>

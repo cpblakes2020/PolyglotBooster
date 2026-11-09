@@ -13,7 +13,7 @@ import { anki } from "@/lib/anki/connect";
 import { findPhrases, joinPieces, phraseText, readSentenceGroups } from "@/lib/anki/phraseClips";
 import type { BranchItem } from "@/lib/anki/prompts";
 import { audioLanguages, type AnkiLanguage } from "@/lib/anki/vocab";
-import { decodeRecording, encodeClip, joinMp3s, type DecodedRecording } from "@/lib/audio/clipAudio";
+import { decodeRecording, encodeClip, joinMp3s, quietestPoint, type DecodedRecording } from "@/lib/audio/clipAudio";
 import { findClips } from "@/lib/audio/mp3Split";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
 
@@ -23,7 +23,10 @@ type Mode = "repeated" | "monologue";
 type Piece = { key: string; start: number; end: number; data: string };
 type Phrase = { id: string; text: string; audio1: string; audio2: string; include: boolean };
 // A sentence of a monologue: the neighbouring pieces it's made of.
-type Sentence = { id: string; keys: string[]; text: string; include: boolean };
+// range: its own stretch of the recording, when it's part of a piece split by
+// hand (a piece holds speech with no pause in it, so it can't be split back
+// into pieces).
+type Sentence = { id: string; keys: string[]; text: string; include: boolean; range?: { start: number; end: number } };
 type CardSource = { text: string; audio?: string; audio2?: string };
 
 const concurrency = 3;
@@ -223,29 +226,79 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
 
   const dataOf = (key: string) => pieces?.find((piece) => piece.key === key)?.data;
 
-  // A sentence's audio runs from its first piece to its last, pauses included.
-  async function audioOf(sentence: Sentence) {
-    if (sentence.keys.length === 1) return dataOf(sentence.keys[0]);
+  // The stretch of the recording a sentence covers: its own, if it was split
+  // by hand, or else from its first piece to its last, pauses included.
+  function rangeOf(sentence: Sentence) {
+    if (sentence.range) return sentence.range;
     const first = pieces?.find((piece) => piece.key === sentence.keys[0]);
     const last = pieces?.find((piece) => piece.key === sentence.keys[sentence.keys.length - 1]);
-    if (!recording || !first || !last) return undefined;
-    const known = sentenceAudio.current.get(sentence.id);
+    return first && last ? { start: first.start, end: last.end } : null;
+  }
+
+  async function audioOf(sentence: Sentence) {
+    if (!sentence.range && sentence.keys.length === 1) return dataOf(sentence.keys[0]);
+    const range = rangeOf(sentence);
+    if (!recording || !range) return undefined;
+    const id = `${range.start.toFixed(3)}-${range.end.toFixed(3)}`;
+    const known = sentenceAudio.current.get(id);
     if (known) return known;
-    const data = await encodeClip(recording, { start: first.start, end: last.end });
-    sentenceAudio.current.set(sentence.id, data);
+    const data = await encodeClip(recording, range);
+    sentenceAudio.current.set(id, data);
     return data;
   }
 
   const sentenceLength = (sentence: Sentence) => {
-    const first = pieces?.find((piece) => piece.key === sentence.keys[0]);
-    const last = pieces?.find((piece) => piece.key === sentence.keys[sentence.keys.length - 1]);
-    return first && last ? last.end - first.start : 0;
+    const range = rangeOf(sentence);
+    return range ? range.end - range.start : 0;
+  };
+
+  const linesOf = (text: string) => text.split("\n").map((line) => line.trim()).filter(Boolean);
+
+  // Splits a sentence's audio to match the lines its text was broken into:
+  // each cut goes at the quietest moment near where that line should end,
+  // judged by how much of the text comes before it.
+  function splitByLines(index: number) {
+    const sentence = sentences?.[index];
+    const range = sentence && rangeOf(sentence);
+    if (!sentence || !range || !recording) return;
+    const lines = linesOf(sentence.text);
+    const total = lines.reduce((sum, line) => sum + line.length, 0);
+    const length = range.end - range.start;
+    const cuts: number[] = [];
+    let before = 0;
+    for (const line of lines.slice(0, -1)) {
+      before += line.length;
+      const expected = range.start + length * before / total;
+      const reach = Math.max(0.4, length / lines.length / 3);
+      const earliest = Math.max((cuts[cuts.length - 1] ?? range.start) + 0.3, expected - reach);
+      const latest = Math.min(range.end - 0.3, expected + reach);
+      cuts.push(earliest < latest ? quietestPoint(recording, earliest, latest) : expected);
+    }
+    const edges = [range.start, ...cuts, range.end];
+    const parts = lines.map((line, at) => ({ id: `${sentence.id}~${at}-${Date.now()}`, keys: sentence.keys, text: line, include: sentence.include, range: { start: edges[at], end: edges[at + 1] } }));
+    setSentences((current) => current && [...current.slice(0, index), ...parts, ...current.slice(index + 1)]);
+  }
+
+  // Moves the cut between a sentence and the one before it, when one split
+  // made them.
+  function moveCut(index: number, by: number) {
+    setSentences((current) => {
+      const [before, after] = [current?.[index - 1], current?.[index]];
+      if (!current || !before?.range || !after?.range) return current;
+      const cut = Math.min(after.range.end - 0.2, Math.max(before.range.start + 0.2, after.range.start + by));
+      return current.map((sentence, at) => at === index - 1 ? { ...sentence, range: { ...before.range!, end: cut } } : at === index ? { ...sentence, range: { ...after.range!, start: cut } } : sentence);
+    });
+  }
+
+  const splitNeighbours = (index: number) => {
+    const [before, after] = [sentences?.[index - 1], sentences?.[index]];
+    return Boolean(before?.range && after?.range && before.range.end === after.range.start);
   };
 
   const chosenPhrases = (phrases || []).filter((phrase) => phrase.include && phrase.text.trim());
   const chosenSentences = (sentences || []).filter((sentence) => sentence.include && sentence.text.trim());
   const chosenCount = mode === "repeated" ? chosenPhrases.length : chosenSentences.length;
-  const wantsListening = mode === "monologue" && makeListening && listeningReady;
+  const wantsListening = makeListening && listeningReady;
   const totalSeconds = (pieces || []).reduce((total, piece) => total + piece.end - piece.start, 0);
   const update = (id: string, changes: Partial<Phrase>) =>
     setPhrases((current) => current && current.map((phrase) => phrase.id === id ? { ...phrase, ...changes } : phrase));
@@ -261,8 +314,11 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
     setSentences((current) => {
       if (!current || index >= current.length - 1) return current;
       const [one, two] = [current[index], current[index + 1]];
-      const keys = [...one.keys, ...two.keys];
-      const joined = { id: keys.join("-"), keys, text: joinPieces([one.text.trim(), two.text.trim()].filter(Boolean), language), include: one.include || two.include };
+      const keys = [...new Set([...one.keys, ...two.keys])];
+      const [first, second] = [rangeOf(one), rangeOf(two)];
+      // Parts of a piece split by hand keep their own stretch when joined.
+      const range = (one.range || two.range) && first && second ? { start: first.start, end: second.end } : undefined;
+      const joined: Sentence = { id: `${keys.join("-")}${range ? `~${range.start.toFixed(3)}` : ""}`, keys, text: joinPieces([one.text.trim(), two.text.trim()].filter(Boolean), language), include: one.include || two.include, ...(range ? { range } : {}) };
       return [...current.slice(0, index), joined, ...current.slice(index + 2)];
     });
   }
@@ -271,14 +327,15 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
     setSentences((current) => current && [...current.slice(0, index), ...current[index].keys.map((key) => sentenceFrom([key], heard)), ...current.slice(index + 1)]);
   }
 
-  // One listening card for the whole recording. Every sentence is on it, even
-  // those without a sentence card, because they're all in the audio. Audio 2
-  // is recorded a sentence at a time: Thai is only respelled for the speech
-  // model when it's short, so a whole passage at once would be misread.
+  // One listening card for the whole recording: each sentence (or, for
+  // repeated phrases, each phrase once) on its own line. All of them are on
+  // it, even those without a card of their own, because they're all in the
+  // audio. Audio 2 is recorded a line at a time: Thai is only respelled for
+  // the speech model when it's short, so a whole passage at once would be misread.
   async function buildListeningCard(known: Map<string, { english: string; reading: string; speech?: string }>): Promise<ListeningCardDraft | null> {
-    const rows = (sentences || []).filter((sentence) => sentence.text.trim());
-    if (!rows.length) return null;
-    const lines = rows.map((sentence) => sentence.text.trim().replace(/\s*\n\s*/g, " "));
+    const texts = mode === "repeated" ? (phrases || []).map((phrase) => phrase.text) : (sentences || []).map((sentence) => sentence.text);
+    const lines = texts.map((text) => text.trim().replace(/\s*\n\s*/g, " ")).filter(Boolean);
+    if (!lines.length) return null;
     const english: string[] = [];
     const speech: string[] = [];
     let speechFailed = false;
@@ -301,8 +358,10 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
       done += 1;
       setStatus(`Making the listening card... ${done} of ${lines.length}`);
     });
-    const whole = rows.flatMap((sentence) => sentence.keys);
-    const audio = await audioOf({ id: `${whole[0]}-${whole[whole.length - 1]}`, keys: [whole[0], whole[whole.length - 1]], text: "", include: true });
+    // From the first words to the last.
+    const spoken = (pieces || []).filter((piece) => heard[piece.key]);
+    if (!spoken.length) return null;
+    const audio = await audioOf({ id: "whole", keys: [spoken[0].key, spoken[spoken.length - 1].key], text: "", include: true });
     if (!audio) return null;
     if (speechFailed) setFailures((current) => [...current, "Some of the listening card's text-to-speech couldn't be recorded, so it has no Audio 2."]);
     return {
@@ -327,7 +386,7 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
     const tags = parseTags(batchTag);
     const sources: CardSource[] = mode === "repeated"
       ? chosenPhrases.map((phrase) => ({ text: phrase.text.trim(), audio: dataOf(phrase.audio1), audio2: phrase.audio2 ? dataOf(phrase.audio2) : undefined }))
-      : await Promise.all(chosenSentences.map(async (sentence) => ({ text: sentence.text.trim(), audio: await audioOf(sentence) })));
+      : await Promise.all(chosenSentences.map(async (sentence) => ({ text: sentence.text.trim().replace(/\s*\n\s*/g, " "), audio: await audioOf(sentence) })));
     const prepared: BranchItem[] = [];
     const known = new Map<string, { english: string; reading: string; speech?: string }>();
     let done = 0;
@@ -382,7 +441,7 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
             items={items}
             pick
             doneLabel={mode === "repeated" ? "Back to the phrases" : "Back to the sentences"}
-            title="Phrase clips to Anki"
+            title="Phrase clip transcripts to Anki"
             batchTags={parseTags(batchTag)}
             depth={1}
             tagSuggestions={tagSuggestions}
@@ -482,40 +541,49 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
         <>
           <div className="book-audio-table phrase-clips-table">
             <table>
-              <thead><tr><th>Add</th><th>{language}</th><th>Audio</th><th>Pieces</th></tr></thead>
+              <thead><tr><th>Add</th><th>{language}</th><th>Audio</th></tr></thead>
               <tbody>
-                {sentences.map((sentence, index) => (
-                  <tr key={sentence.id} className={sentence.include ? "" : "unused"}>
-                    <td><input type="checkbox" aria-label={`Add ${sentence.text}`} checked={sentence.include} disabled={busy} onChange={(event) => updateSentence(sentence.id, { include: event.target.checked })} /></td>
-                    <td><textarea className="phrase-clips-text" aria-label="Sentence text" rows={2} value={sentence.text} disabled={busy} onChange={(event) => updateSentence(sentence.id, { text: event.target.value })} /></td>
-                    <td><div className="book-audio-cell">
-                      <button className="text-button" type="button" onClick={() => void audioOf(sentence).then((data) => { if (data) playData(data); })}>▶ Play</button>
-                      <span className="anki-note">{seconds(sentenceLength(sentence))}</span>
-                    </div></td>
-                    <td><div className="book-audio-cell">
-                      {index < sentences.length - 1 && <button className="text-button" type="button" disabled={busy} onClick={() => joinWithNext(index)}>Join with next</button>}
-                      {sentence.keys.length > 1 && <button className="text-button" type="button" disabled={busy} onClick={() => splitSentence(index)}>Split into {sentence.keys.length}</button>}
-                    </div></td>
-                  </tr>
-                ))}
+                {sentences.map((sentence, index) => {
+                  const lineCount = linesOf(sentence.text).length;
+                  return (
+                    <tr key={sentence.id} className={sentence.include ? "" : "unused"}>
+                      <td><input type="checkbox" aria-label={`Add ${sentence.text}`} checked={sentence.include} disabled={busy} onChange={(event) => updateSentence(sentence.id, { include: event.target.checked })} /></td>
+                      <td><textarea className="phrase-clips-text" aria-label="Sentence text" rows={2} value={sentence.text} disabled={busy} onChange={(event) => updateSentence(sentence.id, { text: event.target.value })} /></td>
+                      <td><div className="phrase-clips-actions">
+                        <span><button className="text-button" type="button" onClick={() => void audioOf(sentence).then((data) => { if (data) playData(data); })}>▶ Play</button> <span className="anki-note">{seconds(sentenceLength(sentence))}</span></span>
+                        {splitNeighbours(index) && (
+                          <span className="anki-note" title="Moves the cut between this and the sentence above">Cut above:{" "}
+                            <button className="text-button" type="button" disabled={busy} aria-label="Move the cut above 0.2 seconds earlier" onClick={() => moveCut(index, -0.2)}>◀ 0.2 s</button>{" "}
+                            <button className="text-button" type="button" disabled={busy} aria-label="Move the cut above 0.2 seconds later" onClick={() => moveCut(index, 0.2)}>0.2 s ▶</button>
+                          </span>
+                        )}
+                        {lineCount > 1 && <button className="text-button" type="button" disabled={busy} title="Splits the audio to match the lines you typed" onClick={() => splitByLines(index)}>Split audio into {lineCount} (one per line)</button>}
+                        {sentence.keys.length > 1 && <button className="text-button" type="button" disabled={busy} title="Goes back to the pieces it was cut into, with what was heard in each" onClick={() => splitSentence(index)}>Split into its {sentence.keys.length} pieces</button>}
+                        {index < sentences.length - 1 && <button className="text-button" type="button" disabled={busy} onClick={() => joinWithNext(index)}>Join with next</button>}
+                      </div></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          <p className="anki-note">Listen to each one. Correct the text, join or split sentences, and untick anything you don&apos;t want, such as a greeting or sign-off. Splitting goes back to what was heard in each piece, so it undoes any corrections to that sentence.</p>
+          <p className="anki-note">Listen to each one. Correct the text, join or split sentences, and untick anything you don&apos;t want, such as a greeting or sign-off. If one row holds several sentences said without a pause, put each on its own line in the text, then click <b>Split audio into N</b>; if a cut is off, move it with the buttons on the row below it. <b>Split into its pieces</b> goes back to what was heard in each piece, undoing corrections to that sentence.</p>
           <label className="anki-checkbox">
             <input type="checkbox" checked={withSpeech} disabled={busy} onChange={(event) => setWithSpeech(event.target.checked)} />
             Add text-to-speech as Audio 2, a clearer version that plays after the speaker (with your OpenAI key and your Audio 2 voice in Settings)
           </label>
-          <label className="anki-checkbox">
-            <input type="checkbox" checked={makeListening && listeningReady} disabled={busy || !listeningReady} onChange={(event) => setMakeListening(event.target.checked)} />
-            Also make one listening card from the whole recording, with every sentence above on its own line and text-to-speech as its Audio 2 (the unticked sentences too, because they&apos;re in the audio)
-          </label>
-          {!listeningReady && <p className="anki-note">Listening cards need adding to your note type first: use <b>Add listening cards</b> above.</p>}
         </>
       )}
 
       {showCards && (
         <>
+          <label className="anki-checkbox">
+            <input type="checkbox" checked={makeListening && listeningReady} disabled={busy || !listeningReady} onChange={(event) => setMakeListening(event.target.checked)} />
+            {mode === "repeated"
+              ? "Also make one listening card from the whole recording, with each phrase above once on its own line, its English under “more”, and text-to-speech of the phrases as its Audio 2 (the unticked phrases too, because they're in the audio)"
+              : "Also make one listening card from the whole recording, with every sentence above on its own line and text-to-speech as its Audio 2 (the unticked sentences too, because they're in the audio)"}
+          </label>
+          {!listeningReady && <p className="anki-note">Listening cards need adding to your note type first: use <b>Add listening cards</b> above.</p>}
           <div className="book-audio-pick">
             <label className="phrase-clips-source">
               <span>Where is this from? (optional — shown on each note as &ldquo;Seen in&rdquo;)</span>
