@@ -279,15 +279,16 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
     setSentences((current) => current && [...current.slice(0, index), ...parts, ...current.slice(index + 1)]);
   }
 
-  // Moves the cut between a sentence and the one before it, when one split
-  // made them.
-  function moveCut(index: number, by: number) {
-    setSentences((current) => {
-      const [before, after] = [current?.[index - 1], current?.[index]];
-      if (!current || !before?.range || !after?.range) return current;
-      const cut = Math.min(after.range.end - 0.2, Math.max(before.range.start + 0.2, after.range.start + by));
-      return current.map((sentence, at) => at === index - 1 ? { ...sentence, range: { ...before.range!, end: cut } } : at === index ? { ...sentence, range: { ...after.range!, start: cut } } : sentence);
-    });
+  // Makes a sentence end earlier or later, when one split made it and the
+  // sentence after it: the time comes from, or goes to, the one after. Then
+  // plays it, so the new ending can be heard.
+  function moveEnd(index: number, by: number) {
+    const [row, next] = [sentences?.[index], sentences?.[index + 1]];
+    if (!sentences || !row?.range || !next?.range) return;
+    const cut = Math.min(next.range.end - 0.2, Math.max(row.range.start + 0.2, row.range.end + by));
+    const moved = { ...row, range: { ...row.range, end: cut } };
+    setSentences(sentences.map((sentence, at) => at === index ? moved : at === index + 1 ? { ...sentence, range: { ...next.range!, start: cut } } : sentence));
+    void audioOf(moved).then((data) => { if (data) playData(data); });
   }
 
   const splitNeighbours = (index: number) => {
@@ -551,14 +552,14 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
                       <td><textarea className="phrase-clips-text" aria-label="Sentence text" rows={2} value={sentence.text} disabled={busy} onChange={(event) => updateSentence(sentence.id, { text: event.target.value })} /></td>
                       <td><div className="phrase-clips-actions">
                         <span><button className="text-button" type="button" onClick={() => void audioOf(sentence).then((data) => { if (data) playData(data); })}>▶ Play</button> <span className="anki-note">{seconds(sentenceLength(sentence))}</span></span>
-                        {splitNeighbours(index) && (
-                          <span className="anki-note" title="Moves the cut between this and the sentence above">Cut above:{" "}
-                            <button className="text-button" type="button" disabled={busy} aria-label="Move the cut above 0.2 seconds earlier" onClick={() => moveCut(index, -0.2)}>◀ 0.2 s</button>{" "}
-                            <button className="text-button" type="button" disabled={busy} aria-label="Move the cut above 0.2 seconds later" onClick={() => moveCut(index, 0.2)}>0.2 s ▶</button>
+                        {splitNeighbours(index + 1) && (
+                          <span className="anki-note" title="Ends this sentence's audio earlier or later; the next sentence starts where it ends">End:{" "}
+                            <button className="text-button" type="button" disabled={busy} aria-label="End this sentence 0.2 seconds earlier, and play it" onClick={() => moveEnd(index, -0.2)}>− 0.2 s</button>{" · "}
+                            <button className="text-button" type="button" disabled={busy} aria-label="End this sentence 0.2 seconds later, and play it" onClick={() => moveEnd(index, 0.2)}>+ 0.2 s</button>
                           </span>
                         )}
                         {lineCount > 1 && <button className="text-button" type="button" disabled={busy} title="Splits the audio to match the lines you typed" onClick={() => splitByLines(index)}>Split audio into {lineCount} (one per line)</button>}
-                        {sentence.keys.length > 1 && <button className="text-button" type="button" disabled={busy} title="Goes back to the pieces it was cut into, with what was heard in each" onClick={() => splitSentence(index)}>Split into its {sentence.keys.length} pieces</button>}
+                        {sentence.keys.length > 1 && !sentence.range && <button className="text-button" type="button" disabled={busy} title="Goes back to the pieces it was cut into, with what was heard in each" onClick={() => splitSentence(index)}>Split into its {sentence.keys.length} pieces</button>}
                         {index < sentences.length - 1 && <button className="text-button" type="button" disabled={busy} onClick={() => joinWithNext(index)}>Join with next</button>}
                       </div></td>
                     </tr>
@@ -567,7 +568,7 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
               </tbody>
             </table>
           </div>
-          <p className="anki-note">Listen to each one. Correct the text, join or split sentences, and untick anything you don&apos;t want, such as a greeting or sign-off. If one row holds several sentences said without a pause, put each on its own line in the text, then click <b>Split audio into N</b>; if a cut is off, move it with the buttons on the row below it. <b>Split into its pieces</b> goes back to what was heard in each piece, undoing corrections to that sentence.</p>
+          <p className="anki-note">Listen to each one. Correct the text, join or split sentences, and untick anything you don&apos;t want, such as a greeting or sign-off. If one row holds several sentences said without a pause, put each on its own line in the text, then click <b>Split audio into N</b>. If a sentence&apos;s audio ends too early or too late, use <b>End: − 0.2 s · + 0.2 s</b> on that sentence: it plays again each time, and the next sentence starts where it ends. <b>Split into its pieces</b> goes back to what was heard in each piece, undoing corrections to that sentence.</p>
           <label className="anki-checkbox">
             <input type="checkbox" checked={withSpeech} disabled={busy} onChange={(event) => setWithSpeech(event.target.checked)} />
             Add text-to-speech as Audio 2, a clearer version that plays after the speaker (with your OpenAI key and your Audio 2 voice in Settings)
