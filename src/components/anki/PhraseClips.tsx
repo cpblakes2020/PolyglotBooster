@@ -393,7 +393,7 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
     await inParallel(sources, async (card, index) => {
       let described: Pick<BranchItem, "reading" | "english" | "comment" | "explanation"> = { reading: "", english: "", comment: "", explanation: "" };
       try {
-        const item = await describeSelection(card.text, transcript, language, providerId);
+        const item = await describeSelection(card.text, transcript, language, providerId, true);
         described = { reading: item.reading, english: item.english, comment: item.comment, explanation: item.explanation };
       } catch (error) {
         setFailures((current) => [...current, `${card.text}: ${error instanceof Error ? error.message : "its notes couldn't be written"}. Fill them in when you add it.`]);

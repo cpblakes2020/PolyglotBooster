@@ -151,9 +151,12 @@ export async function groupSentences(pieces: { key: string; text: string }[], la
   return result;
 }
 
-// One item the learner selected in an analysis.
-export async function describeSelection(selection: string, analysis: string, language: AnkiLanguage, providerId: LlmProviderId) {
-  const text = selectedItemText(selection, language);
+// One item the learner selected in an analysis. A selection is cut down to
+// its first stretch of the language's script, dropping a reading or gloss
+// selected with it. exact: describe the text as it is, e.g. a transcribed
+// sentence that includes a name in another script ("... อยู่ที่ Rio de Janeiro นะคะ").
+export async function describeSelection(selection: string, analysis: string, language: AnkiLanguage, providerId: LlmProviderId, exact = false) {
+  const text = exact ? selection.replace(/\s+/g, " ").trim() : selectedItemText(selection, language);
   if (!text) throw new Error(`The selection doesn't contain any ${language} text.`);
   const { result } = await postJson<{ result: unknown }>("/api/anki/assist", { kind: "describe", text, context: analysis, language }, { "x-polyglot-provider": providerId });
   const item = toBranchItem(result);
