@@ -508,6 +508,11 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
 
       {mode === "repeated" && phrases && phrases.length > 0 && (
         <>
+          <p className="anki-branch-select phrase-clips-select">
+            {chosenPhrases.length} of {phrases.length} ticked · Select{" "}
+            <button className="text-button" type="button" disabled={busy} onClick={() => setPhrases(phrases.map((phrase) => ({ ...phrase, include: true })))}>all</button>{" · "}
+            <button className="text-button" type="button" disabled={busy} onClick={() => setPhrases(phrases.map((phrase) => ({ ...phrase, include: false })))}>none</button>
+          </p>
           <div className="book-audio-table phrase-clips-table">
             <table>
               <thead><tr><th>Add</th><th>{language}</th><th>Audio 1</th><th>Audio 2 (plays after it)</th></tr></thead>
@@ -540,6 +545,11 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
 
       {mode === "monologue" && sentences && sentences.length > 0 && (
         <>
+          <p className="anki-branch-select phrase-clips-select">
+            {chosenSentences.length} of {sentences.length} ticked · Select{" "}
+            <button className="text-button" type="button" disabled={busy} onClick={() => setSentences(sentences.map((sentence) => ({ ...sentence, include: true })))}>all</button>{" · "}
+            <button className="text-button" type="button" disabled={busy} onClick={() => setSentences(sentences.map((sentence) => ({ ...sentence, include: false })))}>none</button>
+          </p>
           <div className="book-audio-table phrase-clips-table">
             <table>
               <thead><tr><th>Add</th><th>{language}</th><th>Audio</th></tr></thead>
