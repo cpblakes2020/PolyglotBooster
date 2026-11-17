@@ -111,6 +111,8 @@ Your work in progress — the text, the chosen task and its result — is kept i
 
 **Upload document:** click **Choose documents** and pick a DOCX, PDF, image (JPG, PNG, or HEIC — the iPhone camera's format), HTML, TXT or XML file (up to 4 MB each). HEIC photos are converted to JPG in your browser first, so iPhone photos synced to your PC (e.g. the **iCloud Photos** folder) can be picked as they are. You can select **several files at once** — for example every page of a chapter — and they're read one after another in filename order. In Chrome and Edge the picker reopens in the folder you used last. The text is extracted and placed in the text box, where you can edit it before running a task.
 
+**Recordings:** the same button takes an MP3, M4A, MP4, MOV or WAV recording of up to 15 minutes and 25 MB, for example audio captured from a video, a voice memo saved to Files, or an iPhone screen recording. It's uploaded to your account and transcribed with your OpenAI key (about half a cent a minute), in the language you're studying and English, so a lesson that mixes the two is written down as spoken. The transcript goes in the text box like any other text, so you can run tasks on it, such as **Make flashcards (selective)**. To make cards with the recording's own audio, tap **Save for listening** (see [Step 6](#step-6--save-or-send-to-anki)): it keeps the recording with the text, to use on your computer in [Phrase clip transcripts](#63c-phrase-clip-transcripts). A recording you don't save is deleted from your account after a day. On an iPhone or iPad, **Choose documents** opens the Files app: save a voice memo there first (Share → Save to Files).
+
 For photos, choose how they're read under **Read photos with** (the app remembers your choice):
 
 - **This device first** — free. The photo is read in your browser; if that finds too little text, the AI reader is used instead. Works well for clear, printed text.
@@ -162,7 +164,7 @@ Under a result, click **Ask a follow-up question**, type your question (the **In
 - **Send to Anki** (shown for Indonesian, Thai, Japanese, Spanish, French or Mandarin explained in English; works on a computer with Anki set up) puts it straight into your Anki collection — see [Send to Anki](#send-to-anki-from-the-study-desk).
 - **Send cards to Anki** does the same for a Make flashcards result — see [Flashcards to Anki](#flashcards-to-anki).
 - **Right-click a phrase** in the result or a follow-up answer to add just that phrase to Anki — see [Right-click to add a phrase](#right-click-to-add-a-phrase-from-the-study-desk).
-- **Save for listening** (under the text box; no task needs running) saves the text, or just the part you've selected in it, to make [listening notes](#63b-listening-notes) from later. It works on any device. For example, read a textbook page with the AI reader on a tablet, fix the text, select the part you want and tap **Save for listening**. Then make the notes on the computer running Anki.
+- **Save for listening** (under the text box; no task needs running) saves the text, or just the part you've selected in it, to make [listening notes](#63b-listening-notes) from later. It works on any device. For example, read a textbook page with the AI reader on a tablet, fix the text, select the part you want and tap **Save for listening**. Then make the notes on the computer running Anki. If the text came from a recording you uploaded, the recording is saved with it, to make cards with its audio in [Phrase clip transcripts](#63c-phrase-clip-transcripts) under **Saved recordings**.
 
 ---
 
@@ -481,7 +483,11 @@ See [Listening practice](#listening-practice) for studying them by hand or hands
 
 ### 6.3c Phrase clip transcripts
 
-**Phrase clip transcripts** makes sentence cards from a short recording, using the recording's own audio. You don't need a transcript, so it suits audio captured from a video. First choose what kind of recording it is:
+**Phrase clip transcripts** makes sentence cards from a short recording, using the recording's own audio. You don't need a transcript, so it suits audio captured from a video.
+
+**Saved recordings.** Recordings uploaded on the study desk and kept with **Save for listening** (on any device) are listed at the top. **Use** loads one as if you'd chosen its file, and sets the language. When you've made its cards, **Delete** removes the recording and its transcript from your account. Making listening notes from the same saved text on the **Listening** tab deletes its recording too; items there that have one are marked *with recording*. Saved recordings are kept at web addresses with a long random part, which can't be guessed but aren't password-protected.
+
+First choose what kind of recording it is:
 
 - **Repeated phrases:** a teacher says each phrase more than once, for example fast at a natural pace and then slowly. The first saying goes in the card's first recording and the first clearly slower one in its second, which plays straight after it.
 - **Monologue:** one person talking, saying each sentence once. The AI finds the sentences, and each one's audio goes in the card's first recording.

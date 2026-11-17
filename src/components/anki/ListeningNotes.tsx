@@ -158,7 +158,7 @@ export function ListeningNotes({ ready }: { ready: boolean }) {
           <ul>
             {saved.map((item) => (
               <li key={item.id} className={item.id === usedId ? "active" : ""}>
-                <span><b>{item.language}</b> · {new Date(item.createdAt).toLocaleDateString()} · {item.text.replace(/\s+/g, " ").slice(0, 90)}{item.text.length > 90 ? "…" : ""}</span>
+                <span><b>{item.language}</b> · {new Date(item.createdAt).toLocaleDateString()} · {item.recording && <em title="Saved with its recording, which is deleted along with it. To make cards with the recording, use Saved recordings on the Phrase clip transcripts tab.">with recording · </em>}{item.text.replace(/\s+/g, " ").slice(0, 90)}{item.text.length > 90 ? "…" : ""}</span>
                 <button className="text-button" type="button" disabled={busy} onClick={() => pickSaved(item)}>{item.id === usedId ? "In use" : "Use"}</button>
                 <button className="text-button" type="button" disabled={busy} onClick={() => void removeSaved(item.id)}>Delete</button>
               </li>

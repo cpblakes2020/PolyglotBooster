@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { assist, describeSelection, groupSentences, speak, transcribe, type AnalysisOptions } from "@/components/anki/api";
+import { assist, deleteListening, describeSelection, groupSentences, listeningList, speak, transcribe, type AnalysisOptions, type LaterItem } from "@/components/anki/api";
 import { BranchQueue } from "@/components/anki/BranchQueue";
 import { playData } from "@/components/anki/ClipMatcher";
 import { sourceTag } from "@/components/anki/FlashcardsToAnki";
@@ -12,7 +12,7 @@ import { TagInput, parseTags } from "@/components/anki/selection";
 import { anki } from "@/lib/anki/connect";
 import { findPhrases, joinPieces, phraseText, readSentenceGroups } from "@/lib/anki/phraseClips";
 import type { BranchItem } from "@/lib/anki/prompts";
-import { audioLanguages, type AnkiLanguage } from "@/lib/anki/vocab";
+import { audioLanguages, isAnkiLanguage, type AnkiLanguage } from "@/lib/anki/vocab";
 import { decodeRecording, encodeClip, joinMp3s, quietestPoint, type DecodedRecording } from "@/lib/audio/clipAudio";
 import { findClips } from "@/lib/audio/mp3Split";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
@@ -79,12 +79,48 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [failures, setFailures] = useState<string[]>([]);
+  // Recordings uploaded on the study desk and saved with their transcript.
+  const [savedRecordings, setSavedRecordings] = useState<LaterItem[] | null>(null);
+  const [usedSavedId, setUsedSavedId] = useState("");
   // Sentences' audio, encoded when first needed.
   const sentenceAudio = useRef(new Map<string, string>());
 
   useEffect(() => {
     void anki.getTags().then((tags) => setTagSuggestions(tags.filter((tag) => !tag.startsWith("pb::")).sort())).catch(() => {});
+    void listeningList().then((items) => setSavedRecordings(items.filter((item) => item.recording))).catch(() => setSavedRecordings([]));
   }, []);
+
+  // A saved recording, loaded as if its file had been chosen.
+  async function loadSaved(item: LaterItem) {
+    if (!item.recording) return;
+    setBusy(true);
+    setStatus(`Downloading ${item.recording.filename}...`);
+    try {
+      const response = await fetch(item.recording.url);
+      if (!response.ok) throw new Error("The recording is no longer in your account.");
+      const data = await response.blob();
+      if (isAnkiLanguage(item.language) && item.language !== "English") {
+        setLanguage(item.language);
+        clearResults();
+      }
+      setUsedSavedId(item.id);
+      await chooseFile(new File([data], item.recording.filename, { type: data.type }));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The recording couldn't be downloaded.");
+      setBusy(false);
+    }
+  }
+
+  async function deleteSaved(item: LaterItem) {
+    if (!window.confirm(`Delete "${item.recording?.filename}" and its saved transcript from your account? This can't be undone.`)) return;
+    try {
+      const items = await deleteListening([item.id]);
+      setSavedRecordings(items.filter((saved) => saved.recording));
+      if (usedSavedId === item.id) setUsedSavedId("");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "It couldn't be deleted.");
+    }
+  }
 
   function clearResults() {
     setHeard({});
@@ -464,6 +500,22 @@ export function PhraseClips({ listeningReady }: { listeningReady: boolean }) {
   return (
     <div className="settings-panel anki-panel book-audio phrase-clips">
       <p>Makes sentence cards from a short recording, with the recording&apos;s own audio. Choose an MP3, M4A or MP4 file: it&apos;s cut at its pauses on this computer, and each piece is transcribed with your OpenAI key. Nothing goes to Anki until you&apos;ve reviewed it.</p>
+
+      {savedRecordings && savedRecordings.length > 0 && (
+        <div className="listening-saved">
+          <p className="result-label">Saved recordings</p>
+          <ul>
+            {savedRecordings.map((item) => (
+              <li key={item.id} className={item.id === usedSavedId ? "active" : ""}>
+                <span><b>{item.language}</b> · {new Date(item.createdAt).toLocaleDateString()} · {item.recording?.filename} · {item.text.replace(/\s+/g, " ").slice(0, 70)}{item.text.length > 70 ? "…" : ""}</span>
+                <button className="text-button" type="button" disabled={busy} onClick={() => void loadSaved(item)}>{item.id === usedSavedId ? "In use" : "Use"}</button>
+                <button className="text-button" type="button" disabled={busy} onClick={() => void deleteSaved(item)}>Delete</button>
+              </li>
+            ))}
+          </ul>
+          <p className="anki-note">Uploaded on the study desk and kept with <b>Save for listening</b>, on any device. <b>Use</b> loads the recording here, as if you&apos;d chosen its file. Choose the kind of recording below before finding the phrases or sentences. When you&apos;ve made its cards, <b>Delete</b> removes the recording and its transcript from your account.</p>
+        </div>
+      )}
 
       <fieldset className="phrase-clips-mode" disabled={busy}>
         <legend>What kind of recording is it?</legend>

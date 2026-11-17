@@ -81,7 +81,9 @@ export async function askFollowUp(question: string, item: { text: string; englis
 // saved on any device. Pages showing it listen for this event to refresh.
 export const laterChangedEvent = "pb-later-changed";
 
-export type LaterItem = { id: string; text: string; language: string; context: string; source: string; createdAt: string };
+export type SavedRecording = { url: string; filename: string };
+
+export type LaterItem = { id: string; text: string; language: string; context: string; source: string; createdAt: string; recording?: SavedRecording };
 
 async function laterRequest(method: "GET" | "POST" | "DELETE", body?: unknown) {
   const response = await fetch("/api/anki/later", { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -115,7 +117,8 @@ async function listeningRequest(method: "GET" | "POST" | "DELETE", body?: unknow
 
 export const listeningList = () => listeningRequest("GET");
 
-export const saveForListening = (text: string, language: AnkiLanguage, source: string) => listeningRequest("POST", { text, language, source });
+// recording: the uploaded recording the text was transcribed from.
+export const saveForListening = (text: string, language: AnkiLanguage, source: string, recording?: SavedRecording | null) => listeningRequest("POST", { text, language, source, ...(recording ? { recording } : {}) });
 
 export const deleteListening = (ids: string[]) => listeningRequest("DELETE", { ids });
 

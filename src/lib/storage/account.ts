@@ -50,6 +50,8 @@ export type LaterItem = {
   context: string;
   source: string;
   createdAt: string;
+  // The recording the text was transcribed from (listening list only).
+  recording?: { url: string; filename: string };
 };
 
 // A summary of the list, rewritten after every change, so that showing the

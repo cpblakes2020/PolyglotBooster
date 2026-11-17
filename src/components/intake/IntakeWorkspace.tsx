@@ -123,6 +123,9 @@ export function IntakeWorkspace() {
   const [audioVoice, setAudioVoice] = useState("");
   const [audioSourceText, setAudioSourceText] = useState("");
   const [audioStatus, setAudioStatus] = useState("");
+  // The recording the text box was transcribed from, if it was uploaded,
+  // so Save for listening can keep it for making cards on the computer.
+  const [recording, setRecording] = useState<{ url: string; filename: string } | null>(null);
 
   useEffect(() => {
     const savedProvider = window.localStorage.getItem(selectedProviderPreferenceKey);
@@ -400,6 +403,7 @@ export function IntakeWorkspace() {
 
   function clearInput() {
     setText("");
+    setRecording(null);
     setLoadedExample("");
     setPromptPreview("");
     setPromptParts(null);
@@ -496,7 +500,7 @@ export function IntakeWorkspace() {
               <textarea ref={studyTextRef} id="study-text" className="study-text" value={text} maxLength={12000} onChange={(event) => setText(event.target.value)} onContextMenu={sourceMenu.onContextMenu} placeholder="Try something in a language you are learning..." />
               {sourceMenu.element}
               {sourceLookup.element}
-              <div className="field-footer"><span>{text.length} / 12,000 characters</span><button className="clear-input-button" type="button" disabled={!text} onClick={clearInput}>Clear</button>{canSaveForListening(sourceLanguage) && <SaveForListeningButton textarea={studyTextRef} text={text} language={sourceLanguage} />}<span>Text stays in this workspace</span></div>
+              <div className="field-footer"><span>{text.length} / 12,000 characters</span><button className="clear-input-button" type="button" disabled={!text} onClick={clearInput}>Clear</button>{canSaveForListening(sourceLanguage) && <SaveForListeningButton textarea={studyTextRef} text={text} language={sourceLanguage} recording={recording} />}<span>Text stays in this workspace</span></div>
               <div className="provider-row">
                 <label htmlFor="llm-provider">Provider</label>
                 <select id="llm-provider" value={providerId} onChange={(event) => changeProvider(event.target.value as LlmProviderId)}>{llmProviderOptions.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select>
@@ -593,7 +597,7 @@ export function IntakeWorkspace() {
               </AnkiSelectionArea></section>}
             </>
           ) : (
-            <UploadPanel providerId={providerId} sourceLanguage={sourceLanguage} hasText={Boolean(text.trim())} onTextExtracted={(extractedText, filename, append, last) => { setText((current) => append ? `${current.trimEnd()}\n\n${extractedText}` : extractedText); setLoadedExample(`${filename} ${append ? "added" : "loaded"}`); if (last) setMode("text"); }} />
+            <UploadPanel providerId={providerId} sourceLanguage={sourceLanguage} hasText={Boolean(text.trim())} onRecording={setRecording} onTextExtracted={(extractedText, filename, append, last) => { if (!append) setRecording(null); setText((current) => append ? `${current.trimEnd()}\n\n${extractedText}` : extractedText); setLoadedExample(`${filename} ${append ? "added" : "loaded"}`); if (last) setMode("text"); }} />
           )}
         </div>
       </section>

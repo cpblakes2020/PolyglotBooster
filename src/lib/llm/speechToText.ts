@@ -6,11 +6,13 @@ const languageCodes: Record<AnkiLanguage, string> = { English: "en", Indonesian:
 
 type OpenAiTranscription = { text?: string; error?: { message?: string } };
 
-// What a short MP3 clip says. languages: the ones expected in it, which guide
-// the model without filtering: speech in another language is still written down.
-export async function transcribeSpeech(audio: Buffer, languages: AnkiLanguage[], apiKey: string) {
+// What a recording says. languages: the ones expected in it, which guide the
+// model without filtering: speech in another language is still written down.
+// file: its name and type, for anything other than an MP3 clip; OpenAI tells
+// the format from the name.
+export async function transcribeSpeech(audio: Buffer, languages: AnkiLanguage[], apiKey: string, file: { name: string; type: string } = { name: "clip.mp3", type: "audio/mpeg" }) {
   const form = new FormData();
-  form.append("file", new Blob([new Uint8Array(audio)], { type: "audio/mpeg" }), "clip.mp3");
+  form.append("file", new Blob([new Uint8Array(audio)], { type: file.type }), file.name);
   form.append("model", "gpt-transcribe");
   for (const language of languages) form.append("languages[]", languageCodes[language]);
   const response = await fetch(openAiTranscriptionEndpoint, {
@@ -19,6 +21,6 @@ export async function transcribeSpeech(audio: Buffer, languages: AnkiLanguage[],
     body: form,
   });
   const result = await response.json().catch(() => ({})) as OpenAiTranscription;
-  if (!response.ok) throw new Error(result.error?.message || "OpenAI could not transcribe the clip.");
+  if (!response.ok) throw new Error(result.error?.message || "OpenAI could not transcribe the recording.");
   return (result.text || "").trim();
 }
