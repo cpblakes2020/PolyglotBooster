@@ -41,7 +41,8 @@ export async function transcribe(data: string, language: AnkiLanguage, alsoEngli
 
 export type AnalysisOptions ={ providerId: LlmProviderId; learnerLevel: LearnerLevel; outputStyle: OutputStyle };
 
-export async function analyze(text: string, language: AnkiLanguage, templateId: string, options: AnalysisOptions) {
+// customInstruction: the instructions for the study desk's Custom task.
+export async function analyze(text: string, language: AnkiLanguage, templateId: string, options: AnalysisOptions, customInstruction?: string) {
   const { result } = await postJson<{ result: string }>("/api/tasks/run", {
     text,
     sourceLanguage: language,
@@ -49,6 +50,7 @@ export async function analyze(text: string, language: AnkiLanguage, templateId: 
     learnerLevel: options.learnerLevel,
     outputStyle: options.outputStyle,
     promptTemplateId: templateId,
+    ...(customInstruction ? { customInstruction } : {}),
   }, { "x-polyglot-provider": options.providerId });
   return result;
 }

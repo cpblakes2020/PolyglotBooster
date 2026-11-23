@@ -17,7 +17,10 @@ import { analysisLanguage, ankiLanguages, audio2Field, audioField, audioFilename
 import { lookUpDictItems } from "@/lib/dictionary/client";
 import { dictItemsHtml, mergeDictItems, parseDictHtml, type DictNoteItem } from "@/lib/dictionary/notesBlock";
 import { llmProviderOptions, type LlmProviderId } from "@/lib/llm/provider";
-import type { LearnerLevel, OutputStyle } from "@/lib/types";
+import type { Language, LearnerLevel, OutputStyle, PromptTemplate } from "@/lib/types";
+import { customTaskId, customTaskName, maxCustomInstructionLength } from "@/lib/customTask";
+import { isFlashcardTemplate } from "@/lib/flashcards";
+import { visibleTemplatesFor } from "@/lib/templateOrder";
 import { ReadingStyle, VoicePick, useVoiceDefaults } from "@/components/anki/VoiceControls";
 import type { TtsVoice, VoiceSetting } from "@/lib/voices";
 
@@ -29,7 +32,10 @@ const outputStyles: OutputStyle[] = ["Concise", "Detailed", "Literal", "Natural"
 // (orig…) so Save changes writes only the parts you changed.
 type Draft = {
   classification: Classification;
-  kind: ItemKind;
+  // The task the analysis is written with: any of the study desk's tasks for
+  // the language (Word Analysis, Sentence Guide, Explain grammar, ...) or
+  // the Custom task.
+  templateId: string;
   cleanedText: string;
   fieldText: string;
   replaceField: boolean;
@@ -59,14 +65,14 @@ function newDraft(note: VocabNote, language: AnkiLanguage): Draft {
   const classification = classifyItem(cleaned.text, language);
   const notesHtml = note.fields[notesField(language)] || "";
   // A previously analyzed note opens with its saved analysis and template.
-  const savedTemplate = note.tags.find((tag) => tag.startsWith(`${pbTags.analyzedPrefix(language)}::`));
-  const savedKind: ItemKind | undefined = savedTemplate?.endsWith(sentenceTemplateId(language)) ? "sentence" : savedTemplate?.endsWith(wordTemplateId(language)) ? "word" : undefined;
+  const prefix = `${pbTags.analyzedPrefix(language)}::`;
+  const savedTemplate = note.tags.find((tag) => tag.startsWith(prefix) && tag !== pbTags.analyzed(language, "dictionary"))?.slice(prefix.length);
   const reading = existingReading(notesHtml);
   const analysis = existingAnalysis(notesHtml);
   const blocks = splitNotesBlocks(notesMiddle(notesHtml));
   return {
     classification,
-    kind: savedKind || classification.kind,
+    templateId: savedTemplate || (classification.kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language)),
     cleanedText: cleaned.text,
     fieldText: cleaned.text,
     replaceField: fieldNeedsCleanup(raw, cleaned),
@@ -79,6 +85,14 @@ function newDraft(note: VocabNote, language: AnkiLanguage): Draft {
     origBlocks: JSON.stringify(blocks),
     englishNote: englishNoteText(note),
   };
+}
+
+// Whether the note is treated as a word or a sentence where that matters
+// (Japanese dictionary entries): as its task says, or as it was classified.
+function itemKind(draft: Draft, language: AnkiLanguage): ItemKind {
+  if (draft.templateId === wordTemplateId(language)) return "word";
+  if (draft.templateId === sentenceTemplateId(language)) return "sentence";
+  return draft.classification.kind;
 }
 
 type Branch = { items?: BranchItem[] };
@@ -206,6 +220,15 @@ export function ReviewSession() {
   const [editingAnalysis, setEditingAnalysis] = useState(false);
   // Whether the note's cards carry Anki's red flag (null while checking).
   const [flagged, setFlagged] = useState<boolean | null>(null);
+
+  // The study desk's tasks, for choosing what the analysis is written with.
+  // Flashcard tasks are left out: they return cards, not an analysis.
+  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
+  const [customInstruction, setCustomInstruction] = useState("");
+  useEffect(() => {
+    fetch("/api/templates").then((response) => response.json()).then((data: { templates?: PromptTemplate[] }) => setTemplates(data.templates || []), () => {});
+  }, []);
+  const taskChoices = visibleTemplatesFor(templates, language as Language).filter((template) => !isFlashcardTemplate(template.id));
 
   useEffect(() => {
     anki.getTags().then((tags) => setTagSuggestions(tags.filter((tag) => !tag.startsWith("pb::")).sort()), () => {});
@@ -342,9 +365,13 @@ export function ReviewSession() {
     setStatus(which === "reading" ? "Generating reading..." : "Analyzing...");
     try {
       const text = draft.fieldText.trim() || draft.cleanedText;
-      const templateId = draft.kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language);
+      const custom = draft.templateId === customTaskId;
+      if (which !== "reading" && custom && !customInstruction.trim()) {
+        setStatus("Type the Custom task's instructions first.");
+        return;
+      }
       const [analysis, reading] = await Promise.all([
-        which === "reading" ? Promise.resolve(draft.analysis) : analyze(text, language, templateId, options),
+        which === "reading" ? Promise.resolve(draft.analysis) : analyze(text, language, draft.templateId, options, custom ? customInstruction.trim() : undefined),
         which === "analysis" || !usesReading ? Promise.resolve(draft.reading) : assist("reading", text, language, options.providerId, language === "Japanese" && note?.fields.Mandarin?.trim() ? "chinese" : undefined),
       ]);
       setDraft((current) => current && { ...current, analysis, reading });
@@ -365,9 +392,10 @@ export function ReviewSession() {
     setStatus("Looking up the dictionary...");
     try {
       const text = draft.fieldText.trim() || draft.cleanedText;
-      const items = await lookUpDictItems(text, draft.kind);
+      const kind = itemKind(draft, language);
+      const items = await lookUpDictItems(text, kind);
       if (!items.length) {
-        setStatus(draft.kind === "word" ? "Not found in the dictionary." : "Nothing hard enough here: no kanji beyond elementary school and no uncommon words.");
+        setStatus(kind === "word" ? "Not found in the dictionary." : "Nothing hard enough here: no kanji beyond elementary school and no uncommon words.");
         return;
       }
       update({ dict: items });
@@ -471,7 +499,7 @@ export function ReviewSession() {
     // A textbook or video clip moved into Audio 1 needs protecting from Bulk audio.
     if (swapAudio && /-book/.test(soundFilename(savedAudio2) || "")) tags.push(pbTags.bookAudio(language));
     // A saved analysis marks the note as analyzed, with its template.
-    if (analysisDirty && draft.analysis.trim()) tags.push(pbTags.analyzed(language, draft.kind === "word" ? wordTemplateId(language) : sentenceTemplateId(language)));
+    if (analysisDirty && draft.analysis.trim()) tags.push(pbTags.analyzed(language, draft.templateId));
     // So do dictionary entries saved without one (it's done with for now).
     else if (draft.dict?.length && !draft.analysis.trim()) tags.push(pbTags.analyzed(language, "dictionary"));
     return { fields, labels, tags };
@@ -513,7 +541,7 @@ export function ReviewSession() {
       }
       const updated: VocabNote = { ...note, fields: { ...note.fields, ...fields }, tags: [...new Set([...note.tags, ...tags])].filter((tag) => !removedTags.includes(tag)) };
       setQueue((current) => current && current.map((item) => item.noteId === note.noteId ? updated : item));
-      setDraft({ ...newDraft(updated, language), kind: draft.kind });
+      setDraft({ ...newDraft(updated, language), templateId: draft.templateId });
       setNewAudio(null);
       setNewAudio2(null);
       setSwapAudio(false);
@@ -653,12 +681,6 @@ export function ReviewSession() {
           <label htmlFor="anki-level">Level</label>
           <select id="anki-level" value={options.learnerLevel} onChange={(event) => setOptions({ ...options, learnerLevel: event.target.value as LearnerLevel })}>
             {learnerLevels.map((level) => <option key={level}>{level}</option>)}
-          </select>
-        </div>
-        <div className="language-bar-field">
-          <label htmlFor="anki-style">Style</label>
-          <select id="anki-style" value={options.outputStyle} onChange={(event) => setOptions({ ...options, outputStyle: event.target.value as OutputStyle })}>
-            {outputStyles.map((style) => <option key={style}>{style}</option>)}
           </select>
         </div>
         <button className="save-input-button" type="button" disabled={busy} onClick={() => void loadQueue("session")}>Start session</button>
@@ -841,11 +863,26 @@ export function ReviewSession() {
           <section className="anki-tool">
             <p className="result-label">{notesField(language)} — what the card shows under &ldquo;more&rdquo;{(analysisDirty || blocksDirty || dictDirty) && <span className="anki-changed">changed</span>}</p>
 
-            <div className="anki-template-choice" role="radiogroup" aria-label="Analysis template">
-              <label><input type="radio" checked={draft.kind === "word"} onChange={() => update({ kind: "word" })} /> Word analysis</label>
-              <label><input type="radio" checked={draft.kind === "sentence"} onChange={() => update({ kind: "sentence" })} /> Sentence guide</label>
-              <span className="anki-note">Suggested: {draft.classification.kind} ({draft.classification.reason}){draft.classification.certain ? "" : " — not sure, check this"}</span>
+            <div className="anki-template-choice">
+              <label>Task{" "}
+                <select value={draft.templateId} disabled={busy} onChange={(event) => update({ templateId: event.target.value })}>
+                  {taskChoices.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+                  {draft.templateId !== customTaskId && !taskChoices.some((template) => template.id === draft.templateId) && <option value={draft.templateId}>{draft.templateId}</option>}
+                  <option value={customTaskId}>{customTaskName}</option>
+                </select>
+              </label>
+              <label>Style{" "}
+                <select value={options.outputStyle} disabled={busy} onChange={(event) => setOptions({ ...options, outputStyle: event.target.value as OutputStyle })}>
+                  {outputStyles.map((style) => <option key={style}>{style}</option>)}
+                </select>
+              </label>
+              <span className="anki-note">Suggested: {draft.classification.kind === "word" ? "Word Analysis" : "Sentence Guide"} ({draft.classification.reason}){draft.classification.certain ? "" : " — not sure, check this"}</span>
             </div>
+            {draft.templateId === customTaskId && (
+              <label className="anki-field-edit anki-custom-task">Custom task instructions (kept from note to note)
+                <textarea rows={3} value={customInstruction} maxLength={maxCustomInstructionLength} placeholder="e.g. Explain only the particles in this sentence" onChange={(event) => setCustomInstruction(event.target.value)} />
+              </label>
+            )}
             <div className="input-action-row">
               <button className="save-input-button" type="button" disabled={busy} onClick={() => void generate(draft.analysis ? "analysis" : "all")}>{draft.analysis ? "Regenerate analysis" : "Analyze"}</button>
               {draft.analysis && <button className="text-button" type="button" disabled={busy} onClick={() => setEditingAnalysis(!editingAnalysis)}>{editingAnalysis ? "Hide the Markdown" : "Edit analysis (Markdown)"}</button>}
@@ -862,9 +899,9 @@ export function ReviewSession() {
                 </div>
                 <p className="anki-note">
                   Instead of an analysis, or as well: dictionary entries (no AI), saved under the reading.{" "}
-                  {draft.kind === "word"
-                    ? "With Word analysis selected: the word's JMdict entries, and each of its kanji with other words that use it."
-                    : "With Sentence guide selected: only the hard parts — the hardest kanji (beyond the 1,026 taught in elementary school, at most 5) and the words that use them or aren't everyday words."}
+                  {itemKind(draft, language) === "word"
+                    ? "For a word: the word's JMdict entries, and each of its kanji with other words that use it."
+                    : "For a sentence: only the hard parts — the hardest kanji (beyond the 1,026 taught in elementary school, at most 5) and the words that use them or aren't everyday words."}
                 </p>
                 {draft.dict && draft.dict.length > 0 && (
                   <>

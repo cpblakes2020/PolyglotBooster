@@ -337,6 +337,8 @@ select { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-ra
 .anki-checkbox { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; color: var(--muted); font-size: 12px; }
 .anki-template-choice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; border-top: 1px solid var(--line); padding-top: 14px; font-size: 13px; }
 .anki-template-choice .anki-note { margin: 0; }
+.anki-field-edit.anki-custom-task { margin: 12px 0 0; }
+.anki-field-edit.anki-custom-task textarea { min-height: 70px; font-family: inherit; font-size: 13px; }
 .anki-note-card .input-action-row { margin-top: 14px; padding-bottom: 14px; }
 .anki-field-edit textarea.anki-reading-input { min-height: 0; resize: vertical; font-family: inherit; font-size: 13px; line-height: 1.5; }
 .anki-draft { border-top: 1px solid var(--line); padding-top: 14px; padding-bottom: 14px; }
