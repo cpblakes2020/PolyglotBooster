@@ -1,6 +1,6 @@
 # PolyglotBooster User Manual
 
-*Last updated: November 4, 2026*
+*Last updated: November 22, 2026*
 
 PolyglotBooster is a study companion for learning languages through other languages. You give it a word, a sentence, or a whole document in the language you're learning; it explains it through a language you already know, reads it aloud, and turns it into Anki flashcards — including rich notes, audio, and new cards for the example sentences and related words it finds along the way.
 
@@ -109,7 +109,7 @@ The app remembers your choices.
 
 Your work in progress — the text, the chosen task and its result — is kept in this browser, so reloading or closing the page doesn't lose it. **Clear** empties it. It isn't shared between devices; use **Save for review** to keep a result in your account.
 
-**Upload document:** click **Choose documents** and pick a DOCX, PDF, image (JPG, PNG, or HEIC — the iPhone camera's format), HTML, TXT or XML file (up to 4 MB each). HEIC photos are converted to JPG in your browser first, so iPhone photos synced to your PC (e.g. the **iCloud Photos** folder) can be picked as they are. You can select **several files at once** — for example every page of a chapter — and they're read one after another in filename order. In Chrome and Edge the picker reopens in the folder you used last. The text is extracted and placed in the text box, where you can edit it before running a task.
+**Upload document:** click **Choose documents** and pick a DOCX, PDF, image (JPG, PNG, or HEIC — the iPhone camera's format), HTML, TXT or XML file (up to 4 MB each). HEIC photos are converted to JPG in your browser first, so iPhone photos synced to your PC (e.g. the **iCloud Photos** folder) can be picked as they are. You can select **several files at once** — for example every page of a chapter — and they're read one after another in filename order. In Chrome and Edge the picker reopens in the folder you used last. The text is extracted and placed in the text box, where you can edit it before running a task. To keep study photos and screenshots out of your photo library and in per-language folders that are easy to pick from, see [Moving study photos from iPhone or iPad to iCloud Drive](#moving-study-photos-from-iphone-or-ipad-to-icloud-drive).
 
 **Recordings:** the same button takes an MP3, M4A, MP4, MOV or WAV recording of up to 15 minutes and 25 MB, for example audio captured from a video, a voice memo saved to Files, or an iPhone screen recording. It's uploaded to your account and transcribed with your OpenAI key (about half a cent a minute), in the language you're studying and English, so a lesson that mixes the two is written down as spoken. The transcript goes in the text box like any other text, so you can run tasks on it, such as **Make flashcards (selective)**. To make cards with the recording's own audio, tap **Save for listening** (see [Step 6](#step-6--save-or-send-to-anki)): it keeps the recording with the text, to use on your computer in [Phrase clip transcripts](#63c-phrase-clip-transcripts). A recording you don't save is deleted from your account after a day. On an iPhone or iPad, **Choose documents** opens the Files app: save a voice memo there first (Share → Save to Files).
 
@@ -165,6 +165,47 @@ Under a result, click **Ask a follow-up question**, type your question (the **In
 - **Send cards to Anki** does the same for a Make flashcards result — see [Flashcards to Anki](#flashcards-to-anki).
 - **Right-click a phrase** in the result or a follow-up answer to add just that phrase to Anki — see [Right-click to add a phrase](#right-click-to-add-a-phrase-from-the-study-desk).
 - **Save for listening** (under the text box; no task needs running) saves the text, or just the part you've selected in it, to make [listening notes](#63b-listening-notes) from later. It works on any device. For example, read a textbook page with the AI reader on a tablet, fix the text, select the part you want and tap **Save for listening**. Then make the notes on the computer running Anki. If the text came from a recording you uploaded, the recording is saved with it, to make cards with its audio in [Phrase clip transcripts](#63c-phrase-clip-transcripts) under **Saved recordings**.
+
+### Moving study photos from iPhone or iPad to iCloud Drive
+
+Textbook pages you photograph and ebook pages you screenshot pile up in the Photos app among your other pictures. An Apple Shortcut can move them into a folder per language in iCloud Drive with a couple of taps: it saves them there, then deletes them from Photos. On a computer, **Choose documents** can then open that folder directly (on Windows with iCloud for Windows, it's under `C:\Users\<you>\iCloudDrive`).
+
+**Before you start:** in the Files app, create a folder in **iCloud Drive** for each language you study, e.g. *Thai*, *Japanese*, *Indonesian*.
+
+**Build the shortcut** (once on each device, in the **Shortcuts** app):
+
+1. Tap **+** to start a new shortcut. Tap its name at the top → **Rename**, and call it *Move to Polyglot*.
+2. Tap **Search Actions**, add **Choose from Menu**. Tap **Prompt** and type *Language?*. Rename the items to your languages (**Add New Item** adds more).
+3. Tap **ⓘ** in the bottom bar and turn on **Show in Share Sheet**. A **Receive … from Share Sheet** block appears at the top; tap its input type and choose **Images**.
+4. Under the first language, add **Save File**. The action has two blanks:
+   - **File** — what to save. **Touch and hold** it (a tap opens a file picker instead) and choose **Shortcut Input** (if the menu shows **Select Variable**, tap it and then tap **Shortcut Input**).
+   - **Shortcuts** — where to save. Tap the word and choose that language's folder in iCloud Drive.
+   - Tap **›** and turn **Ask Where to Save** off. Leave **Subpath** empty and **Overwrite If File Exists** off.
+5. Repeat step 4 under each of the other languages, with its own folder.
+6. Add **Delete Photos** and drag it below **End Menu**. Touch and hold its blank and choose **Shortcut Input**.
+
+The finished shortcut reads:
+
+```
+Receive Images from Share Sheet
+Choose from Menu "Language?"
+  Thai      → Save Shortcut Input to Thai
+  Japanese  → Save Shortcut Input to Japanese
+End Menu
+Delete Shortcut Input
+```
+
+> If the editor won't let you leave, add an action first: a shortcut with no actions can't be saved, and leaving it with **‹** before then loses it.
+
+**Using it:** in Photos, select one or more photos or screenshots, tap **Share**, and tap **Move to Polyglot**. The first time, it's at the very bottom of the share sheet: tap **Edit Actions…** and the green **+** next to it to move it into your favourites at the top. Choose the language, and confirm when iOS asks to delete the photos. They stay in **Recently Deleted** for 30 days, and if saving fails the shortcut stops before deleting anything. The first run also asks for permission to use Files and Photos.
+
+Files keep their Photos names (e.g. `IMG_4521.HEIC`, `IMG_4522.PNG`), which sort in the order taken, so page photos stay in page order for **Choose documents**. iPhone and iPad number their pictures separately, so if both save into the same folder their files can interleave out of order.
+
+**Tips**
+
+- **Screenshots** are PNG and can be larger than the 4 MB limit on an iPad. If one is too big, add **Convert Image** (to JPEG) before saving, or take the screenshot straight to Files: tap its thumbnail → **Done** → **Save to Files**.
+- **Printed pages** can also go straight to iCloud Drive without touching Photos: in Files, **⋯** → **Scan Documents** saves a PDF.
+- **Voice memos** never go into Photos: in Voice Memos, **⋯** → **Share** → **Save to Files**.
 
 ---
 
